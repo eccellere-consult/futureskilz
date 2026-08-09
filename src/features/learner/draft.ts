@@ -12,6 +12,13 @@ export type LearnerSnapshot = {
   draft: LearnerDraft;
   answers?: AssessmentAnswers;
   scores?: PillarScore[];
+  completedSkillShots?: string[];
+  evidence?: Array<{
+    skillShotSlug: string;
+    pillarId: PillarScore["id"];
+    scoreDelta: number;
+    createdAt: string;
+  }>;
 };
 
 export const emptyLearnerDraft: LearnerDraft = {

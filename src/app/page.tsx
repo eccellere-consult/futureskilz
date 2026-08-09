@@ -1,6 +1,8 @@
 import { SiteHeader } from "@/components/site-header";
 import { OnboardingFlow } from "@/features/learner/onboarding-flow";
 
+export const dynamic = "force-dynamic";
+
 export default function Home() {
   return (
     <main className="min-h-screen bg-cream text-ink">

@@ -94,10 +94,26 @@ export default function ProfilePage() {
             </div>
             <div className="mt-7">
               <p className="text-xs leading-5 text-cream/65">Next up</p>
-              <p className="mt-1 text-sm">Your personalised journey is being built in the next Phase 1 slice.</p>
+              <p className="mt-1 text-sm">Your first two Skill Shots are ready.</p>
+              <Link className="primary-button mt-5" href="/journey">Open my journey <ArrowRight size={17} /></Link>
             </div>
           </aside>
         </div>
+
+        {snapshot.evidence?.length ? (
+          <section className="mt-16 border-t border-border pt-10" aria-labelledby="evidence-heading">
+            <p className="font-mono text-[10px] uppercase text-teal">Visible progress</p>
+            <h2 className="mt-3 font-serif text-3xl" id="evidence-heading">Evidence earned</h2>
+            <div className="mt-6 divide-y divide-border border-y border-border">
+              {snapshot.evidence.map((evidence) => (
+                <div className="grid gap-2 py-4 sm:grid-cols-[1fr_auto]" key={`${evidence.skillShotSlug}-${evidence.createdAt}`}>
+                  <p className="text-sm font-medium">Completed {evidence.skillShotSlug.replaceAll("-", " ")}</p>
+                  <p className="font-mono text-xs text-teal">+{evidence.scoreDelta} · {evidence.pillarId.replaceAll("-", " ")}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {snapshot.draft.goal ? (
           <section className="mt-16 border-l-2 border-gold pl-5 sm:pl-8">
