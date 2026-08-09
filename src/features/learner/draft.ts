@@ -1,11 +1,25 @@
 import type { AssessmentAnswers, PillarScore } from "@/features/assessment/model";
+import type {
+  ChallengeId,
+  FocusId,
+  HorizonId,
+  ResponsibilityLevel,
+  SkillFamilyId,
+  WeeklyMinutes,
+} from "./discovery-model";
 
 export type LearnerDraft = {
   name: string;
   currentRole: string;
-  focus: "career" | "leadership" | "business" | "ai";
+  responsibilityLevel: ResponsibilityLevel | "";
+  focus: FocusId | "";
+  horizon: HorizonId | "";
+  priorityFamilies: SkillFamilyId[];
+  prioritySkills: string[];
+  challengeType: ChallengeId | "";
   challenge: string;
   goal: string;
+  weeklyMinutes: WeeklyMinutes | 0;
 };
 
 export type LearnerSnapshot = {
@@ -24,9 +38,15 @@ export type LearnerSnapshot = {
 export const emptyLearnerDraft: LearnerDraft = {
   name: "",
   currentRole: "",
-  focus: "career",
+  responsibilityLevel: "",
+  focus: "",
+  horizon: "",
+  priorityFamilies: [],
+  prioritySkills: [],
+  challengeType: "",
   challenge: "",
   goal: "",
+  weeklyMinutes: 0,
 };
 
 const storageKey = "futureskilz.learner-draft.v1";

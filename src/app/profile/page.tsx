@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { SiteHeader } from "@/components/site-header";
+import { skillTaxonomy } from "@/domain/skills/taxonomy";
 import { findPriorityPillars } from "@/features/assessment/model";
 import { loadLearnerSnapshot, type LearnerSnapshot } from "@/features/learner/draft";
 
@@ -111,6 +112,30 @@ export default function ProfilePage() {
                   <p className="font-mono text-xs text-teal">+{evidence.scoreDelta} · {evidence.pillarId.replaceAll("-", " ")}</p>
                 </div>
               ))}
+            </div>
+          </section>
+        ) : null}
+
+        {snapshot.draft.prioritySkills.length ? (
+          <section className="mt-16 border-t border-border pt-10" aria-labelledby="direction-heading">
+            <div className="grid gap-8 lg:grid-cols-[16rem_1fr]">
+              <div>
+                <p className="font-mono text-[10px] uppercase text-gold">Discovery direction</p>
+                <h2 className="mt-3 font-serif text-3xl" id="direction-heading">What you asked us to explore.</h2>
+                <p className="mt-3 text-xs leading-5 text-ink-light">Self-reported priorities guide the diagnosis; they do not prove proficiency.</p>
+              </div>
+              <div className="border-y border-border py-2">
+                {skillTaxonomy.filter(({ slug }) => snapshot.draft.prioritySkills.includes(slug)).map((skill) => (
+                  <div className="grid gap-2 border-b border-border py-3 last:border-b-0 sm:grid-cols-[1fr_auto]" key={skill.slug}>
+                    <p className="text-sm font-medium">{skill.name}</p>
+                    <p className="font-mono text-[10px] uppercase text-ink-light">{skill.category}</p>
+                  </div>
+                ))}
+                <div className="flex flex-wrap gap-x-8 gap-y-2 border-t border-gold/40 py-4 text-xs text-ink-mid">
+                  <p><span className="text-ink-light">Timeframe:</span> {snapshot.draft.horizon.replaceAll("-", " ")}</p>
+                  <p><span className="text-ink-light">Weekly rhythm:</span> {snapshot.draft.weeklyMinutes} minutes</p>
+                </div>
+              </div>
             </div>
           </section>
         ) : null}

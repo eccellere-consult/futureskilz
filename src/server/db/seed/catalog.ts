@@ -1,3 +1,5 @@
+import { skillTaxonomy, slugifySkill } from "../../../domain/skills/taxonomy";
+
 export type SeedSkill = {
   name: string;
   slug: string;
@@ -20,43 +22,12 @@ export type SeedSkillRelationship = {
   weight: number;
 };
 
-const skillsByCategory = {
-  "Human Intelligence": [
-    "Analytical thinking", "Critical thinking", "Creative thinking", "Strategic thinking", "Systems thinking",
-    "Problem solving", "Decision making", "Judgment", "Curiosity", "Learning agility",
-  ],
-  "Human-to-Human Intelligence": [
-    "Communication", "Executive communication", "Collaboration", "Leadership", "Influence", "Negotiation",
-    "Empathy", "Active listening", "Conflict management", "Coaching", "Stakeholder management",
-  ],
-  "Self Intelligence": [
-    "Self-awareness", "Resilience", "Adaptability", "Growth mindset", "Motivation", "Emotional regulation",
-    "Personal effectiveness", "Executive presence",
-  ],
-  "AI Intelligence": [
-    "AI literacy", "Generative AI", "Prompting", "AI collaboration", "AI-assisted research",
-    "AI-assisted analysis", "AI-assisted decision making", "Agentic AI", "AI ethics", "AI governance",
-  ],
-  "Digital Intelligence": [
-    "Data literacy", "Digital literacy", "Technology literacy", "Cybersecurity awareness", "Automation",
-  ],
-  "Functional Intelligence": [
-    "Strategy", "Finance", "Marketing", "Operations", "Product management", "Project management",
-  ],
-} as const;
-
-function slugify(value: string): string {
-  return value.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-").replaceAll(/(^-|-$)/g, "");
-}
-
-export const seedSkills: SeedSkill[] = Object.entries(skillsByCategory).flatMap(([category, names]) =>
-  names.map((name) => ({
-    name,
-    slug: slugify(name),
-    category,
-    description: `${name} applied as an observable, evidence-backed workplace capability.`,
-  })),
-);
+export const seedSkills: SeedSkill[] = skillTaxonomy.map(({ name, slug, category }) => ({
+  name,
+  slug,
+  category,
+  description: `${name} applied as an observable, evidence-backed workplace capability.`,
+}));
 
 function role(
   title: string,
@@ -65,7 +36,7 @@ function role(
 ): SeedRole {
   return {
     title,
-    slug: slugify(title),
+    slug: slugifySkill(title),
     function: functionName,
     description: `${title} capability profile for future-ready work in the AI age.`,
     requiredSkills: skillTargets.map(([skillSlug, targetLevel]) => ({ skillSlug, targetLevel })),
