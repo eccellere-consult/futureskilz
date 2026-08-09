@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 export type SessionTokenPayload = {
   sessionId: string;
@@ -54,4 +54,8 @@ export function verifySessionToken(
 
 export function createOpaqueSessionId(): string {
   return randomBytes(32).toString("base64url");
+}
+
+export function hashSessionToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
 }
