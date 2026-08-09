@@ -100,7 +100,7 @@ export function SkillShotExperience({ skillShot }: { skillShot: SkillShot }) {
           </section>
         </article>
 
-        <aside className="h-fit border-t-2 border-gold bg-purple p-6 text-cream lg:sticky lg:top-8">
+        <aside className="h-fit border-t-2 border-gold bg-ink p-6 text-cream lg:sticky lg:top-8">
           <Clock3 className="text-gold-light" size={21} />
           <p className="mt-4 font-mono text-[10px] uppercase text-gold-light">Time to complete</p>
           <p className="mt-2 font-serif text-3xl">{skillShot.durationMinutes} minutes</p>

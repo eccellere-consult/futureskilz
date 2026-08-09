@@ -77,7 +77,7 @@ export default function ProfilePage() {
             </div>
           </section>
 
-          <aside className="border-t-2 border-gold bg-purple p-6 text-cream sm:p-8">
+          <aside className="border-t-2 border-gold bg-ink p-6 text-cream sm:p-8">
             <Sparkles aria-hidden="true" className="text-gold-light" size={24} />
             <p className="mt-6 font-mono text-[10px] uppercase text-gold-light">Your priority gaps</p>
             <h2 className="mt-3 font-serif text-3xl leading-tight">Start where progress will compound.</h2>

@@ -36,14 +36,14 @@ export default function JourneyPage() {
     <main className="min-h-screen bg-cream text-ink">
       <SiteHeader step="Journey · 04" />
       <div className="mx-auto w-full max-w-7xl px-5 py-12 sm:px-8 sm:py-18 lg:py-24">
-        <div className="grid gap-10 border-b border-border pb-12 lg:grid-cols-[1fr_22rem] lg:items-end">
+        <div className="grid gap-10 border-t-2 border-gold bg-ink px-6 py-8 text-cream sm:p-10 lg:grid-cols-[1fr_22rem] lg:items-end">
           <div>
-            <div className="flex items-center gap-3 text-gold"><Route size={20} /><span className="font-mono text-[11px] uppercase">Your first learning route</span></div>
+            <div className="flex items-center gap-3 text-gold-light"><Route size={20} /><span className="font-mono text-[11px] uppercase">Your first learning route</span></div>
             <h1 className="mt-5 max-w-4xl font-serif text-5xl leading-none font-light sm:text-6xl">Two focused moves, built around your gaps.</h1>
           </div>
           <div className="border-l-2 border-gold pl-5">
-            <p className="font-mono text-[10px] uppercase text-ink-light">Goal</p>
-            <p className="mt-2 text-sm leading-6 text-ink-mid">{snapshot.draft.goal || "Build practical future-ready capability."}</p>
+            <p className="font-mono text-[10px] uppercase text-gold-light">Goal</p>
+            <p className="mt-2 text-sm leading-6 text-cream/65">{snapshot.draft.goal || "Build practical future-ready capability."}</p>
           </div>
         </div>
 

@@ -41,16 +41,16 @@ export default function AssessmentPage() {
     <main className="min-h-screen bg-cream text-ink">
       <SiteHeader step="Assess · 02" />
       <div className="mx-auto grid w-full max-w-7xl gap-10 px-5 py-12 sm:px-8 sm:py-18 lg:grid-cols-[18rem_minmax(0,1fr)] lg:gap-20 lg:py-24">
-        <aside>
-          <p className="font-mono text-[11px] uppercase text-gold">Capability snapshot</p>
-          <h1 className="mt-4 font-serif text-4xl leading-none font-light sm:text-5xl">How you work, not what you know.</h1>
-          <p className="mt-5 text-sm leading-6 text-ink-mid">
+        <aside className="border-t-2 border-gold bg-ink p-6 text-cream sm:p-8 lg:self-start">
+          <p className="font-mono text-[11px] uppercase text-gold-light">Capability snapshot</p>
+          <h1 className="mt-4 font-serif text-4xl leading-none font-light text-cream sm:text-5xl">How you work, not what you know.</h1>
+          <p className="mt-5 text-sm leading-6 text-cream/65">
             Choose the response that sounds most like you today. There are no perfect answers.
           </p>
           <ol className="mt-8 hidden space-y-3 lg:block">
             {pillars.map((item, index) => (
-              <li className={`flex items-center gap-3 text-sm ${index === questionIndex ? "font-semibold text-teal" : index < questionIndex ? "text-ink" : "text-ink-light"}`} key={item.id}>
-                <span className={`h-2 w-2 ${index <= questionIndex ? "bg-gold" : "bg-border"}`} />
+              <li className={`flex items-center gap-3 text-sm ${index === questionIndex ? "font-semibold text-gold-light" : index < questionIndex ? "text-cream" : "text-cream/45"}`} key={item.id}>
+                <span className={`h-2 w-2 ${index <= questionIndex ? "bg-gold" : "bg-cream/20"}`} />
                 {item.shortName}
               </li>
             ))}

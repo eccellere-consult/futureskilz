@@ -51,15 +51,15 @@ export function OnboardingFlow() {
 
   return (
     <div className="grid gap-12 lg:grid-cols-[minmax(0,0.8fr)_minmax(28rem,1.2fr)] lg:gap-20">
-      <div className="lg:pt-8">
-        <p className="font-mono text-[11px] uppercase text-gold">Meet Arya, your learning guide</p>
-        <h1 className="mt-5 max-w-xl font-serif text-5xl leading-none font-light text-ink sm:text-6xl">
+      <div className="border-t-2 border-gold bg-ink px-6 py-8 text-cream sm:p-10 lg:p-12">
+        <p className="font-mono text-[11px] uppercase text-gold-light">Meet Arya, your learning guide</p>
+        <h1 className="mt-5 max-w-xl font-serif text-5xl leading-none font-light text-cream sm:text-6xl">
           Start with where you are now.
         </h1>
-        <p className="mt-6 max-w-lg text-base leading-7 text-ink-mid">
+        <p className="mt-6 max-w-lg text-base leading-7 text-cream/65">
           Five short prompts shape your first capability snapshot. No generic course catalogue, just a useful next step.
         </p>
-        <div className="mt-10 flex items-center gap-3 text-sm text-teal">
+        <div className="mt-10 flex items-center gap-3 text-sm text-gold-light">
           <Check aria-hidden="true" size={18} />
           About four minutes
         </div>
