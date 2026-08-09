@@ -22,11 +22,11 @@ export type SeedSkillRelationship = {
   weight: number;
 };
 
-export const seedSkills: SeedSkill[] = skillTaxonomy.map(({ name, slug, category }) => ({
+export const seedSkills: SeedSkill[] = skillTaxonomy.map(({ name, slug, category, definition, observableBehavior }) => ({
   name,
   slug,
   category,
-  description: `${name} applied as an observable, evidence-backed workplace capability.`,
+  description: `${definition} Observable signal: ${observableBehavior}`,
 }));
 
 function role(

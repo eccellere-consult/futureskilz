@@ -127,6 +127,19 @@ export function OnboardingFlow() {
                 ))}
               </div>
               <SelectionHint count={draft.prioritySkills.length} maximum={6} noun="skills" />
+              {draft.prioritySkills.length ? (
+                <div className="mt-7 border-t border-gold/40 pt-5">
+                  <p className="font-mono text-[10px] uppercase text-ink-light">In plain language</p>
+                  <div className="mt-3 space-y-4">
+                    {availableSkills.filter(({ slug }) => draft.prioritySkills.includes(slug)).map((skill) => (
+                      <div className="border-l-2 border-gold pl-4" key={skill.slug}>
+                        <p className="text-sm font-semibold">{skill.name}</p>
+                        <p className="mt-1 text-xs leading-5 text-ink-light">{skill.definition}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </Question>
           ) : null}
           {step === 5 ? (

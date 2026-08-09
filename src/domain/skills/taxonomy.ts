@@ -1,3 +1,5 @@
+import { capabilityDetails } from "./capability-details";
+
 export const skillFamilies = [
   {
     id: "human-intelligence",
@@ -66,12 +68,12 @@ export function slugifySkill(value: string): string {
 }
 
 export const skillTaxonomy = skillFamilies.flatMap((family) =>
-  family.skills.map((name) => ({
-    name,
-    slug: slugifySkill(name),
-    familyId: family.id,
-    category: family.category,
-  })),
+  family.skills.map((name) => {
+    const slug = slugifySkill(name);
+    const detail = capabilityDetails[slug];
+    if (!detail) throw new Error(`Capability detail is missing for ${slug}.`);
+    return { name, slug, familyId: family.id, category: family.category, ...detail };
+  }),
 );
 
 export type SkillTaxonomyItem = (typeof skillTaxonomy)[number];

@@ -126,8 +126,12 @@ export default function ProfilePage() {
               </div>
               <div className="border-y border-border py-2">
                 {skillTaxonomy.filter(({ slug }) => snapshot.draft.prioritySkills.includes(slug)).map((skill) => (
-                  <div className="grid gap-2 border-b border-border py-3 last:border-b-0 sm:grid-cols-[1fr_auto]" key={skill.slug}>
-                    <p className="text-sm font-medium">{skill.name}</p>
+                  <div className="grid gap-2 border-b border-border py-4 last:border-b-0 sm:grid-cols-[1fr_auto]" key={skill.slug}>
+                    <div>
+                      <p className="text-sm font-medium">{skill.name}</p>
+                      <p className="mt-1 max-w-3xl text-xs leading-5 text-ink-light">{skill.definition}</p>
+                      <p className="mt-2 text-xs leading-5 text-ink-mid"><span className="font-medium">Look for:</span> {skill.observableBehavior}</p>
+                    </div>
                     <p className="font-mono text-[10px] uppercase text-ink-light">{skill.category}</p>
                   </div>
                 ))}
