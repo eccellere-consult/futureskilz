@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+:root {
+  --ec-ink: #0e0e0d;
+  --ec-gold: #b8913a;
+  --ec-gold-light: #d4ae6a;
+  --ec-gold-pale: #f5edd8;
+  --ec-cream: #faf8f4;
+  --ec-surface: #fefcf8;
+  --ec-purple: #1a1428;
+  --ec-ink-mid: #3a3935;
+  --ec-ink-light: #7a7870;
+  --ec-teal: #0f6e56;
+  --ec-crimson: #ef4444;
+  --ec-slate-blue: #3b82f6;
+  --ec-border: #e5e0d6;
+  --background: var(--ec-cream);
+  --foreground: var(--ec-ink);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-ink: var(--ec-ink);
+  --color-gold: var(--ec-gold);
+  --color-gold-light: var(--ec-gold-light);
+  --color-gold-pale: var(--ec-gold-pale);
+  --color-cream: var(--ec-cream);
+  --color-surface: var(--ec-surface);
+  --color-purple: var(--ec-purple);
+  --color-ink-mid: var(--ec-ink-mid);
+  --color-ink-light: var(--ec-ink-light);
+  --color-teal: var(--ec-teal);
+  --color-crimson: var(--ec-crimson);
+  --color-slate-blue: var(--ec-slate-blue);
+  --color-border: var(--ec-border);
+  --font-sans: var(--font-dm-sans);
+  --font-serif: var(--font-cormorant);
+  --font-mono: var(--font-jetbrains-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: var(--ec-purple);
+    --foreground: var(--ec-cream);
+  }
+}
+
+* {
+  border-color: var(--ec-border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-dm-sans), sans-serif;
+  letter-spacing: 0;
+}
+
+::selection {
+  background: var(--ec-gold-pale);
+  color: var(--ec-ink);
+}

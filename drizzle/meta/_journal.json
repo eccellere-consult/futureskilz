@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1786262965733,
+      "tag": "0000_blue_celestials",
+      "breakpoints": true
+    }
+  ]
+}
