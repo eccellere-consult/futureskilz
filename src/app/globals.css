@@ -39,13 +39,6 @@
   --font-mono: var(--font-jetbrains-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: var(--ec-purple);
-    --foreground: var(--ec-cream);
-  }
-}
-
 * {
   border-color: var(--ec-border);
 }
@@ -60,4 +53,80 @@ body {
 ::selection {
   background: var(--ec-gold-pale);
   color: var(--ec-ink);
+}
+
+button,
+input,
+textarea {
+  letter-spacing: 0;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--ec-teal);
+  outline-offset: 3px;
+}
+
+@layer components {
+  .field-input {
+    width: 100%;
+    border: 0;
+    border-bottom: 2px solid var(--ec-border);
+    background: transparent;
+    padding: 0.9rem 0;
+    color: var(--ec-ink);
+    font-size: 1rem;
+    line-height: 1.6;
+    transition: border-color 160ms ease;
+  }
+
+  .field-input:focus {
+    border-color: var(--ec-gold);
+    outline: none;
+  }
+
+  .field-input::placeholder {
+    color: var(--ec-ink-light);
+  }
+
+  .primary-button {
+    display: inline-flex;
+    min-height: 3rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem;
+    background: var(--ec-gold);
+    padding: 0.75rem 1.25rem;
+    color: var(--ec-ink);
+    font-size: 0.875rem;
+    font-weight: 700;
+    transition: background-color 160ms ease, opacity 160ms ease;
+  }
+
+  .primary-button:hover:not(:disabled) {
+    background: var(--ec-gold-light);
+  }
+
+  .primary-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+
+  .icon-button {
+    display: inline-flex;
+    width: 3rem;
+    height: 3rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--ec-border);
+    background: var(--ec-cream);
+    color: var(--ec-ink);
+  }
+
+  .icon-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.3;
+  }
 }
