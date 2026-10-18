@@ -50,6 +50,22 @@ Set production environment variables in hPanel, never in Git. Use `.env.example`
 
 Pushes to `main` trigger Hostinger rebuilds. Use hPanel Restart for runtime-only restarts. Do not upload `.next` manually.
 
+## Accounts and saved progress
+
+Learners start as guests; their answers live in the browser until they save. "Keep this profile" (or `/sign-in`) emails a single-use sign-in link that expires in 15 minutes. The guest snapshot travels with the link, so progress is imported on whichever device opens it. Sessions last 90 days and renew silently.
+
+- The link token sits in the URL fragment (`#token=`), which browsers never send to a server, and is posted once from `/auth/verify`.
+- Rate limits: 3 links per email per 15 minutes, 10 requests per network per hour.
+- Scores are stored once, as 0–5 levels in `learner_skills`; the 0–100 pillar scores are a display projection. Check-ins are re-checked on the server before any evidence is recorded.
+- Catalog rows that learner data points to (Skill Graph, Skill Shots, the baseline assessment) are upserted on first use (`src/server/learning/catalog.ts`), because Hostinger has no shell for `npm run db:seed`.
+- Every database connection runs in UTC (`src/lib/mysql.ts`). Drizzle reads and writes dates as UTC, so any other session time zone shifts expiry checks.
+- JSON columns use `jsonColumn` from `src/server/db/schema/columns.ts`: MariaDB stores JSON as text, which Drizzle's own `json()` never parses back.
+
+### Email in production
+
+1. hPanel → Emails → create a mailbox such as `hello@futureskilz.in`.
+2. Set `NOTIFICATION_PROVIDER=smtp`, `SMTP_USER` (the full address), `SMTP_PASSWORD`, `EMAIL_FROM` and `APP_URL=https://futureskilz.in` in hPanel's environment variables.
+
 ## Hostinger constraints
 
 - Managed Web/Cloud provides MariaDB only; PostgreSQL and pgvector require VPS or an external provider.

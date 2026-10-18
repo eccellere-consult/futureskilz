@@ -27,6 +27,13 @@ export function getMysqlPool(): Pool {
     queueLimit: 0,
     enableKeepAlive: true,
     charset: "utf8mb4",
+    timezone: "Z",
+  });
+
+  // Drizzle reads and writes dates as UTC, so the database session must use UTC too.
+  // Otherwise CURRENT_TIMESTAMP defaults and expiry checks drift by the server's offset.
+  pool.on("connection", (connection) => {
+    connection.query("SET time_zone = '+00:00'");
   });
 
   if (process.env.NODE_ENV !== "production") {

@@ -5,17 +5,15 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { SiteHeader } from "@/components/site-header";
-import {
-  pillars,
-  scoreAssessment,
-  type AssessmentAnswers,
-} from "@/features/assessment/model";
-import { loadLearnerSnapshot, saveLearnerSnapshot } from "@/features/learner/draft";
+import { pillars, type AssessmentAnswers } from "@/features/assessment/model";
+import { saveAssessment } from "@/features/learner/store";
 
 export default function AssessmentPage() {
   const router = useRouter();
   const [questionIndex, setQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<AssessmentAnswers>({});
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const pillar = pillars[questionIndex];
   const selectedAnswer = answers[pillar.id];
 
@@ -23,18 +21,23 @@ export default function AssessmentPage() {
     setAnswers((current) => ({ ...current, [pillar.id]: answer }));
   }
 
-  function continueAssessment() {
-    if (selectedAnswer === undefined) return;
+  async function continueAssessment() {
+    if (selectedAnswer === undefined || saving) return;
 
     if (questionIndex < pillars.length - 1) {
       setQuestionIndex((current) => current + 1);
       return;
     }
 
-    const scores = scoreAssessment(answers);
-    const snapshot = loadLearnerSnapshot();
-    saveLearnerSnapshot({ ...snapshot, answers, scores });
-    router.push("/profile");
+    setSaving(true);
+    setError(null);
+    try {
+      await saveAssessment(answers);
+      router.push("/profile");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Your answers could not be saved.");
+      setSaving(false);
+    }
   }
 
   return (
@@ -93,11 +96,12 @@ export default function AssessmentPage() {
             >
               <ArrowLeft aria-hidden="true" size={19} />
             </button>
-            <button className="primary-button" disabled={selectedAnswer === undefined} onClick={continueAssessment} type="button">
-              {questionIndex === pillars.length - 1 ? "See my snapshot" : "Next question"}
+            <button className="primary-button" disabled={selectedAnswer === undefined || saving} onClick={() => void continueAssessment()} type="button">
+              {questionIndex === pillars.length - 1 ? (saving ? "Building your snapshot…" : "See my snapshot") : "Next question"}
               <ArrowRight aria-hidden="true" size={18} />
             </button>
           </div>
+          {error ? <p className="mt-3 text-right text-xs text-crimson" role="alert">{error}</p> : null}
         </section>
       </div>
     </main>

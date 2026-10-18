@@ -4,43 +4,33 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Clock3 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
-import { applyEvidence, type SkillShot } from "./model";
-import { loadLearnerSnapshot, saveLearnerSnapshot } from "../learner/draft";
+import type { SkillShot } from "./model";
+import { completeSkillShot } from "../learner/store";
 
 export function SkillShotExperience({ skillShot }: { skillShot: SkillShot }) {
   const [practice, setPractice] = useState("");
   const [answer, setAnswer] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [evidenceAdded, setEvidenceAdded] = useState(false);
-  const correct = answer === skillShot.checkIn.correctIndex;
+  const [correct, setCorrect] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function checkAnswer() {
-    if (answer === null) return;
-    setSubmitted(true);
-
-    if (!correct) return;
-
-    const snapshot = loadLearnerSnapshot();
-    if (!snapshot.scores || snapshot.completedSkillShots?.includes(skillShot.slug)) {
-      setEvidenceAdded(false);
-      return;
+  async function checkAnswer() {
+    if (answer === null || checking) return;
+    setChecking(true);
+    setError(null);
+    try {
+      // Signed in, the server checks the answer and records the evidence; as a guest, the browser does.
+      const outcome = await completeSkillShot(skillShot.slug, practice, answer);
+      setCorrect(outcome.correct);
+      setEvidenceAdded(outcome.evidenceAdded);
+      setSubmitted(true);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Your answer could not be saved.");
+    } finally {
+      setChecking(false);
     }
-
-    saveLearnerSnapshot({
-      ...snapshot,
-      scores: applyEvidence(snapshot.scores, skillShot.pillarId),
-      completedSkillShots: [...(snapshot.completedSkillShots ?? []), skillShot.slug],
-      evidence: [
-        ...(snapshot.evidence ?? []),
-        {
-          skillShotSlug: skillShot.slug,
-          pillarId: skillShot.pillarId,
-          scoreDelta: 10,
-          createdAt: new Date().toISOString(),
-        },
-      ],
-    });
-    setEvidenceAdded(true);
   }
 
   return (
@@ -90,11 +80,12 @@ export function SkillShotExperience({ skillShot }: { skillShot: SkillShot }) {
                   : "Not quite. Revisit the technique and try once more."}
               </p>
             ) : null}
+            {error ? <p className="mt-5 text-sm text-crimson" role="alert">{error}</p> : null}
             <div className="mt-6 flex justify-end">
               {submitted && correct ? (
                 <Link className="primary-button" href="/profile">See updated profile <ArrowRight size={17} /></Link>
               ) : (
-                <button className="primary-button" disabled={answer === null || practice.trim().length < 8} onClick={checkAnswer} type="button">Check my answer <ArrowRight size={17} /></button>
+                <button className="primary-button" disabled={answer === null || practice.trim().length < 8 || checking} onClick={() => void checkAnswer()} type="button">{checking ? "Checking…" : "Check my answer"} <ArrowRight size={17} /></button>
               )}
             </div>
           </section>

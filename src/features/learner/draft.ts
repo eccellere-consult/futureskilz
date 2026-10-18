@@ -33,6 +33,19 @@ export type LearnerSnapshot = {
     scoreDelta: number;
     createdAt: string;
   }>;
+  /** Practice text and check-in answers, kept so the server can verify and import them. */
+  skillShotResults?: Array<{
+    slug: string;
+    practice: string;
+    checkInAnswer: number;
+    completedAt: string;
+  }>;
+  /** Present when the snapshot was loaded from the learner's account. */
+  account?: {
+    displayName: string;
+    welcomeSummary: string | null;
+    welcomeSummarySource: "ai" | "template" | null;
+  };
 };
 
 export const emptyLearnerDraft: LearnerDraft = {
@@ -72,4 +85,7 @@ export function loadLearnerSnapshot(): LearnerSnapshot {
 
 export function saveLearnerSnapshot(snapshot: LearnerSnapshot): void {
   window.localStorage.setItem(storageKey, JSON.stringify(snapshot));
+}
+export function clearLearnerSnapshot(): void {
+  window.localStorage.removeItem(storageKey);
 }

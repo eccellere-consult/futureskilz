@@ -1,8 +1,9 @@
 "use client";
 
 import { ArrowLeft, ArrowRight, Check, MessageCircle, Sparkles } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   availableDiscoverySkills,
@@ -14,7 +15,8 @@ import {
   toggleSelection,
   weeklyOptions,
 } from "./discovery-model";
-import { emptyLearnerDraft, saveLearnerSnapshot, type LearnerDraft } from "./draft";
+import { emptyLearnerDraft, type LearnerDraft } from "./draft";
+import { loadLearnerState, saveDraft, type SessionUser } from "./store";
 
 const steps = ["Hello", "Work", "Direction", "Capabilities", "Skills", "Situation", "Outcome", "Rhythm", "Review"] as const;
 const guideMessages = [
@@ -33,6 +35,24 @@ export function OnboardingFlow() {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<LearnerDraft>(emptyLearnerDraft);
+  const [account, setAccount] = useState<{ user: SessionUser; hasProfile: boolean } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    // A signed-in learner edits their saved answers instead of starting from a blank page.
+    void loadLearnerState()
+      .then(({ snapshot, user }) => {
+        if (!active || !user) return;
+        setAccount({ user, hasProfile: Boolean(snapshot.scores) });
+        if (snapshot.draft.goal) setDraft(snapshot.draft);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
   const availableSkills = availableDiscoverySkills(draft.priorityFamilies);
   const canContinue = [
     draft.name.trim().length >= 2,
@@ -58,10 +78,21 @@ export function OnboardingFlow() {
     });
   }
 
-  function continueFlow() {
-    if (!canContinue) return;
-    saveLearnerSnapshot({ draft });
-    if (step === steps.length - 1) {
+  async function continueFlow() {
+    if (!canContinue || saving) return;
+    const isLastStep = step === steps.length - 1;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      // Signed-in answers are saved on the last step; guests keep a browser copy at every step.
+      if (!account || isLastStep) await saveDraft(draft);
+    } catch (caught) {
+      setSaveError(caught instanceof Error ? caught.message : "Your answers could not be saved.");
+      setSaving(false);
+      return;
+    }
+    setSaving(false);
+    if (isLastStep) {
       router.push("/assessment");
       return;
     }
@@ -85,11 +116,17 @@ export function OnboardingFlow() {
       </aside>
 
       <section aria-labelledby="onboarding-question" className="border-t-2 border-gold bg-surface px-5 py-8 shadow-[0_18px_48px_rgba(14,14,13,0.08)] sm:px-10 sm:py-10">
+        {account?.hasProfile ? (
+          <div className="mb-8 flex flex-wrap items-center justify-between gap-3 border-l-2 border-teal bg-cream px-4 py-3 text-sm text-ink-mid">
+            <p>Welcome back, {account.user.displayName}. Changing these answers updates your saved profile.</p>
+            <Link className="inline-flex items-center gap-1 font-semibold text-teal underline-offset-4 hover:underline" href="/journey">Go to my journey <ArrowRight aria-hidden="true" size={15} /></Link>
+          </div>
+        ) : null}
         <Progress step={step} />
         <div className="mt-10 min-h-[26rem]">
           {step === 0 ? (
             <Question title="Hi, I’m Arya. What should I call you?" subtitle="I’ll use your answers to form a working hypothesis, not a permanent label.">
-              <input autoFocus className="field-input" onChange={(event) => updateDraft("name", event.target.value)} onKeyDown={(event) => event.key === "Enter" && continueFlow()} placeholder="Your first name" value={draft.name} />
+              <input autoFocus className="field-input" onChange={(event) => updateDraft("name", event.target.value)} onKeyDown={(event) => event.key === "Enter" && void continueFlow()} placeholder="Your first name" value={draft.name} />
             </Question>
           ) : null}
           {step === 1 ? (
@@ -162,8 +199,9 @@ export function OnboardingFlow() {
         </div>
         <div className="mt-8 flex items-center justify-between border-t border-border pt-6">
           <button aria-label="Previous question" className="icon-button" disabled={step === 0} onClick={() => setStep((current) => Math.max(0, current - 1))} title="Previous question" type="button"><ArrowLeft aria-hidden="true" size={19} /></button>
-          <button className="primary-button" disabled={!canContinue} onClick={continueFlow} type="button">{step === 8 ? "Test my baseline" : step === 7 ? "Review my direction" : "Continue"}<ArrowRight aria-hidden="true" size={18} /></button>
+          <button className="primary-button" disabled={!canContinue || saving} onClick={() => void continueFlow()} type="button">{step === 8 ? "Test my baseline" : step === 7 ? "Review my direction" : "Continue"}<ArrowRight aria-hidden="true" size={18} /></button>
         </div>
+        {saveError ? <p className="mt-3 text-right text-xs text-crimson" role="alert">{saveError}</p> : null}
       </section>
     </div>
   );
