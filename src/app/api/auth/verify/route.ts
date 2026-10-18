@@ -7,6 +7,7 @@ import { completeSignIn } from "@/server/auth/magic-link";
 import { DatabaseMagicLinkRepository } from "@/server/auth/magic-link-repository";
 import { sessionCookieName, sessionCookieOptions } from "@/server/auth/session-cookie";
 import { createDatabase } from "@/server/db/client";
+import { ensureDatabaseSchema } from "@/server/db/ensure-schema";
 import { getServerEnvironment } from "@/server/env";
 import { isSameOrigin, readJson } from "@/server/http/request";
 import { learnerRepository, noStore, refreshWelcomeSummary } from "@/server/learning/service";
@@ -24,6 +25,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "This sign-in link is not valid." }, { status: 400, headers: noStore });
   }
 
+  await ensureDatabaseSchema();
   const signIn = await completeSignIn(
     { repository: new DatabaseMagicLinkRepository(createDatabase()), sessionSecret: secret },
     parsed.data.token,

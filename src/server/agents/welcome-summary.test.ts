@@ -32,11 +32,16 @@ function providerReturning(content: string | Error): AiProvider {
 describe("welcome summary", () => {
   it("follows heard, may mean, uncertain, next and labels estimates honestly", () => {
     const summary = templateWelcomeSummary(input);
-    expect(summary).toContain("What I heard: you work as Operations manager. You want to make faster, better-evidenced decisions.");
+    expect(summary).toContain("What I heard: you work as Operations manager, and you want to make faster, better-evidenced decisions.");
     expect(summary).toContain("Human Skills looks like a strength");
     expect(summary).toContain("Digital Fluency and Critical Thinking offer the quickest gains");
     expect(summary).toContain("self-reported estimates");
     expect(summary).toContain('Next: start with "Use AI to sharpen a decision".');
+  });
+
+  it("leaves out what the learner did not tell us", () => {
+    expect(templateWelcomeSummary({ ...input, currentRole: "" })).toMatch(/^What I heard: you want to make faster/);
+    expect(templateWelcomeSummary({ ...input, currentRole: "", goal: "" })).toMatch(/^What it may mean:/);
   });
 
   it("points to the next Skill Shot the learner has not completed", () => {

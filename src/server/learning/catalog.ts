@@ -5,6 +5,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { pillars, type PillarId } from "@/features/assessment/model";
 import { skillShots as skillShotContent } from "@/features/journey/model";
 import type { Database } from "@/server/db/client";
+import { ensureDatabaseSchema } from "@/server/db/ensure-schema";
 import { assessmentQuestions, assessments, skills, skillShots } from "@/server/db/schema";
 import { seedDatabase } from "@/server/db/seed/seed-database";
 import { seedSkills } from "@/server/db/seed/catalog";
@@ -45,6 +46,7 @@ async function loadSkillIds(database: Database): Promise<Map<string, string>> {
 }
 
 async function buildCatalog(database: Database): Promise<LearningCatalog> {
+  await ensureDatabaseSchema();
   let skillIdBySlug = await loadSkillIds(database);
   if (skillIdBySlug.size < seedSkills.length) {
     await seedDatabase(database);

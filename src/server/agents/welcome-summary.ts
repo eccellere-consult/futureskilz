@@ -48,11 +48,13 @@ export function templateWelcomeSummary(input: WelcomeSummaryInput): string {
   const [first, second] = findPriorityPillars(scores, 2);
   const strongest = [...scores].sort((left, right) => right.score - left.score)[0];
   const next = nextSkillShotTitle(input);
-  const role = input.currentRole ? ` as ${input.currentRole}` : "";
-  const goal = input.goal ? ` You want to ${asClause(input.goal)}.` : "";
+  const heard = [
+    input.currentRole ? `you work as ${input.currentRole}` : null,
+    input.goal ? `you want to ${asClause(input.goal)}` : null,
+  ].filter(Boolean);
 
   return [
-    `What I heard: you work${role}.${goal}`,
+    heard.length ? `What I heard: ${heard.join(", and ")}.` : null,
     strongest && first
       ? `What it may mean: ${strongest.name} looks like a strength to build on, while ${first.name}${second ? ` and ${second.name}` : ""} offer the quickest gains.`
       : null,

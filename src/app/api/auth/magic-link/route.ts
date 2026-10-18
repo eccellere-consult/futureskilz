@@ -6,6 +6,7 @@ import { importableSnapshotSchema } from "@/features/learner/snapshot-schema";
 import { hashRequestIp, requestSignInLink, safeRedirectPath } from "@/server/auth/magic-link";
 import { DatabaseMagicLinkRepository } from "@/server/auth/magic-link-repository";
 import { createDatabase } from "@/server/db/client";
+import { ensureDatabaseSchema } from "@/server/db/ensure-schema";
 import { getServerEnvironment } from "@/server/env";
 import { clientIp, isSameOrigin, readJson } from "@/server/http/request";
 import { noStore } from "@/server/learning/service";
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
   const nextSkillShot = next.startsWith("/skill-shots/") ? getSkillShot(next.slice("/skill-shots/".length)) : undefined;
 
   try {
+    await ensureDatabaseSchema();
     const outcome = await requestSignInLink(
       {
         repository: new DatabaseMagicLinkRepository(createDatabase()),

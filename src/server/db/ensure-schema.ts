@@ -1,0 +1,73 @@
+import "server-only";
+
+import { existsSync } from "node:fs";
+import path from "node:path";
+
+import { drizzle } from "drizzle-orm/mysql2";
+import { migrate } from "drizzle-orm/mysql2/migrator";
+import type { PoolConnection, RowDataPacket } from "mysql2/promise";
+
+import { getMysqlPool } from "@/lib/mysql";
+
+import { additiveColumns, chooseSchemaPlan } from "./schema-plan";
+
+const lockName = "futureskilz_schema";
+let schemaPromise: Promise<void> | undefined;
+
+/**
+ * Hostinger offers no shell, so the site brings its own database up to date on first use
+ * (approved by the owner on 2026-10-18). Every step only adds tables or columns, and a named
+ * lock keeps two processes from racing.
+ */
+export function ensureDatabaseSchema(): Promise<void> {
+  schemaPromise ??= runSchemaSteps().catch((error: unknown) => {
+    schemaPromise = undefined;
+    throw error;
+  });
+  return schemaPromise;
+}
+
+async function tableExists(connection: PoolConnection, table: string): Promise<boolean> {
+  const [rows] = await connection.query<RowDataPacket[]>(
+    "SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ? LIMIT 1",
+    [table],
+  );
+  return rows.length > 0;
+}
+
+async function runSchemaSteps(): Promise<void> {
+  const connection = await getMysqlPool().getConnection();
+  try {
+    const [locked] = await connection.query<RowDataPacket[]>("SELECT GET_LOCK(?, 30) AS acquired", [lockName]);
+    if (Number(locked[0]?.acquired) !== 1) throw new Error("Timed out waiting for the database schema lock.");
+
+    try {
+      const migrationsFolder = path.join(process.cwd(), "drizzle");
+      const plan = chooseSchemaPlan({
+        hasUsersTable: await tableExists(connection, "users"),
+        hasMigrationsFolder: existsSync(path.join(migrationsFolder, "meta", "_journal.json")),
+      });
+
+      if (plan === "migrate") {
+        await migrate(drizzle({ client: connection }), { migrationsFolder });
+        console.info("Database schema is up to date (migrations).");
+        return;
+      }
+
+      for (const { table, column, definition } of additiveColumns) {
+        const [present] = await connection.query<RowDataPacket[]>(
+          "SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ? LIMIT 1",
+          [table, column],
+        );
+        if (present.length === 0) {
+          await connection.query(`ALTER TABLE \`${table}\` ADD \`${column}\` ${definition}`);
+          console.info(`Database schema: added ${table}.${column}.`);
+        }
+      }
+    } finally {
+      await connection.query("SELECT RELEASE_LOCK(?)", [lockName]);
+    }
+  } finally {
+    connection.release();
+  }
+}
