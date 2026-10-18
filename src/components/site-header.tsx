@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { AccountMenu } from "./account-menu";
+
 export function SiteHeader({ step }: { step?: string }) {
   return (
     <header className="border-b border-gold/30 bg-ink text-cream">
@@ -8,12 +10,13 @@ export function SiteHeader({ step }: { step?: string }) {
           FutureSkilz<span className="text-cream">.</span>
         </Link>
         <div className="flex items-center gap-3">
-          <span className="hidden text-sm text-cream/60 sm:inline">Your capability journey</span>
+          <span className="hidden text-sm text-cream/60 lg:inline">Your capability journey</span>
           {step ? (
             <span className="border border-gold/45 px-3 py-1.5 font-mono text-[10px] uppercase text-gold-light">
               {step}
             </span>
           ) : null}
+          <AccountMenu />
         </div>
       </div>
     </header>

@@ -2,20 +2,16 @@
 
 import { ArrowRight, CheckCircle2, Clock3, Route } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 
 import { SiteHeader } from "@/components/site-header";
 import { buildStarterJourney } from "@/features/journey/model";
-import { loadLearnerSnapshot, type LearnerSnapshot } from "@/features/learner/draft";
+import { useLearnerState } from "@/features/learner/use-learner-state";
 
 export default function JourneyPage() {
-  const [snapshot, setSnapshot] = useState<LearnerSnapshot | null>(null);
+  const { state, error } = useLearnerState();
+  const snapshot = state?.snapshot;
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => setSnapshot(loadLearnerSnapshot()), 0);
-    return () => window.clearTimeout(timer);
-  }, []);
-
+  if (error) return <LoadError message={error} />;
   if (!snapshot) return <main className="min-h-screen bg-cream" aria-label="Building your journey" />;
 
   if (!snapshot.scores) {
@@ -76,6 +72,17 @@ export default function JourneyPage() {
             })}
           </div>
         </section>
+      </div>
+    </main>
+  );
+}
+function LoadError({ message }: { message: string }) {
+  return (
+    <main className="min-h-screen bg-cream text-ink">
+      <SiteHeader step="Journey · 04" />
+      <div className="mx-auto max-w-2xl px-5 py-24 text-center sm:px-8">
+        <h1 className="font-serif text-4xl">We couldn’t open your journey.</h1>
+        <p className="mt-4 text-sm text-ink-mid" role="alert">{message}</p>
       </div>
     </main>
   );

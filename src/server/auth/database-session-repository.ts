@@ -1,6 +1,6 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import type { Database } from "@/server/db/client";
 import { userRoles, users, userSessions } from "@/server/db/schema";
@@ -24,7 +24,7 @@ export class DatabaseSessionRepository implements SessionRepository {
       })
       .from(userSessions)
       .innerJoin(users, eq(userSessions.userId, users.id))
-      .where(eq(userSessions.id, sessionId))
+      .where(and(eq(userSessions.id, sessionId), eq(users.status, "active")))
       .limit(1);
 
     if (!record) return null;
@@ -47,6 +47,13 @@ export class DatabaseSessionRepository implements SessionRepository {
         roles: roles.map(({ role }) => role),
       },
     };
+  }
+
+  async extend(sessionId: string, expiresAt: Date, tokenHash: string): Promise<void> {
+    await this.database
+      .update(userSessions)
+      .set({ expiresAt, tokenHash, lastSeenAt: new Date() })
+      .where(eq(userSessions.id, sessionId));
   }
 
   async revoke(sessionId: string, revokedAt: Date): Promise<void> {

@@ -13,7 +13,13 @@ const serverEnvironmentSchema = z.object({
   OPENAI_API_KEY: z.string().min(1).optional(),
   XAI_API_KEY: z.string().min(1).optional(),
   STORAGE_PROVIDER: z.enum(["local"]).default("local"),
-  NOTIFICATION_PROVIDER: z.enum(["console"]).default("console"),
+  NOTIFICATION_PROVIDER: z.enum(["console", "smtp"]).default("console"),
+  SMTP_HOST: z.string().min(1).default("smtp.hostinger.com"),
+  SMTP_PORT: z.coerce.number().int().positive().default(465),
+  SMTP_USER: z.string().min(1).optional(),
+  SMTP_PASSWORD: z.string().min(1).optional(),
+  EMAIL_FROM: z.string().min(3).optional(),
+  APP_URL: z.url().default("http://localhost:3000"),
   SESSION_SECRET: z.string().min(32).optional(),
   MAGIC_LINK_SECRET: z.string().min(32).optional(),
 });
@@ -22,7 +28,13 @@ export type ServerEnvironment = z.infer<typeof serverEnvironmentSchema>;
 
 let cachedEnvironment: ServerEnvironment | undefined;
 
+/** An empty `KEY=` line means "not set", as `.env.example` and hPanel both produce them. */
+export function parseServerEnvironment(source: Record<string, string | undefined>): ServerEnvironment {
+  const provided = Object.fromEntries(Object.entries(source).filter(([, value]) => value !== undefined && value.trim() !== ""));
+  return serverEnvironmentSchema.parse(provided);
+}
+
 export function getServerEnvironment(): ServerEnvironment {
-  cachedEnvironment ??= serverEnvironmentSchema.parse(process.env);
+  cachedEnvironment ??= parseServerEnvironment(process.env);
   return cachedEnvironment;
 }

@@ -1,21 +1,31 @@
 "use client";
 
-import { ArrowRight, RotateCcw, Sparkles } from "lucide-react";
+import { ArrowRight, CloudCheck, RotateCcw, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 
 import { SiteHeader } from "@/components/site-header";
 import { skillTaxonomy } from "@/domain/skills/taxonomy";
 import { findPriorityPillars } from "@/features/assessment/model";
-import { loadLearnerSnapshot, type LearnerSnapshot } from "@/features/learner/draft";
+import { buildStarterJourney } from "@/features/journey/model";
+import { SignInForm } from "@/features/learner/sign-in-form";
+import { useLearnerState } from "@/features/learner/use-learner-state";
 
 export default function ProfilePage() {
-  const [snapshot, setSnapshot] = useState<LearnerSnapshot | null>(null);
+  const { state, error } = useLearnerState();
+  const snapshot = state?.snapshot;
+  const signedIn = Boolean(state?.user);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => setSnapshot(loadLearnerSnapshot()), 0);
-    return () => window.clearTimeout(timer);
-  }, []);
+  if (error) {
+    return (
+      <main className="min-h-screen bg-cream text-ink">
+        <SiteHeader step="Profile · 03" />
+        <div className="mx-auto max-w-2xl px-5 py-24 text-center sm:px-8">
+          <h1 className="font-serif text-4xl">We couldn’t open your profile.</h1>
+          <p className="mt-4 text-sm text-ink-mid" role="alert">{error}</p>
+        </div>
+      </main>
+    );
+  }
 
   if (!snapshot) {
     return <main className="min-h-screen bg-cream" aria-label="Building your capability snapshot" />;
@@ -34,6 +44,10 @@ export default function ProfilePage() {
   }
 
   const priorities = findPriorityPillars(snapshot.scores);
+  const nextSkillShot = buildStarterJourney(snapshot.scores, snapshot.completedSkillShots).find(
+    ({ skillShot }) => !snapshot.completedSkillShots?.includes(skillShot.slug),
+  )?.skillShot;
+  const summary = snapshot.account?.welcomeSummary;
 
   return (
     <main className="min-h-screen bg-cream text-ink">
@@ -49,16 +63,51 @@ export default function ProfilePage() {
               This is a directional baseline, not a verdict. Evidence from practice will make it sharper over time.
             </p>
           </div>
-          <Link className="icon-button" href="/" title="Start a new snapshot" aria-label="Start a new snapshot">
+          <Link className="icon-button" href="/" title={signedIn ? "Update my answers" : "Start a new snapshot"} aria-label={signedIn ? "Update my answers" : "Start a new snapshot"}>
             <RotateCcw aria-hidden="true" size={18} />
           </Link>
         </div>
+
+        {signedIn ? (
+          <section aria-label="Saved to your account" className="mt-8 grid gap-4 border-l-2 border-teal bg-surface px-5 py-4 sm:grid-cols-[auto_1fr] sm:items-start">
+            <CloudCheck aria-hidden="true" className="text-teal" size={22} />
+            <div>
+              <p className="text-sm font-semibold">Saved to your account</p>
+              {summary ? (
+                <>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-mid">{summary}</p>
+                  <p className="mt-2 font-mono text-[10px] uppercase text-ink-light">
+                    Arya’s summary · {snapshot.account?.welcomeSummarySource === "ai" ? "AI-written from your answers" : "Written from your answers by a fixed template"}
+                  </p>
+                </>
+              ) : (
+                <p className="mt-1 text-xs leading-5 text-ink-light">Your profile, journey and evidence follow you to any device.</p>
+              )}
+            </div>
+          </section>
+        ) : (
+          <section aria-labelledby="keep-heading" className="mt-8 grid gap-6 border-t-2 border-gold bg-surface p-5 shadow-[0_18px_48px_rgba(14,14,13,0.06)] sm:p-8 lg:grid-cols-[1fr_minmax(0,24rem)] lg:gap-12">
+            <div>
+              <p className="font-mono text-[10px] uppercase text-gold">Keep this profile</p>
+              <h2 className="mt-3 font-serif text-3xl leading-tight" id="keep-heading">Save it, and pick up on any device.</h2>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-ink-mid">
+                Right now this profile lives only in this browser. Add your email and we’ll keep it safe{nextSkillShot ? <>, then take you straight to <span className="font-medium text-ink">{nextSkillShot.title}</span></> : null}.
+              </p>
+            </div>
+            <SignInForm
+              includeGuestProgress
+              name={snapshot.draft.name}
+              next={nextSkillShot ? `/skill-shots/${nextSkillShot.slug}` : "/profile"}
+              submitLabel="Save my profile"
+            />
+          </section>
+        )}
 
         <div className="mt-12 grid gap-14 lg:grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.75fr)] lg:gap-20">
           <section aria-labelledby="pillar-heading">
             <div className="flex items-center justify-between">
               <h2 className="font-serif text-3xl" id="pillar-heading">Five-pillar profile</h2>
-              <span className="font-mono text-[10px] uppercase text-ink-light">Baseline · Self-reported</span>
+              <span className="font-mono text-[10px] uppercase text-ink-light">{snapshot.evidence?.length ? "Self-reported baseline + check-in evidence" : "Baseline · Self-reported"}</span>
             </div>
             <div className="mt-8 space-y-7">
               {snapshot.scores.map((pillar) => (
@@ -109,7 +158,7 @@ export default function ProfilePage() {
               {snapshot.evidence.map((evidence) => (
                 <div className="grid gap-2 py-4 sm:grid-cols-[1fr_auto]" key={`${evidence.skillShotSlug}-${evidence.createdAt}`}>
                   <p className="text-sm font-medium">Completed {evidence.skillShotSlug.replaceAll("-", " ")}</p>
-                  <p className="font-mono text-xs text-teal">+{evidence.scoreDelta} · {evidence.pillarId.replaceAll("-", " ")}</p>
+                  <p className="font-mono text-xs text-teal">+{evidence.scoreDelta} · {evidence.pillarId.replaceAll("-", " ")} · check-in evidence</p>
                 </div>
               ))}
             </div>

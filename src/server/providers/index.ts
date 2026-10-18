@@ -8,11 +8,30 @@ import {
   OpenAiCompatibleProvider,
   type AiProvider,
 } from "./ai";
-import { ConsoleNotificationProvider } from "./notification";
+import { ConsoleNotificationProvider, type NotificationProvider } from "./notification";
+import { SmtpEmailProvider } from "./smtp";
 import { InMemoryStorageProvider } from "./storage";
 
 function availableProviders(providers: Array<AiProvider | null>): AiProvider[] {
   return providers.filter((provider): provider is AiProvider => provider !== null);
+}
+
+function createNotificationProvider(environment: ReturnType<typeof getServerEnvironment>): NotificationProvider {
+  if (environment.NOTIFICATION_PROVIDER === "smtp") {
+    if (!environment.SMTP_USER || !environment.SMTP_PASSWORD || !environment.EMAIL_FROM) {
+      throw new Error("SMTP_USER, SMTP_PASSWORD and EMAIL_FROM are required when NOTIFICATION_PROVIDER=smtp.");
+    }
+    return new SmtpEmailProvider({
+      host: environment.SMTP_HOST,
+      port: environment.SMTP_PORT,
+      user: environment.SMTP_USER,
+      password: environment.SMTP_PASSWORD,
+      from: environment.EMAIL_FROM,
+    });
+  }
+
+  const isLocalApp = ["localhost", "127.0.0.1"].includes(new URL(environment.APP_URL).hostname);
+  return new ConsoleNotificationProvider(isLocalApp);
 }
 
 export function createProviders() {
@@ -46,7 +65,7 @@ export function createProviders() {
   return {
     ai,
     storage: new InMemoryStorageProvider(),
-    notifications: new ConsoleNotificationProvider(),
+    notifications: createNotificationProvider(environment),
     configuration: {
       ai: environment.AI_PROVIDER,
       storage: environment.STORAGE_PROVIDER,

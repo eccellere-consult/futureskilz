@@ -40,6 +40,7 @@ export class PersistedSessionProvider implements AuthProvider {
     }
 
     return {
+      sessionId: session.id,
       user: session.user,
       expiresAt: new Date(Math.min(payload.expiresAt, session.expiresAt.getTime())),
     };

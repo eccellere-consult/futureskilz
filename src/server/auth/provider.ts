@@ -9,6 +9,7 @@ export type AuthenticatedUser = {
 };
 
 export type AuthSession = {
+  sessionId?: string;
   user: AuthenticatedUser;
   expiresAt: Date;
 };

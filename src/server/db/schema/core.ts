@@ -12,7 +12,7 @@ import {
   varchar,
 } from "drizzle-orm/mysql-core";
 
-import { createdAtColumn, idColumn, updatedAtColumn } from "./columns";
+import { createdAtColumn, idColumn, updatedAtColumn, referenceColumn, jsonColumn } from "./columns";
 
 export const organizations = mysqlTable(
   "organizations",
@@ -30,7 +30,7 @@ export const users = mysqlTable(
   "users",
   {
     id: idColumn().primaryKey(),
-    organizationId: idColumn("organization_id").references(() => organizations.id, {
+    organizationId: referenceColumn("organization_id").references(() => organizations.id, {
       onDelete: "set null",
     }),
     email: varchar("email", { length: 254 }).notNull(),
@@ -48,7 +48,7 @@ export const userSessions = mysqlTable(
   "user_sessions",
   {
     id: idColumn().primaryKey(),
-    userId: idColumn("user_id")
+    userId: referenceColumn("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     tokenHash: varchar("token_hash", { length: 128 }).notNull(),
@@ -63,7 +63,7 @@ export const userSessions = mysqlTable(
 export const userRoles = mysqlTable(
   "user_roles",
   {
-    userId: idColumn("user_id")
+    userId: referenceColumn("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     role: varchar("role", { length: 64 }).notNull(),
@@ -73,13 +73,21 @@ export const userRoles = mysqlTable(
 );
 
 export const learnerProfiles = mysqlTable("learner_profiles", {
-  userId: idColumn("user_id")
+  userId: referenceColumn("user_id")
     .primaryKey()
     .references(() => users.id, { onDelete: "cascade" }),
   currentRole: varchar("current_role", { length: 160 }),
   industry: varchar("industry", { length: 120 }),
   experienceYears: int("experience_years"),
   weeklyMinutes: int("weekly_minutes"),
+  responsibilityLevel: varchar("responsibility_level", { length: 32 }),
+  focus: varchar("focus", { length: 64 }),
+  horizon: varchar("horizon", { length: 32 }),
+  challengeType: varchar("challenge_type", { length: 64 }),
+  challenge: text("challenge"),
+  priorityFamilies: jsonColumn<string[]>("priority_families"),
+  welcomeSummary: text("welcome_summary"),
+  welcomeSummarySource: varchar("welcome_summary_source", { length: 16 }),
   timezone: varchar("timezone", { length: 64 }).notNull().default("Asia/Kolkata"),
   onboardingCompletedAt: datetime("onboarding_completed_at"),
   updatedAt: updatedAtColumn(),
@@ -89,7 +97,7 @@ export const skills = mysqlTable(
   "skills",
   {
     id: idColumn().primaryKey(),
-    parentSkillId: idColumn("parent_skill_id"),
+    parentSkillId: referenceColumn("parent_skill_id"),
     name: varchar("name", { length: 160 }).notNull(),
     slug: varchar("slug", { length: 160 }).notNull(),
     description: text("description").notNull(),
@@ -108,10 +116,10 @@ export const skills = mysqlTable(
 export const skillRelationships = mysqlTable(
   "skill_relationships",
   {
-    sourceSkillId: idColumn("source_skill_id")
+    sourceSkillId: referenceColumn("source_skill_id")
       .notNull()
       .references(() => skills.id, { onDelete: "cascade" }),
-    targetSkillId: idColumn("target_skill_id")
+    targetSkillId: referenceColumn("target_skill_id")
       .notNull()
       .references(() => skills.id, { onDelete: "cascade" }),
     relationshipType: mysqlEnum("relationship_type", ["parent", "prerequisite", "adjacent"]).notNull(),
@@ -142,10 +150,10 @@ export const roles = mysqlTable(
 export const roleSkills = mysqlTable(
   "role_skills",
   {
-    roleId: idColumn("role_id")
+    roleId: referenceColumn("role_id")
       .notNull()
       .references(() => roles.id, { onDelete: "cascade" }),
-    skillId: idColumn("skill_id")
+    skillId: referenceColumn("skill_id")
       .notNull()
       .references(() => skills.id, { onDelete: "cascade" }),
     targetLevel: float("target_level").notNull(),
@@ -157,10 +165,10 @@ export const roleSkills = mysqlTable(
 export const learnerSkills = mysqlTable(
   "learner_skills",
   {
-    learnerId: idColumn("learner_id")
+    learnerId: referenceColumn("learner_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    skillId: idColumn("skill_id")
+    skillId: referenceColumn("skill_id")
       .notNull()
       .references(() => skills.id, { onDelete: "cascade" }),
     currentLevel: float("current_level").notNull().default(0),

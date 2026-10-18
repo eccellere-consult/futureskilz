@@ -10,9 +10,9 @@ export async function seedDatabase(database: MySql2Database<typeof schema>) {
     for (const skill of seedSkills) {
       await transaction
         .insert(skills)
-        .values({ ...skill, type: "capability", version: 1, status: "active" })
+        .values({ ...skill, parentSkillId: null, type: "capability", version: 1, status: "active" })
         .onDuplicateKeyUpdate({
-          set: { name: skill.name, category: skill.category, description: skill.description, type: "capability", status: "active" },
+          set: { name: skill.name, category: skill.category, description: skill.description, parentSkillId: null, type: "capability", status: "active" },
         });
     }
 

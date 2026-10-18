@@ -19,12 +19,16 @@ export interface NotificationProvider {
 export class ConsoleNotificationProvider implements NotificationProvider {
   readonly channel = "email" as const;
 
+  // Variables can hold sign-in links, so they are printed only for a localhost APP_URL.
+  constructor(private readonly revealVariables = false) {}
+
   async send(message: NotificationMessage): Promise<NotificationReceipt> {
     const externalId = `console:${message.idempotencyKey}`;
     console.info("Notification accepted by local fallback", {
       channel: this.channel,
       templateKey: message.templateKey,
       externalId,
+      ...(this.revealVariables ? { variables: message.variables } : {}),
     });
 
     return { provider: "console", externalId, acceptedAt: new Date() };

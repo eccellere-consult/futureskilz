@@ -8,6 +8,13 @@
       "when": 1786262965733,
       "tag": "0000_blue_celestials",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1792288932279,
+      "tag": "0001_accounts_and_saved_progress",
+      "breakpoints": true
     }
   ]
 }

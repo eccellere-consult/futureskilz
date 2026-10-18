@@ -31,7 +31,7 @@ Run `npm run check`. It runs ESLint, TypeScript, focused tests, and the producti
 
 Run `npm run db:generate` after changing `src/server/db/schema/`. Apply checked-in migrations with `npm run db:migrate`.
 
-Do not run migrations in the build command. Review generated SQL, back up production, and apply approved SQL through hPanel/phpMyAdmin before deploying dependent code.
+Do not run migrations in the build command. Additive changes (new tables or columns) are applied by the site itself on first use, see "Accounts and saved progress" below. Anything that changes or removes existing data still needs reviewed SQL, a production backup and hPanel/phpMyAdmin before deploying dependent code.
 
 ## Hostinger Cloud deployment
 
@@ -49,6 +49,23 @@ The GitHub repository root must be this directory. Hostinger documentation does 
 Set production environment variables in hPanel, never in Git. Use `.env.example` as the key list and supply independent random values of at least 32 characters for `SESSION_SECRET` and `MAGIC_LINK_SECRET`.
 
 Pushes to `main` trigger Hostinger rebuilds. Use hPanel Restart for runtime-only restarts. Do not upload `.next` manually.
+
+## Accounts and saved progress
+
+Learners start as guests; their answers live in the browser until they save. "Keep this profile" (or `/sign-in`) emails a single-use sign-in link that expires in 15 minutes. The guest snapshot travels with the link, so progress is imported on whichever device opens it. Sessions last 90 days and renew silently.
+
+- The link token sits in the URL fragment (`#token=`), which browsers never send to a server, and is posted once from `/auth/verify`.
+- Rate limits: 3 links per email per 15 minutes, 10 requests per network per hour.
+- Scores are stored once, as 0–5 levels in `learner_skills`; the 0–100 pillar scores are a display projection. Check-ins are re-checked on the server before any evidence is recorded.
+- The site brings its own database up to date on first use (`src/server/db/ensure-schema.ts`, approved 2026-10-18): an empty database gets every migration in `drizzle/`; a database that already has tables only gets the columns listed in `src/server/db/schema-plan.ts` that are missing. A named lock (`GET_LOCK`) stops two processes from racing. Add every new additive column to that list; a test checks the list against the migration file.
+- Catalog rows that learner data points to (Skill Graph, Skill Shots, the baseline assessment) are upserted on first use (`src/server/learning/catalog.ts`), because Hostinger has no shell for `npm run db:seed`.
+- Every database connection runs in UTC (`src/lib/mysql.ts`). Drizzle reads and writes dates as UTC, so any other session time zone shifts expiry checks.
+- JSON columns use `jsonColumn` from `src/server/db/schema/columns.ts`: MariaDB stores JSON as text, which Drizzle's own `json()` never parses back.
+
+### Email in production
+
+1. hPanel → Emails → create a mailbox such as `hello@futureskilz.in`.
+2. Set `NOTIFICATION_PROVIDER=smtp`, `SMTP_USER` (the full address), `SMTP_PASSWORD`, `EMAIL_FROM` and `APP_URL=https://futureskilz.in` in hPanel's environment variables.
 
 ## Hostinger constraints
 
