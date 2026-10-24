@@ -35,13 +35,32 @@ async function tableExists(connection: PoolConnection, table: string): Promise<b
   return rows.length > 0;
 }
 
+/** A failed self-setup step, named so the health check can say where it stopped (the database error stays as `cause`). */
+export class SchemaStepError extends Error {
+  constructor(public step: string, cause: unknown) {
+    super(`Database self-setup stopped at: ${step}.`, { cause });
+    this.name = "SchemaStepError";
+  }
+}
+
 async function runSchemaSteps(): Promise<void> {
+  let step = "connecting to the database";
+  try {
+    await runSchemaStepsTracked((next) => { step = next; });
+  } catch (error) {
+    throw error instanceof SchemaStepError ? error : new SchemaStepError(step, error);
+  }
+}
+
+async function runSchemaStepsTracked(at: (step: string) => void): Promise<void> {
   const connection = await getMysqlPool().getConnection();
+  at("taking the schema lock");
   try {
     const [locked] = await connection.query<RowDataPacket[]>("SELECT GET_LOCK(?, 30) AS acquired", [lockName]);
     if (Number(locked[0]?.acquired) !== 1) throw new Error("Timed out waiting for the database schema lock.");
 
     try {
+      at("checking which tables exist");
       const migrationsFolder = path.join(process.cwd(), "drizzle");
       const plan = chooseSchemaPlan({
         hasUsersTable: await tableExists(connection, "users"),
@@ -49,6 +68,7 @@ async function runSchemaSteps(): Promise<void> {
       });
 
       if (plan === "migrate") {
+        at("running the migrations on an empty database");
         await migrate(drizzle({ client: connection }), { migrationsFolder });
         console.info("Database schema is up to date (migrations).");
         return;
@@ -56,6 +76,7 @@ async function runSchemaSteps(): Promise<void> {
 
       for (const { table, statements } of additiveTables) {
         if (await tableExists(connection, table)) continue;
+        at(`creating the ${table} table`);
         for (const statement of statements) await connection.query(statement);
         console.info(`Database schema: created ${table}.`);
       }
@@ -66,6 +87,7 @@ async function runSchemaSteps(): Promise<void> {
           [table, column],
         );
         if (present.length === 0) {
+          at(`adding ${table}.${column}`);
           await connection.query(`ALTER TABLE \`${table}\` ADD \`${column}\` ${definition}`);
           console.info(`Database schema: added ${table}.${column}.`);
         }

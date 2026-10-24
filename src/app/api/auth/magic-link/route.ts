@@ -68,7 +68,9 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ message: checkEmail }, { headers: noStore });
   } catch (error) {
-    console.error("Sign-in link failed", error instanceof Error ? error.message : error);
+    const cause = (error instanceof Error ? error.cause : undefined) as { code?: unknown } | undefined;
+    const code = (error as { code?: unknown } | null)?.code ?? cause?.code;
+    console.error("Sign-in link failed", error instanceof Error ? error.message : error, code ? `[${String(code)}]` : "");
     return NextResponse.json({ error: "We could not send the email. Please try again." }, { status: 502, headers: noStore });
   }
 }
