@@ -72,6 +72,8 @@ export interface KitDefinition {
   sheets: KitSheet[];
   /** File name stem, e.g. "Eccellere-Business-Context". */
   fileBase: string;
+  /** Who the workbook says made it (its Author property); Eccellere when absent. */
+  author?: string;
 }
 
 /** Sheet name → field values (fields sheets) or rows (table sheets). */

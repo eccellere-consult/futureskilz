@@ -21,11 +21,13 @@ interface Props {
   explain: boolean;
   /** Keep the worked example going when following a link. */
   query?: string;
+  /** FUTURESKILZ: where the section's tool pages live; the Strategy Hub when absent. */
+  basePath?: string;
   /** Wording for the status chips in the worked example. */
   sample?: boolean;
 }
 
-function List({ items, found, tone, query, sample }: { items: { id: string; name: string }[]; found: ConnectedTool[] | undefined; tone: 'up' | 'down'; query: string; sample?: boolean }) {
+function List({ items, found, tone, query, sample, basePath }: { items: { id: string; name: string }[]; found: ConnectedTool[] | undefined; tone: 'up' | 'down'; query: string; sample?: boolean; basePath: string }) {
   return (
     <div className="flex flex-col gap-3">
       {items.map(({ id, name }) => {
@@ -33,7 +35,7 @@ function List({ items, found, tone, query, sample }: { items: { id: string; name
         return (
           <div key={id}>
             <div className="flex items-center justify-between gap-2">
-              <Link href={`/strategy-hub/${id}${query}`} className={`text-sm font-semibold hover:underline ${tone === 'up' ? 'text-eccellere-teal' : 'text-eccellere-gold'}`}>{name}</Link>
+              <Link href={`${basePath}/${id}${query}`} className={`text-sm font-semibold hover:underline ${tone === 'up' ? 'text-eccellere-teal' : 'text-eccellere-gold'}`}>{name}</Link>
               {c && <span className={`flex-shrink-0 rounded-[2px] border px-1.5 py-0.5 text-[10px] font-bold uppercase ${STATUS_CHIP[c.status].cls}`}>{sample ? 'Worked example' : STATUS_CHIP[c.status].label}</span>}
             </div>
             {c?.headline && <p className="m-0 mt-0.5 text-xs text-eccellere-ink-light leading-snug">{c.headline}</p>}
@@ -49,7 +51,7 @@ function List({ items, found, tone, query, sample }: { items: { id: string; name
  * Laid out as a band across the page — what comes before on the left, what comes after on the right — so the form below keeps
  * the full width its tables need.
  */
-export default function ConnectionsPanel({ upstream, downstream, connections, explain, query = '', sample }: Props) {
+export default function ConnectionsPanel({ upstream, downstream, connections, explain, query = '', sample, basePath = '/strategy-hub' }: Props) {
   if (upstream.length === 0 && downstream.length === 0) return null;
   const both = upstream.length > 0 && downstream.length > 0;
   return (
@@ -64,13 +66,13 @@ export default function ConnectionsPanel({ upstream, downstream, connections, ex
         {upstream.length > 0 && (
           <div>
             <p className="text-xs text-eccellere-ink-light mb-2">Builds on ←</p>
-            <List items={upstream} found={connections?.upstream} tone="up" query={query} sample={sample} />
+            <List items={upstream} found={connections?.upstream} tone="up" query={query} sample={sample} basePath={basePath} />
           </div>
         )}
         {downstream.length > 0 && (
           <div className={both ? 'md:border-l md:border-eccellere-border md:pl-10' : ''}>
             <p className="text-xs text-eccellere-ink-light mb-2">Feeds into →</p>
-            <List items={downstream} found={connections?.downstream} tone="down" query={query} sample={sample} />
+            <List items={downstream} found={connections?.downstream} tone="down" query={query} sample={sample} basePath={basePath} />
           </div>
         )}
       </div>

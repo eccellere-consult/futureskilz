@@ -35,6 +35,8 @@ export interface KitSource {
   /** Who published the model, if known — named in the guide. */
   originator?: string;
   structure: Structure;
+  /** FUTURESKILZ: the product and section the files are named after; Eccellere's Strategy Hub when absent. */
+  brand?: { product: string; section: string };
 }
 
 export interface StrategyKit {
@@ -63,9 +65,9 @@ export function safeSheetName(name: string, used: Set<string>): string {
 }
 
 /** "Porter's Five Forces" → "Eccellere-Porters-Five-Forces". */
-export function kitFileBase(name: string): string {
+export function kitFileBase(name: string, product = 'Eccellere'): string {
   const stem = name.replace(/['’]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-  return `Eccellere-${stem || 'Strategy-Hub-Tool'}`;
+  return `${product}-${stem || 'Strategy-Hub-Tool'}`;
 }
 
 const scaleOptions = (s: RatingScale | undefined): string[] => {
@@ -147,7 +149,7 @@ export function strategyKit(src: KitSource): StrategyKit {
   }
 
   const guidance = [
-    `This template follows the ${src.name} model${src.originator ? ` (${src.originator})` : ''} — the same elements, in the same order, as the guided form on its Strategy Hub page.`,
+    `This template follows the ${src.name} model${src.originator ? ` (${src.originator})` : ''} — the same elements, in the same order, as the guided form on its ${src.brand?.section ?? 'Strategy Hub'} page.`,
     'Fill what you know and leave the rest blank. Upload the file on the tool’s page and your answers appear in the form; anything you had typed there stays unless the file has a value for it.',
     ...(hasComputed ? ['Figures the model works out for you (a quadrant, a score, a total) are calculated on the page — you do not enter them here.'] : []),
     ...(sheets.some((s) => s.kind === 'table') ? ['A table sheet takes one row per item; leave unused rows empty. Where a column lists allowed values, pick one of them.'] : []),
@@ -155,11 +157,12 @@ export function strategyKit(src: KitSource): StrategyKit {
 
   const def: KitDefinition = {
     id: `strategy-${src.toolId}`,
-    title: `Eccellere Strategy Hub — ${src.name}`,
-    breadcrumb: `Strategy Hub › ${src.name}`,
+    title: `${src.brand?.product ?? 'Eccellere'} ${src.brand?.section ?? 'Strategy Hub'} — ${src.name}`,
+    breadcrumb: `${src.brand?.section ?? 'Strategy Hub'} › ${src.name}`,
     guidance,
     sheets,
-    fileBase: kitFileBase(src.name),
+    fileBase: kitFileBase(src.name, src.brand?.product),
+    author: src.brand?.product,
   };
 
   const toCell = (type: string, v: string): Cell => {

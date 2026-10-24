@@ -149,7 +149,7 @@ export function buildKitWorkbook(XLSX: Xlsx, def: KitDefinition, content: KitCon
       spec.name
     );
   }
-  wb.Props = { Title: variant === 'sample' ? `SAMPLE — ${def.title}` : def.title, Subject: variant === 'sample' ? SAMPLE_MARKER : def.breadcrumb, Author: 'Eccellere' };
+  wb.Props = { Title: variant === 'sample' ? `SAMPLE — ${def.title}` : def.title, Subject: variant === 'sample' ? SAMPLE_MARKER : def.breadcrumb, Author: def.author ?? 'Eccellere' };
   return wb;
 }
 

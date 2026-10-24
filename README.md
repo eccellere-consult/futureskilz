@@ -67,6 +67,16 @@ Learners start as guests; their answers live in the browser until they save. "Ke
 1. hPanel → Emails → create a mailbox such as `hello@futureskilz.in`.
 2. Set `NOTIFICATION_PROVIDER=smtp`, `SMTP_USER` (the full address), `SMTP_PASSWORD`, `EMAIL_FROM` and `APP_URL=https://futureskilz.in` in hPanel's environment variables.
 
+## Problem Solving (framework workspace)
+
+`/problem-solving` is built from the Framework Workspace Builder kit (`D:\Cowork\Futureskilz\Framework_Workspace_Builder`, route B: a separate app). The engine (`src/lib/strategyModels/*`, `src/lib/strategy*.ts`, `src/components/strategy-hub/*`, `src/lib/templateKit/*`) is copied from the Eccellere Strategy Hub at commit `f9c3ab4`. Keep its file names so it can be compared with the original; changes are marked `FUTURESKILZ`.
+
+- **One definition per method** (`src/lib/strategyModels/defs/<stage>.ts`) drives the form, the Excel template and reader, the AI prompts and validators, the results, the worked example and the diagram. A new method is a definition, a sample, a diagram, a line in `groups.ts`/`registry.ts` and its text in `src/lib/problemSolving/seed.ts`. `problemSolvingContent.test.ts` checks the quality bar.
+- **Every saved tool belongs to one of the learner's problems** (`ws_cases`, `ws_fillins` with `case_id`); the server checks the problem is theirs on every request.
+- **AI** is off unless `AI_PROVIDER` is `openai`, `xai` or `auto` and the matching key is set. Prompts are grounded in the problem's brief, the learner's profile and the earlier tools of the same problem. A cut-off reply is retried once and never saved.
+- **Uploads**: a filled template is read on the server with the vendored SheetJS 0.20.3 (`vendor/`) after a structural check (`src/lib/templateKit/serverOpen.ts`). A PDF, Word or text file becomes text (`/api/self-service/upload`), and the AI fills only blank single answers.
+- **Browser journey**: start `node e2e/fake-openai.cjs` (port from `FAKE_PORT`) and run the production server with `OPENAI_BASE_URL=http://127.0.0.1:<port>/v1`, `AI_PROVIDER=openai` and a dummy key; `npx tsx e2e/make-kit-fixtures.ts <folder>` makes a filled template and a PDF to upload. Never point the journey at a real AI key.
+
 ## Hostinger constraints
 
 - Managed Web/Cloud provides MariaDB only; PostgreSQL and pgvector require VPS or an external provider.

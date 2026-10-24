@@ -11,6 +11,9 @@ export function SiteHeader({ step }: { step?: string }) {
         </Link>
         <div className="flex items-center gap-3">
           <span className="hidden text-sm text-cream/60 lg:inline">Your capability journey</span>
+          <Link className="hidden text-sm text-cream/80 underline-offset-4 hover:text-gold-light hover:underline sm:inline" href="/problem-solving">
+            Problem Solving
+          </Link>
           {step ? (
             <span className="border border-gold/45 px-3 py-1.5 font-mono text-[10px] uppercase text-gold-light">
               {step}

@@ -117,9 +117,25 @@ export interface PromptContext {
   contextBlock: string;
   valueScanBlock: string;
   upstreamBlock: string;
+  /**
+   * FUTURESKILZ (references/05 §3.2): for a case-scoped section, "THE PROBLEM IN HAND: <title>. <brief>", placed first in every
+   * user message so every tool of a case is written about the same problem.
+   */
+  caseBlock?: string;
+  /** The section's coach voice ("a senior continuous-improvement coach for an Indian MSME"); the hub's consultant when absent. */
+  persona?: string;
+  /** What a tool of the section is called in the prompt ("problem-solving method"); "strategy framework" when absent. */
+  toolKind?: string;
 }
 
 const NO_CONTEXT = 'No business context or Value Scan report is on file for this client yet — use realistic assumptions for a typical Indian MSME and keep values general enough to still be useful.';
+
+/** The persona, the kind of tool and the word for its grouping, as the system prompts name them. */
+const voiceOf = (ctx: PromptContext, hubPersona: string) => ({
+  persona: ctx.persona ?? hubPersona,
+  kind: ctx.toolKind ?? 'strategy framework',
+  group: ctx.toolKind ? 'stage' : 'layer',
+});
 
 // ── Describing a part to the AI, and validating what comes back ──────────────
 
@@ -221,8 +237,9 @@ export function buildGenerateMessages(args: {
   const shape = hasTables
     ? '{"fields":[{"label":"<exact label>","value":"<drafted value>"}],"tables":[{"label":"<exact label>","rows":[{…}]}]}'
     : '{"fields":[{"label":"<exact label>","value":"<drafted value>"}]}';
+  const voice = voiceOf(ctx, 'a senior MSME strategy consultant');
   const system =
-    `You are a senior MSME strategy consultant filling in the "${framework.name}" strategy framework (layer: ${framework.layer}), following this admin-approved methodology precisely:\n\n${methodology}\n\n---\n\n` +
+    `You are ${voice.persona} filling in the "${framework.name}" ${voice.kind} (${voice.group}: ${framework.layer}), following this admin-approved methodology precisely:\n\n${methodology}\n\n---\n\n` +
     `Draft realistic, specific, DETAILED answers for ONLY the elements listed at the end of this message, grounded in the evidence in the user message: the client's own Business Context, their latest Value Scan, the saved work from the tools this one builds on, and the answers they have already given. Never use placeholders like "TBD" or "N/A", and never a short generic sentence where a longer, evidence-grounded one is warranted. There is NO length limit on any value. If an element genuinely needs a number you cannot know (e.g. an exact percentage), give a plausible estimate consistent with the evidence and phrase it as an estimate. Follow each element's own definition and the form given in brackets exactly.\n\n` +
     `The client's own answers (listed in the user message) are fixed: use them as context, and never repeat or change them.\n\n` +
     `Output ONLY a JSON object shaped ${shape} with exactly one entry per element listed below, in the same order, using the exact label text given verbatim. No markdown, no commentary, no code fences.\n\n` +
@@ -239,6 +256,7 @@ export function buildGenerateMessages(args: {
     given = owned.map((f) => `- ${f.label}: ${f.value.trim()}`).join('\n');
   }
   const user = [
+    ctx.caseBlock,
     ctx.contextBlock,
     ctx.valueScanBlock,
     ctx.upstreamBlock,
@@ -320,8 +338,9 @@ export function buildAnalyzeMessages(args: {
   ctx: PromptContext;
 }): { system: string; user: string } {
   const { framework, structure, analysisGuide, methodology, fields, ctx } = args;
+  const voice = voiceOf(ctx, 'a senior strategy consultant');
   const system =
-    `You are a senior strategy consultant producing the final Analysis, Recommendations & Actionables for a completed "${framework.name}" strategy framework (layer: ${framework.layer}) for an Indian MSME client.\n\n` +
+    `You are ${voice.persona} producing the final Analysis, Recommendations & Actionables for a completed "${framework.name}" ${voice.kind} (${voice.group}: ${framework.layer})${ctx.persona ? '' : ' for an Indian MSME client'}.\n\n` +
     `METHODOLOGY FOR THIS FRAMEWORK (follow this precisely — it is the admin-approved analytical approach for this specific tool):\n${methodology}\n\n` +
     (analysisGuide ? `HOW TO REACH THIS MODEL'S VERDICT:\n${analysisGuide}\n\n` : '') +
     `RULES:\n` +
@@ -340,7 +359,7 @@ export function buildAnalyzeMessages(args: {
   const answers = structure
     ? renderValuesForPrompt(structure, valuesFromFields(structure, asFrameworkFields(fields)).values)
     : fields.map((f) => `- ${f.label}: ${f.value.trim() ? f.value : '(left blank)'}`).join('\n');
-  const user = [`COMPLETED FIELDS FOR "${framework.name}":\n${answers}`, ctx.upstreamBlock, ctx.contextBlock, ctx.valueScanBlock].filter(Boolean).join('\n\n');
+  const user = [ctx.caseBlock, `COMPLETED FIELDS FOR "${framework.name}":\n${answers}`, ctx.upstreamBlock, ctx.contextBlock, ctx.valueScanBlock].filter(Boolean).join('\n\n');
   return { system, user };
 }
 

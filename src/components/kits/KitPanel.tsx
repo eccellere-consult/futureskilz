@@ -86,7 +86,7 @@ export default function KitPanel(p: KitPanelProps) {
         </div>
       </div>
 
-      {p.error && <p role="alert" className="mb-0 mt-4 text-[13px] font-medium text-eccellere-brick">{p.error}</p>}
+      {p.error && <p role="alert" className="mb-0 mt-4 text-[13px] font-medium text-eccellere-error">{p.error}</p>}
       {p.children}
 
       {p.downloads && p.downloads.length > 0 && (

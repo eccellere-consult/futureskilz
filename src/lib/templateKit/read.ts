@@ -5,7 +5,7 @@
  *
  * Browser or Node; nothing here talks to a server.
  */
-import { openWorkbook } from '../sixSigma/ingest';
+import { openWorkbook, type XlsxLoader } from '../sixSigma/ingest';
 import { SAMPLE_MARKER } from '../demo/marker';
 import { GUIDE_SHEET } from './workbook';
 import { isBlank, matchOption, norm, splitMulti, toNumber, toYesNo } from './values';
@@ -88,8 +88,12 @@ function dataRowCount(spec: TableSheet, rows: Record<string, Cell>[]): number {
   return rows.filter(r => dataCols.some(k => r[k] !== undefined)).length;
 }
 
-export async function readKitWorkbook(def: KitDefinition, data: ArrayBuffer | Uint8Array): Promise<KitReadResult> {
-  const handle = await openWorkbook(data, { csv: false });
+/**
+ * FUTURESKILZ: the workbook opener is injectable (references/06 §3), so a server route reads uploads with the vendored SheetJS
+ * (templateKit/serverOpen.ts) while the browser and the tests keep the default.
+ */
+export async function readKitWorkbook(def: KitDefinition, data: ArrayBuffer | Uint8Array, loader?: XlsxLoader): Promise<KitReadResult> {
+  const handle = await openWorkbook(data, { csv: false }, loader);
   const warnings: string[] = [];
   const content: KitContent = {};
   const bySheet = new Map(def.sheets.map(s => [norm(s.name), s]));

@@ -14,8 +14,11 @@ export interface WorkbookHandle { sheetNames: string[]; best: string; load: (she
 
 const isRealHeader = (h: string) => !!h && !h.startsWith('__EMPTY');
 
-export async function openWorkbook(data: ArrayBuffer | Uint8Array, opts: { csv?: boolean } = {}): Promise<WorkbookHandle> {
-  const XLSX = await loadXlsx();
+/** The spreadsheet library a workbook is opened with: xlsx-js-style in the browser, the vendored SheetJS on the server. */
+export type XlsxLoader = () => Promise<Pick<Awaited<ReturnType<typeof loadXlsx>>, 'read' | 'utils'>>;
+
+export async function openWorkbook(data: ArrayBuffer | Uint8Array, opts: { csv?: boolean } = {}, loader: XlsxLoader = loadXlsx): Promise<WorkbookHandle> {
+  const XLSX = await loader();
   const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
   // CSV: raw:true stops SheetJS re-interpreting text such as 01/04/2025 as a US-order date.
   const wb = XLSX.read(bytes, { type: 'array', cellDates: false, ...(opts.csv ? { codepage: 65001, raw: true } : {}) });
