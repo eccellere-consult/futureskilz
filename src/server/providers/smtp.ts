@@ -27,6 +27,11 @@ export class SmtpEmailProvider implements NotificationProvider {
     });
   }
 
+  /** Signs in to the mail server without sending anything; throws the server's error when the login or connection fails. */
+  async verify(): Promise<void> {
+    await this.transporter.verify();
+  }
+
   async send(message: NotificationMessage): Promise<NotificationReceipt> {
     const email = renderEmail(message.templateKey, message.variables);
     const result = await this.transporter.sendMail({
