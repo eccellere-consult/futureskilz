@@ -146,6 +146,10 @@ export default function ProfilePage() {
               <p className="text-xs leading-5 text-cream/65">Next up</p>
               <p className="mt-1 text-sm">Your first two Skill Shots are ready.</p>
               <Link className="primary-button mt-5" href="/journey">Open my journey <ArrowRight size={17} /></Link>
+              <p className="mt-5 text-xs leading-5 text-cream/65">
+                Want to practise on a real problem from your work?{" "}
+                <Link className="font-semibold text-gold-light underline-offset-4 hover:underline" href="/problem-solving">Try the Problem Solving methods</Link>
+              </p>
             </div>
           </aside>
         </div>

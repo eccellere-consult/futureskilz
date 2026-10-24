@@ -4,6 +4,8 @@ import mysql, { type Pool } from "mysql2/promise";
 
 import { getServerEnvironment } from "@/server/env";
 
+// One pool for the whole process. It is kept on globalThis (not only in development) so production reuses it too:
+// creating a pool per call would open new connections on every request and never close them.
 const globalForMysql = globalThis as unknown as { mysqlPool?: Pool };
 
 export function getMysqlPool(): Pool {
@@ -36,9 +38,17 @@ export function getMysqlPool(): Pool {
     connection.query("SET time_zone = '+00:00'");
   });
 
-  if (process.env.NODE_ENV !== "production") {
-    globalForMysql.mysqlPool = pool;
-  }
-
+  globalForMysql.mysqlPool = pool;
   return pool;
 }
+
+/**
+ * The framework workspace engine (copied from the Eccellere Strategy Hub) imports a default-exported pool and calls
+ * `query` and `getConnection` on it. This forwards to the one shared pool, created on first use.
+ */
+const workspacePool = {
+  query: ((...args: Parameters<Pool["query"]>) => getMysqlPool().query(...args)) as Pool["query"],
+  getConnection: () => getMysqlPool().getConnection(),
+};
+
+export default workspacePool;

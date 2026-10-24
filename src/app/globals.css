@@ -37,6 +37,19 @@
   --font-sans: var(--font-dm-sans);
   --font-serif: var(--font-cormorant);
   --font-mono: var(--font-jetbrains-mono);
+
+  /* Framework workspace engine (copied from the Eccellere Strategy Hub): its class names, mapped onto this palette. */
+  --color-eccellere-ink: var(--ec-ink);
+  --color-eccellere-ink-mid: var(--ec-ink-mid);
+  --color-eccellere-ink-light: var(--ec-ink-light);
+  --color-eccellere-gold: var(--ec-gold);
+  --color-eccellere-gold-light: var(--ec-gold-light);
+  --color-eccellere-gold-pale: var(--ec-gold-pale);
+  --color-eccellere-cream: var(--ec-cream);
+  --color-eccellere-purple: var(--ec-purple);
+  --color-eccellere-teal: var(--ec-teal);
+  --color-eccellere-border: var(--ec-border);
+  --color-eccellere-error: var(--ec-crimson);
 }
 
 * {
@@ -129,4 +142,14 @@ a:focus-visible {
     cursor: not-allowed;
     opacity: 0.3;
   }
+}
+
+/* Framework workspace sections (Problem Solving): the display face, and FutureSkilz's "never pure white" rule applied to the
+   copied engine's white cards by giving `white` the warm card surface inside the section only. */
+.font-display {
+  font-family: var(--font-cormorant), "Cormorant Garamond", Georgia, serif;
+}
+
+.ws-surface {
+  --color-white: var(--ec-surface);
 }
