@@ -97,7 +97,7 @@ async function runChecks() {
   } else {
     try {
       await new SmtpEmailProvider({ host: env.SMTP_HOST, port: env.SMTP_PORT, user: env.SMTP_USER, password: env.SMTP_PASSWORD, from: env.EMAIL_FROM }).verify();
-      email = { ok: true, detail: `signed in to ${env.SMTP_HOST} on port ${env.SMTP_PORT}` };
+      email = { ok: true, detail: `signed in to the mailbox on port ${env.SMTP_PORT}` };
     } catch (error) {
       const code = codeOf(error);
       email = { ok: false, detail: `${explain(code, EMAIL_HINTS)} [${code}]` };
