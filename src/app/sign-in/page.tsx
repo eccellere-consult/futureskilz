@@ -22,6 +22,9 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
           </p>
         </div>
         <section aria-label="Sign in" className="h-fit border-t-2 border-gold bg-surface p-6 shadow-[0_18px_48px_rgba(14,14,13,0.08)] sm:p-8">
+          <p className="mb-5 text-sm leading-6 text-ink-mid">
+            <span className="font-semibold text-ink">New here?</span> Use the same box. Your account is created when you tap the link.
+          </p>
           <SignInForm includeGuestProgress next={redirectPath} submitLabel="Email me a sign-in link" />
         </section>
       </div>

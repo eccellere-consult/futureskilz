@@ -19,12 +19,12 @@ export function AccountMenu() {
     };
   }, []);
 
-  if (user === undefined) return <span aria-hidden="true" className="inline-block h-9 w-20" />;
+  if (user === undefined) return <span aria-hidden="true" className="inline-block h-9 w-28" />;
 
   if (!user) {
     return (
       <Link className="inline-flex min-h-9 items-center gap-2 border border-cream/25 px-3 text-xs font-medium text-cream hover:border-gold-light hover:text-gold-light" href="/sign-in">
-        <UserRound aria-hidden="true" size={15} /> Sign in
+        <UserRound aria-hidden="true" size={15} /> Sign in / Join
       </Link>
     );
   }
