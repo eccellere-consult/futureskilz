@@ -9,7 +9,7 @@ import type { PoolConnection, RowDataPacket } from "mysql2/promise";
 
 import { getMysqlPool } from "@/lib/mysql";
 
-import { additiveColumns, chooseSchemaPlan } from "./schema-plan";
+import { additiveColumns, additiveTables, chooseSchemaPlan } from "./schema-plan";
 
 const lockName = "futureskilz_schema";
 let schemaPromise: Promise<void> | undefined;
@@ -52,6 +52,12 @@ async function runSchemaSteps(): Promise<void> {
         await migrate(drizzle({ client: connection }), { migrationsFolder });
         console.info("Database schema is up to date (migrations).");
         return;
+      }
+
+      for (const { table, statements } of additiveTables) {
+        if (await tableExists(connection, table)) continue;
+        for (const statement of statements) await connection.query(statement);
+        console.info(`Database schema: created ${table}.`);
       }
 
       for (const { table, column, definition } of additiveColumns) {

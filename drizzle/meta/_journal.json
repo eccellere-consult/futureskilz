@@ -15,6 +15,13 @@
       "when": 1792288932279,
       "tag": "0001_accounts_and_saved_progress",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1792835900390,
+      "tag": "0002_framework_workspace",
+      "breakpoints": true
     }
   ]
 }
