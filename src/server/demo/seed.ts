@@ -17,6 +17,8 @@ import * as learner from "@/server/capture/learner-service";
 import * as lessons from "@/server/capture/lesson-service";
 import * as review from "@/server/capture/review-service";
 import { database, newUuid } from "@/server/capture/shared";
+import { setPassword } from "@/server/auth/password-service";
+import { getServerEnvironment } from "@/server/env";
 import * as uploads from "@/server/capture/upload-service";
 
 import { answerFor, followUpKindOf } from "./answers";
@@ -68,7 +70,10 @@ export async function seedDemo(): Promise<SeedReport> {
     const adminId = await ensureUser(PERSONAS.admin.email, PERSONAS.admin.name, ["admin"]);
     const coach2Id = await ensureUser(COACH2.email, COACH2.name, ["contributor"]);
     await db.insert(kcContributors).values({ userId: coach2Id, publicName: COACH2.name }).onDuplicateKeyUpdate({ set: { publicName: COACH2.name } });
-    log("Created the demo learner, coach, editor, admin and a co-author.");
+    // The shared demo password (DEMO_ACCESS_CODE) also works on the normal "Email and password" sign-in for the four demo people.
+    const sharedPassword = getServerEnvironment().DEMO_ACCESS_CODE;
+    if (sharedPassword) for (const id of [learnerId, coachId, editorId, adminId]) await setPassword(id, sharedPassword, null);
+    log(`Created the demo learner, coach, editor, admin and a co-author${sharedPassword ? "; the four can sign in with email and the shared password" : ""}.`);
 
     await retireDemo();
 
