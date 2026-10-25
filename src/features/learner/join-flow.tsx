@@ -27,7 +27,7 @@ const PATHS: Record<Path, { icon: typeof Mic; title: string; body: string; next:
 };
 
 /** One front door for both audiences. The email link registers a new person or signs a returning one in; no password. */
-export function JoinFlow({ initial, returnTo }: { initial: Path; returnTo?: string }) {
+export function JoinFlow({ initial, returnTo, demo = false }: { initial: Path; returnTo?: string; demo?: boolean }) {
   const [path, setPath] = useState<Path>(initial);
   const chosen = PATHS[path];
 
@@ -58,6 +58,11 @@ export function JoinFlow({ initial, returnTo }: { initial: Path; returnTo?: stri
           <SignInForm key={path} includeGuestProgress={path === "learner"} next={returnTo ?? chosen.next} submitLabel={chosen.submit} />
         </div>
       </section>
+      {demo ? (
+        <p className="mt-5 max-w-md text-sm text-ink-mid">
+          Trying the demo? <a className="font-semibold text-teal underline underline-offset-4" href="/demo">Sign in with a demo email and password</a>.
+        </p>
+      ) : null}
     </div>
   );
 }

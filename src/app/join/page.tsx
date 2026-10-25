@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { SiteHeader } from "@/components/site-header";
 import { safeRedirectPath } from "@/server/auth/magic-link";
+import { demoEnabled } from "@/server/demo/access";
 import { JoinFlow } from "@/features/learner/join-flow";
 
 export const metadata: Metadata = {
@@ -17,7 +18,7 @@ export default async function JoinPage({ searchParams }: PageProps<"/join">) {
   return (
     <main className="min-h-screen bg-cream text-ink">
       <SiteHeader />
-      <JoinFlow initial={as === "coach" ? "coach" : "learner"} returnTo={returnTo} />
+      <JoinFlow initial={as === "coach" ? "coach" : "learner"} returnTo={returnTo} demo={demoEnabled()} />
     </main>
   );
 }
