@@ -3,7 +3,7 @@
 import { GraduationCap, Mic } from "lucide-react";
 import { useState } from "react";
 
-import { SignInForm } from "./sign-in-form";
+import { SignInOptions } from "./sign-in-options";
 
 type Path = "learner" | "coach";
 
@@ -55,7 +55,7 @@ export function JoinFlow({ initial, returnTo }: { initial: Path; returnTo?: stri
       <section aria-label="Continue with email" className="mt-8 max-w-md border-t-2 border-gold bg-surface p-6 shadow-[0_18px_48px_rgba(14,14,13,0.08)]">
         <h2 className="font-serif text-2xl">{path === "coach" ? "Start as a coach" : "Start as a learner"}</h2>
         <div className="mt-4">
-          <SignInForm key={path} includeGuestProgress={path === "learner"} next={returnTo ?? chosen.next} submitLabel={chosen.submit} />
+          <SignInOptions key={path} includeGuestProgress={path === "learner"} linkLabel={chosen.submit} next={returnTo ?? chosen.next} />
         </div>
       </section>
     </div>

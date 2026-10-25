@@ -29,6 +29,13 @@
       "when": 1792930227884,
       "tag": "0003_expert_capture",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1792936744991,
+      "tag": "0004_user_credentials",
+      "breakpoints": true
     }
   ]
 }

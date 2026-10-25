@@ -15,7 +15,7 @@ export const additiveColumns = [
 ] as const;
 
 /**
- * Tables added after the first migration (drizzle/0002 the framework workspace, drizzle/0003 expert capture), each with the statements that create it
+ * Tables added after the first migration (drizzle/0002 the framework workspace, drizzle/0003 expert capture, drizzle/0004 optional passwords), each with the statements that create it
  * exactly as the migration does: the table, then its foreign keys and indexes. A missing table gets all of them; a table
  *  that is already there is left alone. Foreign keys and indexes run only after every missing table exists, because tables of
  * one migration refer to each other. A test checks these are word for word the statements of the migration files.
@@ -197,6 +197,13 @@ export const additiveTables = [
       "CREATE TABLE `kc_uploads` (\n\t`id` varchar(36) NOT NULL,\n\t`project_id` varchar(36) NOT NULL,\n\t`uploaded_by` varchar(36) NOT NULL,\n\t`filename` varchar(255) NOT NULL,\n\t`media_type` varchar(120) NOT NULL,\n\t`size` int NOT NULL,\n\t`checksum` varchar(64) NOT NULL,\n\t`ownership` enum('unknown','mine','permission','third_party') NOT NULL DEFAULT 'unknown',\n\t`intended_use` varchar(240),\n\t`role_id` varchar(36),\n\t`extraction_status` enum('pending','extracted','failed','unsupported','duplicate') NOT NULL DEFAULT 'pending',\n\t`extraction_note` varchar(400),\n\t`summary` text,\n\t`char_count` int NOT NULL DEFAULT 0,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `kc_uploads_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `kc_uploads_project_checksum_idx` UNIQUE(`project_id`,`checksum`)\n);",
       "ALTER TABLE `kc_uploads` ADD CONSTRAINT `kc_uploads_project_id_kc_projects_id_fk` FOREIGN KEY (`project_id`) REFERENCES `kc_projects`(`id`) ON DELETE cascade ON UPDATE no action;",
       "ALTER TABLE `kc_uploads` ADD CONSTRAINT `kc_uploads_uploaded_by_users_id_fk` FOREIGN KEY (`uploaded_by`) REFERENCES `users`(`id`) ON DELETE restrict ON UPDATE no action;",
+    ],
+  },
+  {
+    table: "user_credentials",
+    statements: [
+      "CREATE TABLE `user_credentials` (\n\t`user_id` varchar(36) NOT NULL,\n\t`password_hash` varchar(255) NOT NULL,\n\t`failed_attempts` int NOT NULL DEFAULT 0,\n\t`locked_until` datetime,\n\t`set_by` varchar(36),\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `user_credentials_user_id` PRIMARY KEY(`user_id`)\n);",
+      "ALTER TABLE `user_credentials` ADD CONSTRAINT `user_credentials_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;",
     ],
   },
 ] as const;

@@ -408,3 +408,54 @@ describe.skipIf(!enabled)("the demo", () => {
     expect((await lessons.listPublishedLessons()).some((l) => report.lessons.some((x) => x.title === l.title && x.status === "published"))).toBe(false);
   }, 120_000);
 });
+
+describe.skipIf(!enabled)("accounts with passwords", () => {
+  it("lets an admin create a role account, signs it in, locks after repeated guesses, and cuts off a reset or suspended account", async () => {
+    const admin = await import("@/server/auth/user-admin-service");
+    const auth = await import("@/server/auth/password-service");
+    const shared = await import("./shared");
+    const schema = await import("@/server/db/schema");
+    const db = await shared.database();
+
+    const adminId = randomUUID();
+    await db.insert(schema.users).values({ id: adminId, email: `boss-${adminId.slice(0, 6)}@example.test`, displayName: "Boss" });
+    await db.insert(schema.userRoles).values({ userId: adminId, role: "admin" });
+    const nobody = randomUUID();
+    await db.insert(schema.users).values({ id: nobody, email: `nobody-${nobody.slice(0, 6)}@example.test`, displayName: "Nobody" });
+    await expect(admin.createUser(nobody, { email: "x@example.test", name: "X", roles: [] })).rejects.toThrow(/Only an admin/);
+
+    const email = `test.coach-${adminId.slice(0, 6)}@example.test`;
+    const created = await admin.createUser(adminId, { email, name: "Test Coach", roles: ["contributor"] });
+    expect(created.roles).toEqual(expect.arrayContaining(["learner", "contributor"]));
+    expect(created.password).toMatch(/^[A-Za-z2-9]{4}(-[A-Za-z2-9]{4}){3}$/);
+    await expect(admin.createUser(adminId, { email, name: "Again", roles: [] })).rejects.toThrow(/already exists/);
+    await expect(admin.createUser(adminId, { email: `weak-${adminId.slice(0, 6)}@example.test`, name: "Weak", roles: [], password: "short" })).rejects.toThrow(/at least 12/);
+
+    // Only a hash is stored.
+    const [credential] = await db.select().from(schema.userCredentials).where(eq(schema.userCredentials.userId, created.id));
+    expect(credential.passwordHash).not.toContain(created.password);
+
+    const ok = await auth.signInWithPassword({ email: email.toUpperCase(), password: created.password, ip: "10.0.0.1" });
+    expect(ok.ok).toBe(true);
+    expect((await auth.signInWithPassword({ email: "ghost@example.test", password: "whatever-whatever", ip: "10.0.0.2" })).ok).toBe(false);
+
+    for (let i = 0; i < 4; i += 1) expect(await auth.signInWithPassword({ email, password: "wrong-password-1", ip: "10.0.0.3" })).toEqual({ ok: false, reason: "invalid" });
+    expect(await auth.signInWithPassword({ email, password: "wrong-password-1", ip: "10.0.0.3" })).toEqual({ ok: false, reason: "locked" });
+    // Locked even for the right password, until the lock passes.
+    expect(await auth.signInWithPassword({ email, password: created.password, ip: "10.0.0.4" })).toEqual({ ok: false, reason: "locked" });
+
+    // A reset unlocks the account and ends old sessions.
+    const reset = await admin.resetPassword(adminId, created.id);
+    expect(reset.password).not.toBe(created.password);
+    const [session] = await db.select().from(schema.userSessions).where(eq(schema.userSessions.userId, created.id));
+    expect(session.revokedAt).not.toBeNull();
+    expect((await auth.signInWithPassword({ email, password: created.password, ip: "10.0.0.5" })).ok).toBe(false);
+    expect((await auth.signInWithPassword({ email, password: reset.password, ip: "10.0.0.5" })).ok).toBe(true);
+
+    await admin.setUserStatus(adminId, created.id, "suspended");
+    expect((await auth.signInWithPassword({ email, password: reset.password, ip: "10.0.0.6" })).ok).toBe(false);
+    await expect(admin.setUserStatus(adminId, adminId, "suspended")).rejects.toThrow(/own account/);
+    await expect(admin.setUserRoles(adminId, adminId, ["contributor"])).rejects.toThrow(/own admin role/);
+    expect(await admin.setUserRoles(adminId, created.id, ["editor"])).toEqual(expect.arrayContaining(["learner", "editor"]));
+  });
+});

@@ -39,8 +39,8 @@ describe("additiveTables", () => {
     return [...grouped.entries()];
   };
 
-  it("are word for word the statements of the 0002 and 0003 migrations, grouped by table", () => {
-    const expected = [...groupsOf("0002_framework_workspace.sql"), ...groupsOf("0003_expert_capture.sql")];
+  it("are word for word the statements of the 0002, 0003 and 0004 migrations, grouped by table", () => {
+    const expected = [...groupsOf("0002_framework_workspace.sql"), ...groupsOf("0003_expert_capture.sql"), ...groupsOf("0004_user_credentials.sql")];
     expect(additiveTables.map(({ table, statements: s }) => [table, [...s]])).toEqual(expected);
   });
 

@@ -1,4 +1,5 @@
 import { SiteHeader } from "@/components/site-header";
+import { ProductTour } from "@/features/preview/product-tour";
 import { OnboardingFlow } from "@/features/learner/onboarding-flow";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +11,7 @@ export default function Home() {
       <div className="mx-auto w-full max-w-7xl px-5 py-12 sm:px-8 sm:py-18 lg:py-24">
         <OnboardingFlow />
       </div>
+      <ProductTour />
     </main>
   );
 }

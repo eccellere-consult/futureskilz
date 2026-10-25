@@ -23,6 +23,8 @@ const serverEnvironmentSchema = z.object({
   SESSION_SECRET: z.string().min(32).optional(),
   MAGIC_LINK_SECRET: z.string().min(32).optional(),
   /** Turns on the /demo page. Leave unset in a live launch; set it to a long random phrase only while demonstrating. */
+  /** Comma-separated addresses that become admins the first time they sign in (the owner, so there is someone to create the rest). */
+  BOOTSTRAP_ADMIN_EMAILS: z.string().optional(),
   DEMO_ACCESS_CODE: z.string().min(12).optional(),
 });
 
