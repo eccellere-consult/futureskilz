@@ -1,4 +1,7 @@
-/** POST /api/demo/login — { code, persona }: opens a session for a sample person. Off unless the owner sets DEMO_ACCESS_CODE. */
+/**
+ * POST /api/demo/login — { email, password } (or { persona, code }): opens a session for one of the four sample people. The shared
+ * demo password is the owner's DEMO_ACCESS_CODE; the route is off without it and never signs in an address outside the demo domain.
+ */
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -13,10 +16,12 @@ const headers = { "Cache-Control": "no-store" };
 export async function POST(request: Request) {
   if (!demoEnabled()) return NextResponse.json({ error: "Not found." }, { status: 404, headers });
   if (!isSameOrigin(request)) return NextResponse.json({ error: "Request blocked." }, { status: 403, headers });
-  const input = (await readJson(request, 2_000).catch(() => ({}))) as { code?: string; persona?: string };
-  if (!checkCode(String(input.code ?? ""), clientIp(request))) return NextResponse.json({ error: "That access code is not right." }, { status: 401, headers });
-  const persona = (Object.keys(PERSONAS) as PersonaId[]).find((id) => id === input.persona);
-  if (!persona) return NextResponse.json({ error: "Choose a person." }, { status: 400, headers });
+  const input = (await readJson(request, 2_000).catch(() => ({}))) as { code?: string; password?: string; persona?: string; email?: string };
+  const secret = String(input.password ?? input.code ?? "");
+  if (!checkCode(secret, clientIp(request))) return NextResponse.json({ error: input.email ? "That email or password is not right." : "That password is not right." }, { status: 401, headers });
+  const ids = Object.keys(PERSONAS) as PersonaId[];
+  const persona = input.email ? ids.find((id) => PERSONAS[id].email === String(input.email).trim().toLowerCase()) : ids.find((id) => id === input.persona);
+  if (!persona) return NextResponse.json({ error: input.email ? "That email or password is not right." : "Choose a person." }, { status: input.email ? 401 : 400, headers });
   const session = await startDemoSession(persona);
   if (!session) return NextResponse.json({ error: "The demo has not been set up yet. Use \"Set up the demo\" first." }, { status: 409, headers });
   (await cookies()).set(sessionCookieName, session.token, sessionCookieOptions(process.env.NODE_ENV === "production", session.expiresAt));

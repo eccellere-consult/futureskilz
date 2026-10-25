@@ -3,9 +3,9 @@
 Four sample people, each with one finished example, built by the real product (not mock-ups).
 
 ## Switching the demo on
-1. In hPanel add the environment variable `DEMO_ACCESS_CODE` with a long random phrase (12+ characters) and restart. Without it `/demo` does nothing.
-2. Open `/demo`, enter the code, press **Set up the demo** (about a minute on Hostinger).
-3. Press **Enter as** a person. Sign-in is by the code only; the addresses end in `.test`, so no real mailbox can receive a link for them.
+1. In hPanel add the environment variable `DEMO_ACCESS_CODE` with a long random phrase (12+ characters) and restart. It is the **one shared password** for all four demo accounts. Without it `/demo` does nothing.
+2. Open `/demo`, enter any demo email and the password, and press **Set up the demo** (about a minute on Hostinger); use the same password there.
+3. Sign in with the email and password (or press **Enter as**). Only the four demo addresses work; they end in `.test`, so no real mailbox can receive a link for them.
 4. When finished: **Retire the demo** (sample lessons disappear from `/lessons`), then remove `DEMO_ACCESS_CODE`.
 
 | Person | Address | Role |

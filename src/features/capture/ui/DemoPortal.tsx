@@ -33,6 +33,7 @@ const PERSONAS: Persona[] = [
 export function DemoPortal() {
   const status = useRemote<{ enabled: boolean; seeded?: boolean }>("/api/demo/seed");
   const [code, setCode] = useState("");
+  const [email, setEmail] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [steps, setSteps] = useState<string[]>([]);
@@ -52,11 +53,11 @@ export function DemoPortal() {
     }
   }
 
-  async function enter(persona: string) {
-    setBusy(persona);
+  async function enter(who: { persona?: string; email?: string }) {
+    setBusy(who.persona ?? "email");
     setError(null);
     try {
-      const result = await post<{ redirectPath: string }>("/api/demo/login", { code, persona });
+      const result = await post<{ redirectPath: string }>("/api/demo/login", { password: code, ...who });
       window.location.assign(result.redirectPath);
     } catch (caught) {
       setError(messageOf(caught));
@@ -75,8 +76,14 @@ export function DemoPortal() {
       <p className="mt-3 max-w-2xl text-lg leading-8 text-ink-mid">Sample people with one finished example each. Everything is made by the real product, not mock-ups. Sample lessons are labelled and can be retired afterwards.</p>
 
       <section className="mt-8 max-w-md border-t-2 border-gold bg-surface p-5" aria-label="Access">
-        <label className="font-mono text-[10px] uppercase text-ink-light" htmlFor="code">Demo access code</label>
-        <input autoComplete="off" className="field-input" id="code" onChange={(event) => setCode(event.target.value)} type="password" value={code} />
+        <h2 className="font-display text-2xl">Sign in to the demo</h2>
+        <label className="mt-2 block font-mono text-[10px] uppercase text-ink-light" htmlFor="demo-email">Email</label>
+        <input autoComplete="username" className="field-input" id="demo-email" inputMode="email" list="demo-emails" onChange={(event) => setEmail(event.target.value)} placeholder="demo.coach@demo.futureskilz.test" type="email" value={email} />
+        <datalist id="demo-emails">{PERSONAS.map((persona) => <option key={persona.id} value={persona.email} />)}</datalist>
+        <label className="mt-2 block font-mono text-[10px] uppercase text-ink-light" htmlFor="code">Password (the same for all four demo people)</label>
+        <input autoComplete="current-password" className="field-input" id="code" onChange={(event) => setCode(event.target.value)} type="password" value={code} />
+        <button className="primary-button mt-3 w-full sm:w-auto" disabled={!email || !code || !!busy || !status.data?.seeded} onClick={() => void enter({ email })} type="button">{busy === "email" ? "Signing in…" : "Sign in"}</button>
+        <p className="mt-4 border-t border-border pt-3 text-xs text-ink-light">Setting up or removing the sample data uses the same password.</p>
         <div className="mt-3 flex flex-wrap gap-3">
           <button className="primary-button" disabled={!code || !!busy} onClick={() => void seed("seed")} type="button">{busy === "seed" ? "Setting up (about a minute)…" : status.data?.seeded ? "Rebuild the demo" : "Set up the demo"}</button>
           <button className="min-h-12 border border-border px-4 text-sm" disabled={!code || !!busy} onClick={() => void seed("retire")} type="button">Retire the demo</button>
@@ -92,7 +99,7 @@ export function DemoPortal() {
             <p className="font-mono text-[11px] text-ink-light">{persona.email}</p>
             <p className="mt-2 text-sm text-ink-mid">{persona.summary}</p>
             <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm">{persona.tour.map(([, label]) => <li key={label}>{label}</li>)}</ol>
-            <button className="primary-button mt-4" disabled={!code || !!busy || !status.data?.seeded} onClick={() => void enter(persona.id)} type="button">{busy === persona.id ? "Opening…" : `Enter as ${persona.name.split(" ·")[0]}`}</button>
+            <button className="primary-button mt-4" disabled={!code || !!busy || !status.data?.seeded} onClick={() => void enter({ persona: persona.id })} type="button">{busy === persona.id ? "Opening…" : `Enter as ${persona.name.split(" ·")[0]}`}</button>
           </section>
         ))}
       </div>
