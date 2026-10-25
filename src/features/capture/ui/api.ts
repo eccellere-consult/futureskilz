@@ -18,7 +18,7 @@ export class ApiError extends Error {
 export async function api<T>(url: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(url, { cache: "no-store", ...init, headers: { ...(init.body && !(init.body instanceof FormData) ? { "Content-Type": "application/json" } : {}), ...init.headers } });
   const data = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!response.ok) throw new ApiError(typeof data.error === "string" ? data.error : "Something went wrong. Please try again.", response.status, data);
+  if (!response.ok) throw new ApiError(typeof data.error === "string" ? data.error : `Something went wrong (the server answered ${response.status}${response.statusText ? ` ${response.statusText}` : ""} without a message). Please try again.`, response.status, data);
   return data as T;
 }
 

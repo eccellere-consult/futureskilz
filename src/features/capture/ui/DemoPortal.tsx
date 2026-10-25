@@ -31,7 +31,7 @@ const PERSONAS: Persona[] = [
 
 /** A guided way in for demonstrations. It needs the access code the site owner set, and only opens the sample people. */
 export function DemoPortal() {
-  const status = useRemote<{ enabled: boolean; seeded?: boolean }>("/api/demo/seed");
+  const status = useRemote<{ enabled: boolean; seeded?: boolean; lastFailure?: { at: string; message: string } | null }>("/api/demo/seed");
   const [code, setCode] = useState("");
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
@@ -89,6 +89,7 @@ export function DemoPortal() {
           <button className="min-h-12 border border-border px-4 text-sm" disabled={!code || !!busy} onClick={() => void seed("retire")} type="button">Retire the demo</button>
         </div>
         {error ? <p className="mt-3 text-sm text-crimson" role="alert">{error}</p> : null}
+        {status.data?.lastFailure ? <p className="mt-2 text-xs text-ink-light">Last server-side failure ({status.data.lastFailure.at}): {status.data.lastFailure.message}</p> : null}
         {steps.length ? <ul className="mt-3 space-y-1 text-xs text-ink-mid" role="status">{steps.map((step) => <li key={step}>✓ {step}</li>)}</ul> : null}
       </section>
 
