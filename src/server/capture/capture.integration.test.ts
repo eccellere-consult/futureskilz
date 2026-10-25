@@ -401,7 +401,7 @@ describe.skipIf(!enabled)("the demo", () => {
     const { template } = await earnings.listPolicies(admin.id);
     const real = await earnings.saveDraftPolicy(admin.id, { ...template, version: `real-${Date.now() % 100000}`, contributorPoolBp: 4000 });
     const run = await earnings.runAllocation(admin.id, { policyId: real.id, periodStart: new Date(Date.now() - 86_400_000).toISOString(), periodEnd: new Date(Date.now() + 86_400_000).toISOString() });
-    expect(run.run.inputs.receiptsCounted).toBe(0);
+    expect(run.run.inputs.eligibleNetMinor).toBe(800_000); // only the earlier test's real receipt; the three sample receipts are not counted
     expect(run.run.contributors.every((c) => c.contributorId !== coach.id)).toBe(true);
 
     expect(await retireDemo()).toBeGreaterThan(0);
