@@ -91,9 +91,11 @@ Built from the FutureSkilz Content Platform Specification and the Expert Knowled
 
 Signed-in people land in `/learn` ("My learning"): **Skills** (journey, skills check), **Training kits** (the Problem Solving kit; more kits join this shelf) and **Coach lessons**. `/problem-solving` and its tools require sign-in (`requireMember`, which returns the person to the page they wanted after registering). The kit is self-contained (`src/app/problem-solving`, `src/lib/problemSolving`, `src/lib/strategyModels`, `src/lib/templateKit`, `src/components/strategy-hub`, the `ws_*` tables and `/api/problem-solving`), so it is meant to be **copied** into the separate eccellere.in and eccellere.co.in apps rather than shared.
 
-## Demo (sample people)
+## Public previews, accounts and passwords
 
-`/demo` is off unless `DEMO_ACCESS_CODE` is set. See `docs/demo-walkthrough.md`.
+- **Previews (no sign-in):** the home page and `/join` end with "This is what you get after you register": tabs for Learner, Coach, Editor and Admin that click through the real screens with sample data (`src/features/preview`). Nothing is saved.
+- **Passwords (optional):** most people sign in with an emailed link. An admin can create real accounts with a role and a password at `/contribute/admin/users` (the password is shown once; only a salted scrypt hash is stored; five wrong guesses lock the account for 15 minutes). Passwords sign in at `/sign-in` or `/join` under "Email and password". Set `BOOTSTRAP_ADMIN_EMAILS` to the owner's address so the first admin exists: sign in once by emailed link and that address becomes an admin.
+- **Seeded demo accounts (internal):** `/demo` is off unless `DEMO_ACCESS_CODE` is set. See `docs/demo-walkthrough.md`.
 
 ## Hostinger constraints
 

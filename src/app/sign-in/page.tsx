@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 
 import { SiteHeader } from "@/components/site-header";
 import { safeRedirectPath } from "@/server/auth/magic-link";
-import { demoEnabled } from "@/server/demo/access";
-import { SignInForm } from "@/features/learner/sign-in-form";
+import { SignInOptions } from "@/features/learner/sign-in-options";
 
 export const metadata: Metadata = { title: "Sign in" };
 
@@ -23,9 +22,8 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
           </p>
         </div>
         <section aria-label="Sign in" className="h-fit border-t-2 border-gold bg-surface p-6 shadow-[0_18px_48px_rgba(14,14,13,0.08)] sm:p-8">
-          <SignInForm includeGuestProgress next={redirectPath} submitLabel="Email me a sign-in link" />
+          <SignInOptions includeGuestProgress linkLabel="Email me a sign-in link" next={redirectPath} />
           <p className="mt-5 border-t border-border pt-4 text-xs leading-5 text-ink-mid">
-            {demoEnabled() ? <><a className="text-teal underline underline-offset-4" href="/demo">Demo account? Sign in with a demo email and password.</a><br /></> : null}
             New here? <a className="text-teal underline underline-offset-4" href="/join">Register as a learner</a> or <a className="text-teal underline underline-offset-4" href="/join?as=coach">as a coach</a>.
           </p>
         </section>

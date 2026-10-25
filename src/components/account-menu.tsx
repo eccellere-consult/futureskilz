@@ -52,6 +52,7 @@ export function AccountMenu() {
       )}
       {user.roles?.some((role) => ["editor", "admin"].includes(role)) ? <Link className="hidden text-xs text-cream/80 underline-offset-4 hover:underline lg:inline" href="/contribute/editor">Editor desk</Link> : null}
       {user.roles?.includes("admin") ? <Link className="hidden text-xs text-cream/80 underline-offset-4 hover:underline lg:inline" href="/contribute/admin">Earnings</Link> : null}
+      {user.roles?.includes("admin") ? <Link className="hidden text-xs text-cream/80 underline-offset-4 hover:underline lg:inline" href="/contribute/admin/users">Accounts</Link> : null}
       <span className="hidden max-w-36 truncate text-xs text-cream/70 md:inline" title={user.email}>{user.displayName}</span>
       <button
         aria-label="Sign out"

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 import type { AllocationRun } from "../earnings/calculator";
@@ -61,7 +62,8 @@ export function AdminEarnings() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8 lg:py-12">
-      <p className="font-mono text-[10px] uppercase text-ink-light">Admin · earnings</p>
+      <Link className="text-sm text-teal underline underline-offset-4" href="/contribute/admin/users">Accounts and passwords</Link>
+      <p className="mt-3 font-mono text-[10px] uppercase text-ink-light">Admin · earnings</p>
       <h1 className="mt-1 font-display text-4xl font-semibold sm:text-5xl">Revenue sharing, on approved rules</h1>
       <p className="mt-2 max-w-3xl text-ink-mid">The platform ships no formula. You set a policy, approve it, and apply it to a period. An unapproved policy only produces a preview that cannot be paid. Ratings can carry at most 30% of the weight and only count for learners who completed a lesson.</p>
       {error ? <p className="mt-3 border-l-2 border-crimson bg-crimson/5 px-4 py-2 text-sm text-crimson" role="alert">{error}</p> : null}
