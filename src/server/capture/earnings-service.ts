@@ -6,9 +6,9 @@ import { and, desc, eq, gte, inArray, lt } from "drizzle-orm";
 
 import { calculateAllocations, canonicalJson, type AllocationRun, type LearningEvent, type LessonInfo, type Rating, type Receipt } from "@/features/capture/earnings/calculator";
 import { draftPolicyTemplate, revenuePolicySchema, type RevenuePolicy } from "@/features/capture/earnings/policy";
-import { kcContributors, kcFeedback, kcLearningEvents, kcLessonAttribution, kcLessons, kcProjects, kcReceipts, kcRevenuePolicies, kcStatements } from "@/server/db/schema";
+import { users, kcContributors, kcFeedback, kcLearningEvents, kcLessonAttribution, kcLessons, kcProjects, kcReceipts, kcRevenuePolicies, kcStatements } from "@/server/db/schema";
 
-import { usageByLesson } from "./learner-service";
+import { distinctLearners, usageByLesson } from "./learner-service";
 import { CaptureError, audit, database, iso, rolesOf, type Executor } from "./shared";
 
 async function requireAdmin(executor: Executor, userId: string): Promise<void> {
@@ -104,10 +104,14 @@ export async function runAllocation(userId: string, input: { policyId: string; p
   const policy = revenuePolicySchema.parse(policyRow.definition);
 
   const receiptRows = await db.select().from(kcReceipts).where(and(gte(kcReceipts.receivedAt, start), lt(kcReceipts.receivedAt, end)));
-  const receipts: Receipt[] = receiptRows.map((row) => ({ id: row.id, grossMinor: row.grossMinor, refundMinor: row.refundMinor, feeMinor: row.feeMinor, taxMinor: row.taxMinor, currency: row.currency, receivedAt: iso(row.receivedAt), status: row.status }));
+  // Sample data from /demo never counts in a real policy's run, and a demo policy only ever sees sample data.
+  const demoPolicy = policyRow.version.startsWith("demo");
+  const receipts: Receipt[] = receiptRows.filter((row) => row.externalRef.startsWith("demo-") === demoPolicy).map((row) => ({ id: row.id, grossMinor: row.grossMinor, refundMinor: row.refundMinor, feeMinor: row.feeMinor, taxMinor: row.taxMinor, currency: row.currency, receivedAt: iso(row.receivedAt), status: row.status }));
   const lessonRows = await db.select().from(kcLessons).where(inArray(kcLessons.status, ["published", "retired"]));
   const attributionRows = lessonRows.length ? await db.select().from(kcLessonAttribution).where(inArray(kcLessonAttribution.lessonId, lessonRows.map((l) => l.id))) : [];
-  const lessons: LessonInfo[] = lessonRows.map((row) => ({ id: row.id, title: row.title, version: row.version, attribution: attributionRows.filter((a) => a.lessonId === row.id).map((a) => ({ contributorId: a.contributorId, shareBp: a.shareBp })) })).filter((lesson) => lesson.attribution.length > 0);
+  const people = lessonRows.length ? await db.select({ id: users.id, email: users.email }).from(users).where(inArray(users.id, lessonRows.map((l) => l.contributorId))) : [];
+  const isDemoLesson = (contributorId: string) => (people.find((person) => person.id === contributorId)?.email ?? "").endsWith("@demo.futureskilz.test");
+  const lessons: LessonInfo[] = lessonRows.filter((row) => isDemoLesson(row.contributorId) === demoPolicy).map((row) => ({ id: row.id, title: row.title, version: row.version, attribution: attributionRows.filter((a) => a.lessonId === row.id).map((a) => ({ contributorId: a.contributorId, shareBp: a.shareBp })) })).filter((lesson) => lesson.attribution.length > 0);
   const eventRows = lessons.length ? await db.select().from(kcLearningEvents).where(and(inArray(kcLearningEvents.lessonId, lessons.map((l) => l.id)), gte(kcLearningEvents.occurredAt, start), lt(kcLearningEvents.occurredAt, end))) : [];
   const events: LearningEvent[] = eventRows.map((row) => ({ id: row.id, lessonId: row.lessonId, learnerRef: row.learnerRef, type: row.eventType, seconds: row.seconds, occurredAt: iso(row.occurredAt) }));
   const feedbackRows = lessons.length ? await db.select().from(kcFeedback).where(and(inArray(kcFeedback.lessonId, lessons.map((l) => l.id)), inArray(kcFeedback.moderation, ["visible", "held"]))) : [];
@@ -189,12 +193,14 @@ export async function contributorDashboard(userId: string) {
     shareBp: credited.find((c) => c.lessonId === row.id)?.shareBp ?? 0,
     usage: usage.get(row.id)!,
   }));
+  const learnersReached = await distinctLearners(lessonRows.map((row) => row.id));
   const statements = await db.select().from(kcStatements).where(eq(kcStatements.contributorId, userId)).orderBy(desc(kcStatements.createdAt));
   const [approvedPolicy] = await db.select().from(kcRevenuePolicies).where(eq(kcRevenuePolicies.status, "approved")).orderBy(desc(kcRevenuePolicies.approvedAt)).limit(1);
   return {
     contributor: contributor ? { name: contributor.publicName, headline: contributor.headline, status: contributor.status } : null,
     projects: projects.map((project) => ({ id: project.id, title: project.title, status: project.status, updatedAt: iso(project.updatedAt) })),
     lessons,
+    learnersReached,
     statements: statements.map((row) => ({ id: row.id, status: row.status, totalMinor: row.totalMinor, currency: row.currency, periodStart: iso(row.periodStart), periodEnd: iso(row.periodEnd), policyId: row.policyId, payload: row.payload, disputeNote: row.disputeNote, createdAt: iso(row.createdAt) })),
     earningsPolicy: approvedPolicy ? { version: approvedPolicy.version, approvedAt: iso(approvedPolicy.approvedAt) } : null,
   };

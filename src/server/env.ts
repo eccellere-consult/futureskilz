@@ -22,6 +22,8 @@ const serverEnvironmentSchema = z.object({
   APP_URL: z.url().default("http://localhost:3000"),
   SESSION_SECRET: z.string().min(32).optional(),
   MAGIC_LINK_SECRET: z.string().min(32).optional(),
+  /** Turns on the /demo page. Leave unset in a live launch; set it to a long random phrase only while demonstrating. */
+  DEMO_ACCESS_CODE: z.string().min(12).optional(),
 });
 
 export type ServerEnvironment = z.infer<typeof serverEnvironmentSchema>;
