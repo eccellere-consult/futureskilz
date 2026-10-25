@@ -43,8 +43,20 @@ export function DemoPortal() {
     setError(null);
     setSteps([]);
     try {
-      const result = await post<{ steps?: string[]; retired?: number }>("/api/demo/seed", { code, action });
-      setSteps(action === "seed" ? (result.steps ?? []) : [`Retired ${result.retired ?? 0} demo interview(s) and their lessons.`]);
+      if (action === "retire") {
+        const result = await post<{ retired?: number }>("/api/demo/seed", { code, action });
+        setSteps([`Retired ${result.retired ?? 0} demo interview(s) and their lessons.`]);
+      } else {
+        // The host cuts off long requests, so the demo is built in short steps, each reported as it finishes.
+        let step: { stage: string; index?: number } | null = { stage: "people" };
+        const done: string[] = [];
+        while (step) {
+          const result: { steps?: string[]; next: { stage: string; index?: number } | null } = await post("/api/demo/seed", { code, action, step });
+          done.push(...(result.steps ?? []));
+          setSteps([...done]);
+          step = result.next;
+        }
+      }
       status.reload();
     } catch (caught) {
       setError(messageOf(caught));
