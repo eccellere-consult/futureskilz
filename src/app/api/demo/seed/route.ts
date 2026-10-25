@@ -12,9 +12,11 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 const headers = { "Cache-Control": "no-store" };
 
+let lastFailure: { at: string; message: string } | null = null;
+
 export async function GET() {
   if (!demoEnabled()) return NextResponse.json({ enabled: false }, { headers });
-  return NextResponse.json({ enabled: true, seeded: await demoSeeded().catch(() => false) }, { headers });
+  return NextResponse.json({ enabled: true, seeded: await demoSeeded().catch(() => false), lastFailure }, { headers });
 }
 
 export async function POST(request: Request) {
@@ -26,6 +28,7 @@ export async function POST(request: Request) {
     if (input.action === "retire") return NextResponse.json({ retired: await retireDemo() }, { headers });
     return NextResponse.json(await seedDemo(), { headers });
   } catch (error) {
+    lastFailure = { at: new Date().toISOString(), message: error instanceof Error ? error.message : String(error) };
     console.error("[demo/seed]", error instanceof Error ? (error.stack ?? error.message) : error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "The demo could not be set up." }, { status: 500, headers });
   }
