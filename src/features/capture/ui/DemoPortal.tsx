@@ -83,7 +83,7 @@ export function DemoPortal() {
         <label className="mt-2 block font-mono text-[10px] uppercase text-ink-light" htmlFor="code">Password (the same for all four demo people)</label>
         <input autoComplete="current-password" className="field-input" id="code" onChange={(event) => setCode(event.target.value)} type="password" value={code} />
         <button className="primary-button mt-3 w-full sm:w-auto" disabled={!email || !code || !!busy || !status.data?.seeded} onClick={() => void enter({ email })} type="button">{busy === "email" ? "Signing in…" : "Sign in"}</button>
-        <p className="mt-4 border-t border-border pt-3 text-xs text-ink-light">Setting up or removing the sample data uses the same password. After setup, these four also sign in at <a className="underline" href="/sign-in">/sign-in</a> under "Email and password".</p>
+        <p className="mt-4 border-t border-border pt-3 text-xs text-ink-light">Setting up or removing the sample data uses the same password. After setup, these four also sign in at <a className="underline" href="/sign-in">/sign-in</a> under &ldquo;Email and password&rdquo;.</p>
         <div className="mt-3 flex flex-wrap gap-3">
           <button className="primary-button" disabled={!code || !!busy} onClick={() => void seed("seed")} type="button">{busy === "seed" ? "Setting up (about a minute)…" : status.data?.seeded ? "Rebuild the demo" : "Set up the demo"}</button>
           <button className="min-h-12 border border-border px-4 text-sm" disabled={!code || !!busy} onClick={() => void seed("retire")} type="button">Retire the demo</button>
