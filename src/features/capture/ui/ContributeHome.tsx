@@ -103,6 +103,7 @@ export function ContributeHome() {
           <h2 className="font-display text-2xl">Start by signing in</h2>
           <p className="mt-1 mb-4 text-sm text-ink-mid">We email you a one-tap link. No password, and no long form.</p>
           <SignInForm includeGuestProgress={false} next="/contribute" submitLabel="Email me a sign-in link" />
+          <p className="mt-4 text-xs text-ink-light">Want to learn instead? <Link className="text-teal underline underline-offset-4" href="/join">Register as a learner</Link>.</p>
         </section>
       ) : null}
 
