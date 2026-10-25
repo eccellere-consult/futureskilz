@@ -32,6 +32,7 @@ export async function POST(request: Request) {
   } catch (error) {
     lastFailure = { at: new Date().toISOString(), message: error instanceof Error ? error.message : String(error) };
     console.error("[demo/seed]", error instanceof Error ? (error.stack ?? error.message) : error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : "The demo could not be set up." }, { status: 500, headers });
+    // Answered with 200 on purpose: the website host replaces the body of any 500 with its own error page, which hides the reason.
+    return NextResponse.json({ failed: true, error: error instanceof Error ? error.message : "The demo could not be set up." }, { headers });
   }
 }

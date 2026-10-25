@@ -44,14 +44,16 @@ export function DemoPortal() {
     setSteps([]);
     try {
       if (action === "retire") {
-        const result = await post<{ retired?: number }>("/api/demo/seed", { code, action });
+        const result = await post<{ retired?: number; failed?: boolean; error?: string }>("/api/demo/seed", { code, action });
+        if (result.failed) throw new Error(result.error ?? "Could not retire the demo.");
         setSteps([`Retired ${result.retired ?? 0} demo interview(s) and their lessons.`]);
       } else {
         // The host cuts off long requests, so the demo is built in short steps, each reported as it finishes.
         let step: { stage: string; index?: number } | null = { stage: "people" };
         const done: string[] = [];
         while (step) {
-          const result: { steps?: string[]; next: { stage: string; index?: number } | null } = await post("/api/demo/seed", { code, action, step });
+          const result: { steps?: string[]; failed?: boolean; error?: string; next: { stage: string; index?: number } | null } = await post("/api/demo/seed", { code, action, step });
+          if (result.failed) throw new Error(`Step "${step.stage}" failed: ${result.error ?? "no reason given"}`);
           done.push(...(result.steps ?? []));
           setSteps([...done]);
           step = result.next;
