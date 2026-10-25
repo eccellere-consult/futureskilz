@@ -74,11 +74,18 @@ async function runSchemaStepsTracked(at: (step: string) => void): Promise<void> 
         return;
       }
 
-      for (const { table, statements } of additiveTables) {
-        if (await tableExists(connection, table)) continue;
-        at(`creating the ${table} table`);
-        for (const statement of statements) await connection.query(statement);
-        console.info(`Database schema: created ${table}.`);
+      // Tables first, then their foreign keys and indexes: the tables of one migration refer to each other.
+      const created: Array<(typeof additiveTables)[number]> = [];
+      for (const entry of additiveTables) {
+        if (await tableExists(connection, entry.table)) continue;
+        at(`creating the ${entry.table} table`);
+        await connection.query(entry.statements[0]);
+        created.push(entry);
+        console.info(`Database schema: created ${entry.table}.`);
+      }
+      for (const { table, statements } of created) {
+        at(`linking the ${table} table`);
+        for (const statement of statements.slice(1)) await connection.query(statement);
       }
 
       for (const { table, column, definition } of additiveColumns) {

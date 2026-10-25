@@ -22,6 +22,13 @@
       "when": 1792835900390,
       "tag": "0002_framework_workspace",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1792930227884,
+      "tag": "0003_expert_capture",
+      "breakpoints": true
     }
   ]
 }

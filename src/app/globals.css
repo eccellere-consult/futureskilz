@@ -153,3 +153,23 @@ a:focus-visible {
 .ws-surface {
   --color-white: var(--ec-surface);
 }
+
+/* Expert capture: the interview companion's small movements. All of them stop for people who ask for less motion. */
+@keyframes cx-talk {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(3.2); }
+}
+@keyframes cx-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+@keyframes cx-blink-kf {
+  0%, 94%, 100% { transform: scaleY(1); }
+  97% { transform: scaleY(0.1); }
+}
+.cx-speaking .cx-mouth { transform-origin: 100px 105px; animation: cx-talk 0.34s ease-in-out infinite; }
+.cx-listening { animation: cx-pulse 1.4s ease-in-out infinite; }
+.cx-blink { transform-origin: center; transform-box: fill-box; animation: cx-blink-kf 5s infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .cx-speaking .cx-mouth, .cx-listening, .cx-blink { animation: none; }
+}
