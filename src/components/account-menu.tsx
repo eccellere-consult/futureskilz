@@ -24,6 +24,7 @@ export function AccountMenu() {
   if (!user) {
     return (
       <div className="flex items-center gap-2">
+        <Link className="hidden text-xs text-gold-light underline-offset-4 hover:underline md:inline" href="/join?as=coach">Become a coach</Link>
         <Link className="inline-flex min-h-9 items-center gap-2 border border-cream/25 px-3 text-xs font-medium text-cream hover:border-gold-light hover:text-gold-light" href="/join">
           <UserRound aria-hidden="true" size={15} /> Sign in
         </Link>
@@ -43,6 +44,7 @@ export function AccountMenu() {
 
   return (
     <div className="flex items-center gap-2">
+      <Link className="text-xs font-semibold text-gold-light underline-offset-4 hover:underline" href="/learn">My learning</Link>
       {user.roles?.some((role) => ["contributor", "editor", "admin"].includes(role)) ? (
         <Link className="hidden text-xs text-gold-light underline-offset-4 hover:underline md:inline" href="/contribute/dashboard">Coach dashboard</Link>
       ) : (

@@ -12,7 +12,7 @@ const PATHS: Record<Path, { icon: typeof Mic; title: string; body: string; next:
     icon: GraduationCap,
     title: "I want to learn",
     body: "Find where you stand, get a short personal path, and learn from experienced professionals.",
-    next: "/",
+    next: "/learn",
     submit: "Email me a link to start learning",
     points: ["A few clicks to see your strengths and gaps", "Short lessons from real practitioners", "Your progress follows you to any device"],
   },
@@ -27,7 +27,7 @@ const PATHS: Record<Path, { icon: typeof Mic; title: string; body: string; next:
 };
 
 /** One front door for both audiences. The email link registers a new person or signs a returning one in; no password. */
-export function JoinFlow({ initial }: { initial: Path }) {
+export function JoinFlow({ initial, returnTo }: { initial: Path; returnTo?: string }) {
   const [path, setPath] = useState<Path>(initial);
   const chosen = PATHS[path];
 
@@ -55,7 +55,7 @@ export function JoinFlow({ initial }: { initial: Path }) {
       <section aria-label="Continue with email" className="mt-8 max-w-md border-t-2 border-gold bg-surface p-6 shadow-[0_18px_48px_rgba(14,14,13,0.08)]">
         <h2 className="font-serif text-2xl">{path === "coach" ? "Start as a coach" : "Start as a learner"}</h2>
         <div className="mt-4">
-          <SignInForm key={path} includeGuestProgress={path === "learner"} next={chosen.next} submitLabel={chosen.submit} />
+          <SignInForm key={path} includeGuestProgress={path === "learner"} next={returnTo ?? chosen.next} submitLabel={chosen.submit} />
         </div>
       </section>
     </div>

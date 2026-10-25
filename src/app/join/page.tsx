@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { SiteHeader } from "@/components/site-header";
+import { safeRedirectPath } from "@/server/auth/magic-link";
 import { JoinFlow } from "@/features/learner/join-flow";
 
 export const metadata: Metadata = {
@@ -11,11 +12,12 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function JoinPage({ searchParams }: PageProps<"/join">) {
-  const { as } = await searchParams;
+  const { as, next } = await searchParams;
+  const returnTo = typeof next === "string" && next.startsWith("/") ? safeRedirectPath(next) : undefined;
   return (
     <main className="min-h-screen bg-cream text-ink">
       <SiteHeader />
-      <JoinFlow initial={as === "coach" ? "coach" : "learner"} />
+      <JoinFlow initial={as === "coach" ? "coach" : "learner"} returnTo={returnTo} />
     </main>
   );
 }

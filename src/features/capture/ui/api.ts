@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+export { formatDuration, formatMoney, shortDate } from "./format";
+
 /** Small fetch helpers for the capture screens. Errors carry the server's plain-language message. */
 export class ApiError extends Error {
   constructor(
@@ -25,24 +27,6 @@ export const patch = <T,>(url: string, body: unknown): Promise<T> => api<T>(url,
 export const put = <T,>(url: string, body: unknown): Promise<T> => api<T>(url, { method: "PUT", body: JSON.stringify(body) });
 
 export const messageOf = (error: unknown): string => (error instanceof Error ? error.message : "Something went wrong. Please try again.");
-
-export function formatDuration(seconds: number): string {
-  if (seconds < 90) return `${seconds} sec`;
-  return `${Math.round(seconds / 60)} min`;
-}
-
-export function formatMoney(minor: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat("en-IN", { style: "currency", currency }).format(minor / 100);
-  } catch {
-    return `${(minor / 100).toFixed(2)} ${currency}`;
-  }
-}
-
-export function shortDate(iso: string | null | undefined): string {
-  if (!iso) return "";
-  return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-}
 
 /** Loads JSON from a URL and keeps it; `reload` fetches again (after a change), `setError` shows a problem from an action. */
 export function useRemote<T>(url: string): { data: T | null; error: string | null; setError: (message: string | null) => void; reload: () => void; setData: (value: T) => void } {

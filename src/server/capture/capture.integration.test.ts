@@ -315,7 +315,7 @@ describe.skipIf(!enabled)("expert capture, end to end", () => {
 
   it("shows the contributor usage for their lessons while the earnings rules are still pending", async () => {
     const dash = await earnings.contributorDashboard(contributor);
-    expect(dash.earningsPolicy).toBeNull();
+    expect(dash.earningsPolicy?.version.startsWith("demo") ?? false).toBe(false); // the sample policy is only ever a draft
     const row = dash.lessons.find((lesson) => lesson.id === lessonId)!;
     expect(row).toMatchObject({ shareBp: 6000, status: "published" });
     expect(row.usage.completions).toBe(3);
@@ -372,4 +372,39 @@ describe.skipIf(!enabled)("expert capture, end to end", () => {
     expect((await lessons.listPublishedLessons()).some((l) => l.slug === lessonSlug)).toBe(false);
     await expect(svc.openInterview(contributor, projectId)).rejects.toThrow(/withdrawn/);
   });
+});
+
+describe.skipIf(!enabled)("the demo", () => {
+  it("builds a finished example for each persona from the real services, and keeps sample data out of real policies", async () => {
+    const { seedDemo, retireDemo } = await import("@/server/demo/seed");
+    const earnings = await import("./earnings-service");
+    const lessons = await import("./lesson-service");
+    const shared = await import("./shared");
+    const schema = await import("@/server/db/schema");
+    const { PERSONAS } = await import("@/server/demo/personas");
+    const report = await seedDemo();
+    expect(report.seeded).toBe(true);
+    const byStatus = (status: string) => report.lessons.filter((lesson) => lesson.status === status).length;
+    expect(byStatus("published")).toBeGreaterThan(3);
+    expect(byStatus("awaiting_contributor")).toBe(1);
+    expect(byStatus("in_review")).toBe(1);
+
+    const db = await shared.database();
+    const [coach] = await db.select().from(schema.users).where(eq(schema.users.email, PERSONAS.coach.email));
+    const dash = await earnings.contributorDashboard(coach.id);
+    expect(dash.learnersReached).toBe(8);
+    expect(dash.statements[0].status).toBe("illustrative");
+    expect(dash.earningsPolicy?.version.startsWith("demo") ?? false).toBe(false); // the sample policy is only ever a draft
+
+    // A real (non-demo) policy sees none of the sample lessons or receipts.
+    const [admin] = await db.select().from(schema.users).where(eq(schema.users.email, PERSONAS.admin.email));
+    const { template } = await earnings.listPolicies(admin.id);
+    const real = await earnings.saveDraftPolicy(admin.id, { ...template, version: `real-${Date.now() % 100000}`, contributorPoolBp: 4000 });
+    const run = await earnings.runAllocation(admin.id, { policyId: real.id, periodStart: new Date(Date.now() - 86_400_000).toISOString(), periodEnd: new Date(Date.now() + 86_400_000).toISOString() });
+    expect(run.run.inputs.receiptsCounted).toBe(0);
+    expect(run.run.contributors.every((c) => c.contributorId !== coach.id)).toBe(true);
+
+    expect(await retireDemo()).toBeGreaterThan(0);
+    expect((await lessons.listPublishedLessons()).some((l) => report.lessons.some((x) => x.title === l.title && x.status === "published"))).toBe(false);
+  }, 120_000);
 });

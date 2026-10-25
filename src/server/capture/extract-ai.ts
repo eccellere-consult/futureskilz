@@ -14,7 +14,11 @@ export type AiReading = { facts: DraftFact[]; rejected: Rejection[]; provider: s
 
 const TIMEOUT_MS = 20_000;
 
+/** The demo seeder switches the model off so sample content is identical every time and costs nothing. */
+export const aiSwitch = { off: false };
+
 export async function readWithAi(input: { segments: Segment[]; question: QuestionDef | null; roleId: string | null; processId: string | null }): Promise<AiReading | null> {
+  if (aiSwitch.off) return null;
   try {
     const { ai } = createProviders();
     if (ai.name === "deterministic") return null;

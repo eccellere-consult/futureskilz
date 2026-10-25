@@ -118,3 +118,11 @@ export async function usageByLesson(lessonIds: string[]) {
   }
   return out;
 }
+
+/** Different people across all of a contributor's lessons (not the per-lesson counts added together). */
+export async function distinctLearners(lessonIds: string[]): Promise<number> {
+  if (lessonIds.length === 0) return 0;
+  const db = await database();
+  const [row] = await db.select({ n: sql<number>`count(distinct ${kcLearningEvents.learnerRef})` }).from(kcLearningEvents).where(inArray(kcLearningEvents.lessonId, lessonIds));
+  return Number(row?.n ?? 0);
+}

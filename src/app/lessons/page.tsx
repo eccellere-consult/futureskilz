@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { SiteHeader } from "@/components/site-header";
-import { formatDuration } from "@/features/capture/ui/api";
+import { formatDuration } from "@/features/capture/ui/format";
 import { learningPaths } from "@/server/capture/lesson-service";
 
 export const metadata: Metadata = {

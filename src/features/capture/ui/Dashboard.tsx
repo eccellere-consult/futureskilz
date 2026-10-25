@@ -31,7 +31,7 @@ export function Dashboard() {
 
   if (!data) return <div className="mx-auto max-w-3xl px-5 py-16 sm:px-8" role="status">{error ? <p className="text-crimson">{error} <Link className="underline" href="/sign-in">Sign in</Link></p> : <p className="text-ink-light">Loading your dashboard…</p>}</div>;
 
-  const totals = data.lessons.reduce((sum, lesson) => ({ completions: sum.completions + lesson.usage.completions, seconds: sum.seconds + lesson.usage.seconds, learners: sum.learners + lesson.usage.learners }), { completions: 0, seconds: 0, learners: 0 });
+  const totals = data.lessons.reduce((sum, lesson) => ({ completions: sum.completions + lesson.usage.completions, seconds: sum.seconds + lesson.usage.seconds }), { completions: 0, seconds: 0 });
 
   return (
     <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8 lg:py-12">
@@ -40,7 +40,7 @@ export function Dashboard() {
       {error ? <p className="mt-3 text-sm text-crimson" role="alert">{error}</p> : null}
 
       <dl className="mt-6 grid grid-cols-2 gap-px border border-border bg-border sm:grid-cols-4">
-        {[["Lessons credited", data.lessons.length], ["Live lessons", data.lessons.filter((l) => l.status === "published").length], ["Learners reached", totals.learners], ["Completions", totals.completions]].map(([label, value]) => (
+        {[["Lessons credited", data.lessons.length], ["Live lessons", data.lessons.filter((l) => l.status === "published").length], ["Learners reached", data.learnersReached], ["Completions", totals.completions]].map(([label, value]) => (
           <div key={label as string} className="bg-surface p-4"><dt className="font-mono text-[10px] uppercase text-ink-light">{label}</dt><dd className="mt-1 font-display text-3xl">{value}</dd></div>
         ))}
       </dl>

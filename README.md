@@ -87,6 +87,14 @@ Built from the FutureSkilz Content Platform Specification and the Expert Knowled
 - **Roles**: contributors are created on first interview; grant `editor` or `admin` in `user_roles` for the editor desk (`/contribute/editor`) and earnings admin.
 - **Tests**: `npm test` runs the rules. `npm run test:integration` (needs the MariaDB from `.env.local`) runs the whole flow, including resume, upload, review, approval, lessons, usage and statements.
 
+## Members area and Problem Solving kit
+
+Signed-in people land in `/learn` ("My learning"): **Skills** (journey, skills check), **Training kits** (the Problem Solving kit; more kits join this shelf) and **Coach lessons**. `/problem-solving` and its tools require sign-in (`requireMember`, which returns the person to the page they wanted after registering). The kit is self-contained (`src/app/problem-solving`, `src/lib/problemSolving`, `src/lib/strategyModels`, `src/lib/templateKit`, `src/components/strategy-hub`, the `ws_*` tables and `/api/problem-solving`), so it is meant to be **copied** into the separate eccellere.in and eccellere.co.in apps rather than shared.
+
+## Demo (sample people)
+
+`/demo` is off unless `DEMO_ACCESS_CODE` is set. See `docs/demo-walkthrough.md`.
+
 ## Hostinger constraints
 
 - Managed Web/Cloud provides MariaDB only; PostgreSQL and pgvector require VPS or an external provider.
