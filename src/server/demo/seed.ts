@@ -54,16 +54,84 @@ export async function retireDemo(): Promise<number> {
 
 const OPTION_PREFERENCE = ["anonymize", "accurate", "yes", "next", "no"];
 
+type Ctx = { db: Awaited<ReturnType<typeof database>>; learnerId: string; coachId: string; editorId: string; adminId: string; coach2Id: string; projectId: string };
+export type SeedStage = "people" | "interview" | "review" | "lessons" | "usage" | "finance";
+export type SeedStep = { stage: SeedStage; index?: number };
+export type SeedProgress = { steps: string[]; next: SeedStep | null; report?: SeedReport };
+
+const STAGE_ORDER: SeedStage[] = ["people", "interview", "review", "lessons", "usage", "finance"];
+
+async function context(): Promise<Ctx> {
+  const db = await database();
+  const idOf = async (email: string) => (await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1))[0]?.id ?? "";
+  const coachId = await idOf(PERSONAS.coach.email);
+  const projects = coachId ? await db.select().from(kcProjects).where(eq(kcProjects.contributorId, coachId)) : [];
+  const live = projects.filter((project) => project.status !== "withdrawn" && project.title.startsWith("DEMO"));
+  return {
+    db, coachId, learnerId: await idOf(PERSONAS.learner.email), editorId: await idOf(PERSONAS.editor.email), adminId: await idOf(PERSONAS.admin.email),
+    coach2Id: await idOf(COACH2.email), projectId: live[live.length - 1]?.id ?? "",
+  };
+}
+
 /**
  * Builds one finished example for every kind of person, using the real services (the same code a live user triggers), so
  * the demo cannot drift from the product. Safe to run again: an existing demo interview is retired and a fresh one is made.
+ * It runs in short stages (the website host cuts off a single long request), each of which can be called on its own.
  */
-export async function seedDemo(): Promise<SeedReport> {
+export async function seedDemoStep(step: SeedStep): Promise<SeedProgress> {
   const steps: string[] = [];
   const log = (line: string) => steps.push(line);
   aiSwitch.off = true;
   try {
-    const db = await database();
+    let next: SeedStep | null = null;
+    if (step.stage === "people") await stagePeople(log);
+    else {
+      const c = await context();
+      if (!c.coachId || (step.stage !== "interview" && !c.projectId)) throw new Error("Run the earlier demo steps first.");
+      if (step.stage === "interview") await stageInterview(c, log);
+      else if (step.stage === "review") await stageReview(c, log);
+      else if (step.stage === "lessons") await stageLessons(c, log);
+      else if (step.stage === "usage") {
+        const count = await stageUsage(c, step.index ?? 0, log);
+        if ((step.index ?? 0) + 1 < count) next = { stage: "usage", index: (step.index ?? 0) + 1 };
+      } else await stageFinance(c, log);
+    }
+    if (!next) {
+      const after = STAGE_ORDER[STAGE_ORDER.indexOf(step.stage) + 1];
+      next = after ? { stage: after } : null;
+    }
+    return { steps, next };
+  } finally {
+    aiSwitch.off = false;
+  }
+}
+
+/** Everything in one call: used by tests and by anything that is not behind a request time limit. */
+export async function seedDemo(): Promise<SeedReport> {
+  const steps: string[] = [];
+  let step: SeedStep | null = { stage: "people" };
+  while (step) {
+    const progress: SeedProgress = await seedDemoStep(step);
+    steps.push(...progress.steps);
+    step = progress.next;
+  }
+  return seedReport(steps);
+}
+
+export async function seedReport(steps: string[]): Promise<SeedReport> {
+  const c = await context();
+  const finalLessons = c.projectId ? await c.db.select({ id: kcLessons.id, title: kcLessons.title, status: kcLessons.status }).from(kcLessons).where(eq(kcLessons.projectId, c.projectId)) : [];
+  return {
+    seeded: true,
+    steps,
+    people: (Object.keys(PERSONAS) as PersonaId[]).map((persona) => ({ persona, email: PERSONAS[persona].email, name: PERSONAS[persona].name })),
+    projectId: c.projectId || null,
+    lessons: finalLessons,
+  };
+}
+
+async function stagePeople(log: (line: string) => void): Promise<void> {
+  const db = await database();
     const learnerId = await ensureUser(PERSONAS.learner.email, PERSONAS.learner.name, []);
     const coachId = await ensureUser(PERSONAS.coach.email, PERSONAS.coach.name, ["contributor"]);
     const editorId = await ensureUser(PERSONAS.editor.email, PERSONAS.editor.name, ["editor"]);
@@ -75,9 +143,8 @@ export async function seedDemo(): Promise<SeedReport> {
     if (sharedPassword) for (const id of [learnerId, coachId, editorId, adminId]) await setPassword(id, sharedPassword, null);
     log(`Created the demo learner, coach, editor, admin and a co-author${sharedPassword ? "; the four can sign in with email and the shared password" : ""}.`);
 
-    await retireDemo();
+  await retireDemo();
 
-    // ---- Learner: profile, skills check, two Skill Shots, a worked problem -------------------------------------------
     const first = skillShots[0];
     const second = skillShots[1];
     await learnerRepository().importSnapshot(learnerId, {
@@ -98,7 +165,9 @@ export async function seedDemo(): Promise<SeedReport> {
     }
     log("Learner: profile, skills check, two Skill Shots and a Problem Solving case saved.");
 
-    // ---- Coach: a complete interview ------------------------------------------------------------------------------------
+}
+
+async function stageInterview({ coachId }: Ctx, log: (line: string) => void): Promise<void> {
     const { projectId } = await interview.createProject(coachId, {
       title: "DEMO: My career in production planning", language: "en", publicName: "Asha Rao",
       consents: { recording: true, transcription: true, ai_processing: true, content_generation: true, publication: true },
@@ -133,7 +202,9 @@ export async function seedDemo(): Promise<SeedReport> {
     const upload = await uploads.addUpload(coachId, projectId, { name: "asha-rao-cv.txt", type: "text/plain", bytes: cv }, { ownership: "mine" });
     log(`Coach: uploaded a CV (${upload.factsAdded} suggested statements, ${upload.rolesFound} job hint).`);
 
-    // ---- Coach: review ------------------------------------------------------------------------------------------------------
+}
+
+async function stageReview({ coachId, projectId }: Ctx, log: (line: string) => void): Promise<void> {
     let reviewView = await review.getReview(coachId, projectId);
     for (const fact of reviewView.facts) {
       if (fact.permission === "anonymize" && !fact.anonymizedStatement && fact.reviewStatus !== "rejected") {
@@ -157,7 +228,9 @@ export async function seedDemo(): Promise<SeedReport> {
     if (!approval.approved) throw new Error(`Demo approval blocked: ${approval.gates.filter((g) => g.blocking && !g.passed).map((g) => g.label).join("; ")}`);
     log("Coach: reviewed, corrected and approved the knowledge package (skill.md, follow-ups, source map).");
 
-    // ---- Editor: lessons through the workflow -------------------------------------------------------------------------
+}
+
+async function stageLessons({ coachId, editorId, adminId, coach2Id, projectId }: Ctx, log: (line: string) => void): Promise<void> {
     const made = await lessons.generateLessons(editorId, projectId);
     log(`Editor: drafted ${made.created} lessons from the approved package.`);
     const drafted = await lessons.listLessonsForUser(editorId, { projectId });
@@ -174,10 +247,14 @@ export async function seedDemo(): Promise<SeedReport> {
     if (primary) await lessons.setAttribution(adminId, primary.id, [{ contributorId: coachId, shareBp: 6000 }, { contributorId: coach2Id, shareBp: 4000, creditedAs: "co-author" }]);
     log("Editor and coach: lessons reviewed and published; one waits for the coach, one for editor review; one lesson credits two contributors 60/40.");
 
-    // ---- Learners use the lessons ---------------------------------------------------------------------------------------
+}
+
+/** One lesson per call; returns how many published lessons there are so the caller knows when to stop. */
+async function stageUsage({ learnerId, editorId, projectId }: Ctx, lessonIndex: number, log: (line: string) => void): Promise<number> {
     const published = (await lessons.listLessonsForUser(editorId, { projectId })).filter((lesson) => lesson.status === "published");
     const crowd = Array.from({ length: 7 }, (_, i) => `demo-learner-key-${String(i).padStart(2, "0")}-abcdefgh`);
     for (const [index, lesson] of published.entries()) {
+      if (index !== lessonIndex) continue;
       const people = [{ userId: learnerId }, ...crowd.map((anonymousKey) => ({ anonymousKey }))];
       for (const [personIndex, identity] of people.entries()) {
         if ((personIndex + index) % 5 === 4) continue; // not everyone finishes
@@ -190,9 +267,12 @@ export async function seedDemo(): Promise<SeedReport> {
         }
       }
     }
-    log(`Learners: demo learner and 7 others used ${published.length} lessons; progress, completions, material use and ratings recorded.`);
+    if (published[lessonIndex]) log(`Learners: demo learner and 7 others used lesson ${lessonIndex + 1} of ${published.length}; progress, completions, material use and ratings recorded.`);
+    return published.length;
 
-    // ---- Admin: policy (draft, so statements are illustrative), receipts, an allocation run ---------------------------------
+}
+
+async function stageFinance({ adminId }: Ctx, log: (line: string) => void): Promise<void> {
     const template = draftPolicyTemplate();
     const policy = await earnings.saveDraftPolicy(adminId, { ...template, version: "demo-2026.1", contributorPoolBp: 4000, notes: "DEMO ONLY. Illustrative numbers. Approve a real policy before any payment." });
     for (const [i, gross] of [1_200_000, 850_000, 640_000].entries()) {
@@ -201,17 +281,6 @@ export async function seedDemo(): Promise<SeedReport> {
     const run = await earnings.runAllocation(adminId, { policyId: policy.id, periodStart: new Date(Date.now() - 30 * 86_400_000).toISOString(), periodEnd: new Date(Date.now() + 86_400_000).toISOString() });
     log(`Admin: saved a demo policy, recorded receipts and ran an allocation (${run.run.status}; pool ${run.run.inputs.poolMinor / 100} INR). Approve the policy to see a payable statement.`);
 
-    const finalLessons = await db.select({ id: kcLessons.id, title: kcLessons.title, status: kcLessons.status }).from(kcLessons).where(eq(kcLessons.projectId, projectId));
-    return {
-      seeded: true,
-      steps,
-      people: (Object.keys(PERSONAS) as PersonaId[]).map((persona) => ({ persona, email: PERSONAS[persona].email, name: PERSONAS[persona].name })),
-      projectId,
-      lessons: finalLessons,
-    };
-  } finally {
-    aiSwitch.off = false;
-  }
 }
 
 /** The interview prompt text carries the question; map it back to the library key so the right sample answer is used. */

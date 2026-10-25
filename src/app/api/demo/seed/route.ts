@@ -5,7 +5,7 @@
 import { NextResponse } from "next/server";
 
 import { checkCode, demoEnabled, demoSeeded } from "@/server/demo/access";
-import { retireDemo, seedDemo } from "@/server/demo/seed";
+import { retireDemo, seedDemoStep, seedReport, type SeedStep } from "@/server/demo/seed";
 import { clientIp, isSameOrigin, readJson } from "@/server/http/request";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +26,9 @@ export async function POST(request: Request) {
   if (!checkCode(String(input.code ?? ""), clientIp(request))) return NextResponse.json({ error: "That access code is not right." }, { status: 401, headers });
   try {
     if (input.action === "retire") return NextResponse.json({ retired: await retireDemo() }, { headers });
-    return NextResponse.json(await seedDemo(), { headers });
+    const step = (input as { step?: SeedStep }).step ?? { stage: "people" };
+    const progress = await seedDemoStep(step);
+    return NextResponse.json({ ...progress, ...(progress.next ? {} : { report: await seedReport(progress.steps) }) }, { headers });
   } catch (error) {
     lastFailure = { at: new Date().toISOString(), message: error instanceof Error ? error.message : String(error) };
     console.error("[demo/seed]", error instanceof Error ? (error.stack ?? error.message) : error);
