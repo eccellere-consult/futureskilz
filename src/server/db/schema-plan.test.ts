@@ -26,8 +26,8 @@ describe("additiveColumns", () => {
 });
 
 describe("additiveTables", () => {
-  it("are word for word the statements of the 0002 migration, grouped by table", () => {
-    const sql = readFileSync(path.join(process.cwd(), "drizzle", "0002_framework_workspace.sql"), "utf8");
+  const groupsOf = (file: string) => {
+    const sql = readFileSync(path.join(process.cwd(), "drizzle", file), "utf8");
     const statements = sql.split("--> statement-breakpoint").map((s) => s.trim()).filter(Boolean);
     const tableOf = (statement: string) => /(?:CREATE TABLE|ALTER TABLE|ON) `(\w+)`/.exec(statement)?.[1];
     const grouped = new Map<string, string[]>();
@@ -36,10 +36,19 @@ describe("additiveTables", () => {
       expect(table, statement).toBeTruthy();
       grouped.set(table!, [...(grouped.get(table!) ?? []), statement]);
     }
-    expect(additiveTables.map(({ table, statements: s }) => [table, [...s]])).toEqual([...grouped.entries()]);
+    return [...grouped.entries()];
+  };
+
+  it("are word for word the statements of the 0002 and 0003 migrations, grouped by table", () => {
+    const expected = [...groupsOf("0002_framework_workspace.sql"), ...groupsOf("0003_expert_capture.sql")];
+    expect(additiveTables.map(({ table, statements: s }) => [table, [...s]])).toEqual(expected);
   });
 
   it("create each table before its foreign keys and indexes", () => {
     for (const { table, statements } of additiveTables) expect(statements[0]).toMatch(new RegExp(`^CREATE TABLE \`${table}\``));
+  });
+
+  it("keep creating tables apart from linking them, so tables that refer to each other can be made in any order", () => {
+    for (const { statements } of additiveTables) for (const statement of statements.slice(1)) expect(statement).not.toMatch(/^CREATE TABLE/);
   });
 });
