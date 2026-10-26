@@ -1,9 +1,9 @@
-/** /api/contribute/lessons/[lessonId] — GET detail with gates; PATCH edit wording (editors); POST a workflow action. */
+/** /api/contribute/lessons/[lessonId] — GET detail with gates; PATCH edit wording or confirm the skills it builds (editors); POST a workflow action. */
 import type { NextRequest } from "next/server";
 
 import type { LessonAction } from "@/features/capture/lesson-workflow";
 import { body, failure, handle, json, text } from "@/server/capture/http";
-import { editLesson, getLessonDetail, lessonAction } from "@/server/capture/lesson-service";
+import { editLesson, getLessonDetail, lessonAction, setLessonSkills } from "@/server/capture/lesson-service";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +15,7 @@ export const GET = (request: NextRequest, { params }: RouteContext<"/api/contrib
 export const PATCH = (request: NextRequest, { params }: RouteContext<"/api/contribute/lessons/[lessonId]">) =>
   handle(request, async (user) => {
     const input = await body<Record<string, unknown>>(request, 60_000);
+    if (Array.isArray(input.skills)) return json(await setLessonSkills(user.id, (await params).lessonId, input.skills));
     const narration = Array.isArray(input.narration) ? input.narration.filter((item): item is string => typeof item === "string") : undefined;
     return json(await editLesson(user.id, (await params).lessonId, { title: text(input.title, 240) || undefined, objective: text(input.objective, 400) || undefined, narration }));
   }, { write: true });

@@ -7,6 +7,7 @@ import type { LessonAction } from "../lesson-workflow";
 import type { LessonDetail } from "@/server/capture/lesson-service";
 
 import { formatDuration, messageOf, patch, post, put, useRemote } from "./api";
+import { SkillMapPanel } from "../../pathway/SkillMapPanel";
 import { LessonPlayer } from "./LessonPlayer";
 
 const ACTION_LABEL: Record<LessonAction, { label: string; primary?: boolean }> = {
@@ -96,6 +97,8 @@ export function LessonWorkspace({ lessonId }: { lessonId: string }) {
               ) : <button className="mt-2 text-xs text-teal underline underline-offset-4" onClick={() => setShares(attribution.map((a) => ({ contributorId: a.contributorId, percent: String(a.shareBp / 100) })))} type="button">Change credit (editors; admin once approved)</button>
             ) : null}
           </section>
+
+          {staff ? <SkillMapPanel disabled={busy} key={`${lessonId}-${summary.version}-${JSON.stringify((spec as { skillMap?: unknown }).skillMap ?? null)}`} lessonId={lessonId} onSaved={reload} spec={spec} /> : null}
 
           {canEditText && staff ? (
             <section className="border border-border bg-surface p-4 text-sm" aria-label="Edit wording">

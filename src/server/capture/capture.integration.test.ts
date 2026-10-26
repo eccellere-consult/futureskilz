@@ -271,6 +271,14 @@ describe.skipIf(!enabled)("expert capture, end to end", () => {
     expect(detail.attribution).toEqual([{ contributorId: contributor, name: "Asha Rao", shareBp: 10000, creditedAs: "author" }]);
     expect(detail.spec.factIds.length).toBeGreaterThan(0);
     expect(detail.spec.scenes.length).toBeGreaterThan(3);
+    expect((detail.spec as { skillMap?: { status: string } }).skillMap?.status).toBe("suggested");
+  });
+
+  it("offers a lesson in learners' pathways only after an editor confirms the skills it builds", async () => {
+    await expect(lessons.setLessonSkills(contributor, lessonId, [{ skill: "operations", toLevel: 3 }])).rejects.toThrow(/Only an editor/);
+    await expect(lessons.setLessonSkills(editor, lessonId, [{ skill: "not-a-skill", toLevel: 3 }])).rejects.toThrow(/at least one skill/);
+    const confirmed = await lessons.setLessonSkills(editor, lessonId, [{ skill: "operations", toLevel: 3 }, { skill: "problem-solving", toLevel: 2.5 }]);
+    expect((confirmed.spec as { skillMap?: { status: string; skills: unknown[] } }).skillMap).toMatchObject({ status: "confirmed" });
   });
 
   it("cannot publish out of order, and the contributor — not the editor — approves the lesson", async () => {
@@ -282,6 +290,8 @@ describe.skipIf(!enabled)("expert capture, end to end", () => {
     const published = await lessons.lessonAction(editor, lessonId, "publish");
     expect(published.status).toBe("published");
     expect((await lessons.learningPaths()).length).toBeGreaterThan(0);
+    const offered = (await lessons.listPublishedLessons()).filter((lesson) => (lesson.spec.skillMap?.status ?? "") === "confirmed");
+    expect(offered.some((lesson) => lesson.slug === lessonSlug)).toBe(true);
   });
 
   it("splits credit across contributors only if it adds up to 100%", async () => {
