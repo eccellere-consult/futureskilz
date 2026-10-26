@@ -34,6 +34,7 @@ export const PERSONA_MENUS: Record<Persona, PersonaMenu> = {
     home: "/contribute/editor",
     items: [
       { label: "Content to approve", href: "/contribute/editor", hint: "Lessons waiting for your review" },
+      { label: "Skill Shot studio", href: "/contribute/skill-shots", hint: "Design, check and publish Skill Shots" },
       { label: "Published lessons", href: "/lessons", hint: "What learners see today" },
     ],
   },
@@ -71,7 +72,7 @@ export const homeFor = (roles: readonly string[] | undefined): string => PERSONA
 /** Which persona's screens a path belongs to, so the menu can stay on the right one. */
 export function personaOfPath(pathname: string): Persona | null {
   if (pathname === "/admin" || pathname.startsWith("/admin/") || pathname.startsWith("/contribute/admin")) return "admin";
-  if (pathname.startsWith("/contribute/editor") || pathname.startsWith("/contribute/lessons")) return "editor";
+  if (pathname.startsWith("/contribute/editor") || pathname.startsWith("/contribute/skill-shots") || pathname.startsWith("/contribute/lessons")) return "editor";
   if (pathname.startsWith("/contribute")) return "coach";
   if (["/learn", "/journey", "/lessons", "/training", "/profile", "/assessment", "/skill-shots", "/problem-solving"].some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return "learner";
   return null;

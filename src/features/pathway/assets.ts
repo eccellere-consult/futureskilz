@@ -52,18 +52,24 @@ export function skillShotAssets(): LearningAsset[] {
   }));
 }
 
-export function designedSkillShotAssets(): LearningAsset[] {
-  return designedSkillShots.map((blueprint) => ({
+import type { Blueprint } from "../skillshot/types";
+
+export function blueprintAsset(blueprint: Blueprint): LearningAsset {
+  const spoken = blueprint.scenes.reduce((sum, scene) => sum + scene.narration.trim().split(/\s+/).length, 0) / 145;
+  const paused = blueprint.scenes.reduce((sum, scene) => sum + scene.pauseSeconds + (scene.interaction?.thinkSeconds ?? 0), 0) / 60;
+  return {
     id: `designed:${blueprint.meta.id}`,
-    kind: "designed-skill-shot" as const,
+    kind: "designed-skill-shot",
     title: blueprint.meta.title,
     summary: blueprint.design.learningObjective,
     href: `/skill-shots/${blueprint.meta.id}`,
-    minutes: Math.max(5, Math.round(blueprint.scenes.reduce((sum, scene) => sum + scene.pauseSeconds + (scene.interaction?.thinkSeconds ?? 0), 0) / 60 + blueprint.scenes.reduce((sum, scene) => sum + scene.narration.trim().split(/\s+/).length, 0) / 145)),
+    minutes: Math.max(5, Math.round(spoken + paused)),
     skills: blueprint.meta.skillMap,
     practice: blueprint.design.workplaceTransferTask,
-  }));
+  };
 }
+
+export const designedSkillShotAssets = (): LearningAsset[] => designedSkillShots.map(blueprintAsset);
 
 export function kitAssets(): LearningAsset[] {
   return [
