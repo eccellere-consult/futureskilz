@@ -1,5 +1,9 @@
 # Arya's portrait: exact specification
 
+> The live avatar now uses the Arya avatar kit, which is tuned to the current 1254 x 1254 portrait (`public/avatars/arya.png`). Use this
+> specification only if you replace the picture; the animation's eye, mouth, ear and jhumka positions are then re-measured
+> (they live in `src/features/arya/engine/arya-photo-figure.tsx`). `arya.json` is no longer used.
+
 Use this to generate (or brief a photographer or designer for) a picture that the live avatar can animate without any
 misalignment. The animation moves the mouth and eyelids at fixed positions, so **where the face sits in the picture matters
 more than anything else**. `alignment-guide.png` (same folder) shows every target point; give it to the image tool as a layout

@@ -1,14 +1,11 @@
 # Arya's picture
 
-Put Arya's portrait here as `arya.jpg` (or `.png` / `.webp`). The site then shows her as this picture, brought to life in the
-browser: breathing, blinking, and her mouth opening with her voice.
+`arya.webp` (light, loaded first), `arya.png` (the full-size original) and `arya-teeth.png` (her real teeth, painted inside the
+mouth when she speaks) bring Arya to life in the browser: she blinks, speaks with her mouth and teeth, smiles, looks around and sways.
 
-If the face sits somewhere other than in the reference portrait, add `arya.json` next to it (fractions of the picture, from the top-left):
+**The animation is tied to this exact photograph.** The positions of the pupils, mouth corners, ears and jhumkas are pixel
+measurements of the 1254 x 1254 picture, set in `src/features/arya/engine/arya-photo-figure.tsx`. Replacing the picture means
+re-measuring them. See `docs/arya/avatar-modes.md` for the details, and `docs/arya/image-spec.md` for how to brief a new picture.
 
-```json
-{ "mouth": [0.45, 0.338], "mouthRadius": [0.05, 0.03], "eyes": [[0.428, 0.225], [0.526, 0.234]], "eyeRadius": [0.03, 0.013], "focus": [0.42, 0.33], "width": 0.58 }
-```
-
-For a fully 3D character instead, place `arya.glb` (glTF with ARKit or Ready Player Me blendshapes). A model beats the picture, and the picture beats the built-in figure.
-
+For a fully 3D character, place a rigged glTF at `public/models/arya.glb` (ARKit blendshapes); it takes priority over the photo.
 Only use a picture you have the right to use, and keep her labelled as an AI.
