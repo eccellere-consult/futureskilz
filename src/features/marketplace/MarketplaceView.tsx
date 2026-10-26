@@ -65,7 +65,7 @@ export function MarketplaceView({ listings, initialQuery = "" }: { listings: Lis
             <label>Sort by <select className="ml-1 min-h-10 border border-border bg-white px-2" onChange={(event) => setSort(event.target.value as SortKey)} value={sort}>{SORTS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
           </div>
           {results.length === 0 ? <p className="mt-6 border-l-2 border-gold pl-4 text-ink-mid">Nothing matches yet. Try fewer filters or other words. New lessons arrive as coaches publish them.</p> : null}
-          <ul className="mt-4 space-y-4">{results.map((listing) => <li key={listing.id}><Card listing={listing} /></li>)}</ul>
+          <ul className="mt-4 space-y-4">{results.map((listing) => <li key={listing.id}><ListingCard listing={listing} /></li>)}</ul>
         </section>
       </div>
     </div>
@@ -86,7 +86,7 @@ function Facet({ title, items, value, onPick }: { title: string; items: Array<{ 
   );
 }
 
-function Card({ listing }: { listing: Listing }) {
+export function ListingCard({ listing }: { listing: Listing }) {
   const { quality } = listing;
   return (
     <article className="border border-border bg-surface p-5">

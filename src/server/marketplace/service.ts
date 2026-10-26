@@ -9,7 +9,7 @@ import { confirmedSkills } from "@/features/pathway/skill-map";
 import { designedSkillShots } from "@/features/skillshot";
 import { reviewBlueprint } from "@/features/skillshot/rubric";
 import type { Blueprint } from "@/features/skillshot/types";
-import { usageByLesson } from "@/server/capture/learner-service";
+import { distinctLearners, usageByLesson } from "@/server/capture/learner-service";
 import { database } from "@/server/capture/shared";
 import { kcContributors, kcFeedback, kcLessons, skillShotDrafts } from "@/server/db/schema";
 
@@ -96,4 +96,22 @@ export async function loadListings(): Promise<Listing[]> {
   for (const asset of skillShotAssets()) if (!seen.has(asset.href.replace("/skill-shots/", ""))) listings.push(firstParty(asset));
   for (const asset of kitAssets()) listings.push(firstParty(asset));
   return listings;
+}
+
+export type CoachProfile = { name: string; headline: string | null; since: string; lessons: Listing[]; learnersReached: number };
+
+/**
+ * A coach's public page: who they are, what they have published, and how many different learners have used it. Only coaches who are
+ * active and have a live lesson have a page, and it shows nothing beyond the name and headline they chose to publish under.
+ */
+export async function getCoachProfile(profileId: string): Promise<CoachProfile | null> {
+  if (!/^[0-9a-f]{16}$/.test(profileId)) return null;
+  const db = await database();
+  const coaches = await db.select().from(kcContributors).where(eq(kcContributors.status, "active"));
+  const coach = coaches.find((row) => coachProfileId(row.userId) === profileId);
+  if (!coach) return null;
+  const lessons = (await loadListings()).filter((listing) => listing.creator.profileId === profileId);
+  if (lessons.length === 0) return null;
+  const rows = await db.select({ id: kcLessons.id }).from(kcLessons).where(and(eq(kcLessons.contributorId, coach.userId), eq(kcLessons.status, "published")));
+  return { name: coach.publicName, headline: coach.headline, since: coach.createdAt.toISOString(), lessons, learnersReached: await distinctLearners(rows.map((row) => row.id)) };
 }
