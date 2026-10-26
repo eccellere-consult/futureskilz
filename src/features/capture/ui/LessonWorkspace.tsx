@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import type { LessonAction } from "../lesson-workflow";
@@ -24,6 +25,7 @@ const STATUS: Record<string, string> = { draft: "Draft", in_review: "With an edi
 
 /** One lesson: a preview exactly as learners will see it, the checks it must pass, and the actions the person may take. */
 export function LessonWorkspace({ lessonId }: { lessonId: string }) {
+  const router = useRouter();
   const { data, error, setError, reload } = useRemote<LessonDetail>(`/api/contribute/lessons/${lessonId}`);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -97,6 +99,14 @@ export function LessonWorkspace({ lessonId }: { lessonId: string }) {
               ) : <button className="mt-2 text-xs text-teal underline underline-offset-4" onClick={() => setShares(attribution.map((a) => ({ contributorId: a.contributorId, percent: String(a.shareBp / 100) })))} type="button">Change credit (editors; admin once approved)</button>
             ) : null}
           </section>
+
+          {staff && summary.status === "published" ? (
+            <section className="border border-border bg-surface p-4 text-sm" aria-label="Redesign as a Skill Shot">
+              <h2 className="font-display text-xl">Redesign as a Skill Shot</h2>
+              <p className="mt-1 text-ink-mid">The design agent rebuilds this lesson in the Skill Shot form, using the coach&apos;s own words. The coach approves the new wording before it can be published.</p>
+              <button className="primary-button mt-3 min-h-10! px-3! py-2!" disabled={busy} onClick={() => void run(async () => { const draft = await post<{ id: string }>("/api/contribute/skill-shots/from-lesson", { lessonId }); router.push(`/contribute/skill-shots/${draft.id}`); })} type="button">Redesign as a Skill Shot</button>
+            </section>
+          ) : null}
 
           {staff ? <SkillMapPanel disabled={busy} key={`${lessonId}-${summary.version}-${JSON.stringify((spec as { skillMap?: unknown }).skillMap ?? null)}`} lessonId={lessonId} onSaved={reload} spec={spec} /> : null}
 

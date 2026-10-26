@@ -4,7 +4,9 @@ import { and, desc, eq, lt } from "drizzle-orm";
 import type { z } from "zod";
 
 import { reviewBlueprint, type Review } from "@/features/skillshot/rubric";
-import { scaffoldBlueprint, slugOf } from "@/features/skillshot/scaffold";
+import { lessonBrief } from "@/features/skillshot/from-lesson";
+import { LEGACY_BRIEFS } from "@/features/skillshot/legacy";
+import { briefSlug, scaffoldBlueprint } from "@/features/skillshot/scaffold";
 import { WAVE_ONE } from "@/features/skillshot/wave1";
 import { parseBlueprint } from "@/features/skillshot/schema";
 import type { Blueprint } from "@/features/skillshot/types";
@@ -13,12 +15,19 @@ import { briefSchema, createInstructionalDesignAgent } from "@/server/agents/ins
 import { AgentRunner } from "@/server/agents/runner";
 import { CaptureError, audit, database, newUuid, rolesOf } from "@/server/capture/shared";
 import { createDatabase } from "@/server/db/client";
-import { skillShotDrafts } from "@/server/db/schema";
+import { kcLessons, skillShotDrafts } from "@/server/db/schema";
 import { createProviders } from "@/server/providers";
 
 type Row = typeof skillShotDrafts.$inferSelect;
 export type DraftSummary = { id: string; slug: string; title: string; status: Row["status"]; source: string; passes: boolean; blockers: number; updatedAt: string };
-export type DraftDetail = DraftSummary & { blueprint: Blueprint; review: Review; notes: string[] };
+export type DraftDetail = DraftSummary & {
+  blueprint: Blueprint;
+  review: Review;
+  notes: string[];
+  /** Set when the draft was built from a coach's lesson: the coach must approve the new wording before it is published. */
+  fromLesson: { lessonId: string; approvedAt: string | null } | null;
+  viewer: "staff" | "contributor";
+};
 export type DraftAction = "submit" | "approve" | "request_changes" | "publish" | "retire";
 
 async function requireStaff(userId: string): Promise<void> {
@@ -30,7 +39,12 @@ const summarise = (row: Row): DraftSummary => {
   const review = row.review as unknown as Review;
   return { id: row.id, slug: row.slug, title: row.title, status: row.status, source: row.source, passes: Boolean(review?.passes), blockers: review?.blockers?.length ?? 0, updatedAt: row.updatedAt.toISOString() };
 };
-const detail = (row: Row): DraftDetail => ({ ...summarise(row), blueprint: row.blueprint as unknown as Blueprint, review: row.review as unknown as Review, notes: (row.notes as string[] | null) ?? [] });
+type Brief = { sourceLessonId?: string; contributorApprovedAt?: string | null };
+const briefOf = (row: Row): Brief => ((row.brief as unknown as Brief | null) ?? {});
+const detail = (row: Row, viewer: DraftDetail["viewer"] = "staff"): DraftDetail => {
+  const brief = briefOf(row);
+  return { ...summarise(row), blueprint: row.blueprint as unknown as Blueprint, review: row.review as unknown as Review, notes: (row.notes as string[] | null) ?? [], fromLesson: brief.sourceLessonId ? { lessonId: brief.sourceLessonId, approvedAt: brief.contributorApprovedAt ?? null } : null, viewer };
+};
 
 async function freeSlug(base: string): Promise<string> {
   const db = await database();
@@ -42,6 +56,16 @@ async function freeSlug(base: string): Promise<string> {
   throw new CaptureError(409, "Choose a more distinct topic name.");
 }
 
+type Queued = { id: string; slug: string; brief: z.infer<typeof briefSchema> };
+
+async function insertDesigning(userId: string, brief: z.infer<typeof briefSchema>, slug: string, note: string): Promise<Queued> {
+  const db = await database();
+  const id = newUuid();
+  const placeholder = { ...scaffoldBlueprint(brief), meta: { ...scaffoldBlueprint(brief).meta, id: slug } };
+  await db.insert(skillShotDrafts).values({ id, slug, title: brief.topic.slice(0, 200), status: "designing", blueprint: placeholder as unknown as Record<string, unknown>, review: reviewBlueprint(placeholder) as unknown as Record<string, unknown>, brief: brief as unknown as Record<string, unknown>, notes: [note], source: "scaffold", createdBy: userId });
+  return { id, slug, brief };
+}
+
 /**
  * The Instructional Design Agent drafts from a brief. The host cuts off long requests and an AI draft can take a minute, so this
  * saves a "designing" row and returns at once; the draft is filled in by the running server and the screen polls for it.
@@ -51,39 +75,55 @@ export async function designSkillShot(userId: string, rawBrief: unknown): Promis
   await requireStaff(userId);
   const parsed = briefSchema.safeParse(rawBrief);
   if (!parsed.success) throw new CaptureError(400, `Check the brief: ${parsed.error.issues[0]?.message ?? "something is missing"}.`);
-  const brief = parsed.data;
+  // sourceLessonId is set only by designFromLesson, which checks the lesson; a brief typed in by hand cannot claim one.
+  const brief = { ...parsed.data, sourceLessonId: undefined };
+  const queued = await insertDesigning(userId, brief, await freeSlug(briefSlug(brief)), "The design agent is working on this draft.");
   const db = await database();
-  const id = newUuid();
-  const slug = await freeSlug(slugOf(brief.topic));
-  const placeholder = { ...scaffoldBlueprint(brief), meta: { ...scaffoldBlueprint(brief).meta, id: slug } };
-  await db.insert(skillShotDrafts).values({ id, slug, title: brief.topic.slice(0, 200), status: "designing", blueprint: placeholder as unknown as Record<string, unknown>, review: reviewBlueprint(placeholder) as unknown as Record<string, unknown>, brief: brief as unknown as Record<string, unknown>, notes: ["The design agent is working on this draft."], source: "scaffold", createdBy: userId });
-  await audit(db, userId, "skillshot.design", "skill_shot_draft", id);
-  void completeDesign(userId, id, slug, brief);
-  const [row] = await db.select().from(skillShotDrafts).where(eq(skillShotDrafts.id, id));
+  await audit(db, userId, "skillshot.design", "skill_shot_draft", queued.id);
+  void completeDesign(userId, queued.id, queued.slug, brief);
+  const [row] = await db.select().from(skillShotDrafts).where(eq(skillShotDrafts.id, queued.id));
   return detail(row);
 }
 
 /**
- * Content wave 1: queues every brief that has no draft yet and designs them one after another on the server, so the editor can
- * close the page. Running them one at a time keeps the AI cost and the load on the host predictable.
+ * Queues every brief in a list that has no draft yet and designs them one after another on the server, so the editor can close the
+ * page. One at a time keeps the AI cost and the load on the host predictable. Used for content wave 1 and for the older Skill Shots.
  */
-export async function designWaveOne(userId: string): Promise<{ queued: number; alreadyStarted: number }> {
+async function designBatch(userId: string, briefs: unknown[], action: string): Promise<{ queued: number; alreadyStarted: number }> {
   await requireStaff(userId);
   const db = await database();
   const existing = await db.select({ slug: skillShotDrafts.slug }).from(skillShotDrafts);
-  const queue: Array<{ id: string; slug: string; brief: z.infer<typeof briefSchema> }> = [];
-  for (const raw of WAVE_ONE) {
+  const queue: Queued[] = [];
+  for (const raw of briefs) {
     const brief = briefSchema.parse(raw);
-    const base = slugOf(brief.topic);
+    const base = briefSlug(brief);
     if (existing.some((row) => row.slug === base || row.slug.startsWith(`${base}-`))) continue;
-    const id = newUuid();
-    const placeholder = { ...scaffoldBlueprint(brief), meta: { ...scaffoldBlueprint(brief).meta, id: base } };
-    await db.insert(skillShotDrafts).values({ id, slug: base, title: brief.topic.slice(0, 200), status: "designing", blueprint: placeholder as unknown as Record<string, unknown>, review: reviewBlueprint(placeholder) as unknown as Record<string, unknown>, brief: brief as unknown as Record<string, unknown>, notes: ["Waiting in the queue for the design agent."], source: "scaffold", createdBy: userId });
-    queue.push({ id, slug: base, brief });
+    queue.push(await insertDesigning(userId, brief, base, "Waiting in the queue for the design agent."));
   }
-  await audit(db, userId, "skillshot.wave1", "skill_shot_draft", null, { queued: queue.length });
+  await audit(db, userId, action, "skill_shot_draft", null, { queued: queue.length });
   void runQueue(userId, queue);
-  return { queued: queue.length, alreadyStarted: WAVE_ONE.length - queue.length };
+  return { queued: queue.length, alreadyStarted: briefs.length - queue.length };
+}
+
+export const designWaveOne = (userId: string) => designBatch(userId, WAVE_ONE, "skillshot.wave1");
+/** The five original Skill Shots, redesigned at their old addresses. They replace the old pages only when published. */
+export const convertLegacySkillShots = (userId: string) => designBatch(userId, LEGACY_BRIEFS, "skillshot.legacy");
+
+/** A coach's published lesson, redesigned as a Skill Shot. The coach approves the new wording before it can be published. */
+export async function designFromLesson(userId: string, lessonId: string): Promise<DraftDetail> {
+  await requireStaff(userId);
+  const db = await database();
+  const [lesson] = await db.select().from(kcLessons).where(eq(kcLessons.id, lessonId)).limit(1);
+  if (!lesson) throw new CaptureError(404, "That lesson was not found.");
+  if (lesson.status !== "published") throw new CaptureError(409, "Only a published lesson can be redesigned as a Skill Shot. The coach has already approved its wording.");
+  const brief = briefSchema.parse(lessonBrief(lesson.spec as never, lesson.id));
+  const [dup] = await db.select({ id: skillShotDrafts.id, status: skillShotDrafts.status }).from(skillShotDrafts).where(eq(skillShotDrafts.slug, briefSlug(brief))).limit(1);
+  if (dup) throw new CaptureError(409, "This lesson already has a Skill Shot draft.");
+  const queued = await insertDesigning(userId, brief, briefSlug(brief), "The design agent is working on this draft.");
+  await audit(db, userId, "skillshot.fromLesson", "skill_shot_draft", queued.id, { lessonId });
+  void completeDesign(userId, queued.id, queued.slug, brief);
+  const [row] = await db.select().from(skillShotDrafts).where(eq(skillShotDrafts.id, queued.id));
+  return detail(row);
 }
 
 async function runQueue(userId: string, queue: Array<{ id: string; slug: string; brief: z.infer<typeof briefSchema> }>): Promise<void> {
@@ -127,12 +167,46 @@ export async function listDrafts(userId: string): Promise<DraftSummary[]> {
   return (await db.select().from(skillShotDrafts).orderBy(desc(skillShotDrafts.updatedAt))).map(summarise);
 }
 
+async function isStaff(userId: string): Promise<boolean> {
+  const roles = await rolesOf(await database(), userId);
+  return roles.has("editor") || roles.has("admin");
+}
+
+/** The coach whose lesson a draft was built from: the only non-staff person who may see it, to approve their own words. */
+async function isSourceContributor(row: Row, userId: string): Promise<boolean> {
+  const lessonId = briefOf(row).sourceLessonId;
+  if (!lessonId) return false;
+  const [lesson] = await (await database()).select({ contributorId: kcLessons.contributorId }).from(kcLessons).where(eq(kcLessons.id, lessonId)).limit(1);
+  return lesson?.contributorId === userId;
+}
+
 export async function getDraft(userId: string, id: string): Promise<DraftDetail> {
-  await requireStaff(userId);
   await settleStale();
   const [row] = await (await database()).select().from(skillShotDrafts).where(eq(skillShotDrafts.id, id)).limit(1);
   if (!row) throw new CaptureError(404, "That Skill Shot was not found.");
-  return detail(row);
+  if (await isStaff(userId)) return detail(row);
+  if (await isSourceContributor(row, userId)) return detail(row, "contributor");
+  throw new CaptureError(404, "That Skill Shot was not found.");
+}
+
+/** Drafts built from the coach's own lessons that still wait for the coach to approve the wording. */
+export async function listMyApprovals(userId: string): Promise<DraftSummary[]> {
+  const db = await database();
+  const rows = (await db.select().from(skillShotDrafts)).filter((row) => briefOf(row).sourceLessonId && !briefOf(row).contributorApprovedAt && ["draft", "in_review", "approved"].includes(row.status));
+  const mine: Row[] = [];
+  for (const row of rows) if (await isSourceContributor(row, userId)) mine.push(row);
+  return mine.map(summarise);
+}
+
+/** The coach approves, or has changes made to, the Skill Shot built from their lesson. Editing the draft afterwards clears the approval. */
+export async function contributorApproveDraft(userId: string, id: string): Promise<DraftDetail> {
+  const db = await database();
+  const [row] = await db.select().from(skillShotDrafts).where(eq(skillShotDrafts.id, id)).limit(1);
+  if (!row || !(await isSourceContributor(row, userId))) throw new CaptureError(404, "That Skill Shot was not found.");
+  if (!["draft", "in_review", "approved"].includes(row.status)) throw new CaptureError(409, "This Skill Shot is not waiting for approval.");
+  await db.update(skillShotDrafts).set({ brief: { ...briefOf(row), contributorApprovedAt: new Date().toISOString() } as unknown as Record<string, unknown> }).where(eq(skillShotDrafts.id, id));
+  await audit(db, userId, "skillshot.contributor_approve", "skill_shot_draft", id);
+  return getDraft(userId, id);
 }
 
 /** An editor replaces the blueprint (for example to write the placeholders). It is validated and re-checked, and goes back to draft. */
@@ -146,7 +220,7 @@ export async function saveBlueprint(userId: string, id: string, raw: unknown): P
   const parsed = parseBlueprint(raw);
   if (!parsed.ok) throw new CaptureError(400, `The blueprint is not valid: ${parsed.errors.slice(0, 3).join("; ")}`);
   const blueprint: Blueprint = { ...parsed.blueprint, meta: { ...parsed.blueprint.meta, id: row.slug, reviewStatus: "draft" } };
-  await db.update(skillShotDrafts).set({ blueprint: blueprint as unknown as Record<string, unknown>, review: reviewBlueprint(blueprint) as unknown as Record<string, unknown>, title: blueprint.meta.title.slice(0, 200), status: "draft", approvedBy: null }).where(eq(skillShotDrafts.id, id));
+  await db.update(skillShotDrafts).set({ blueprint: blueprint as unknown as Record<string, unknown>, review: reviewBlueprint(blueprint) as unknown as Record<string, unknown>, title: blueprint.meta.title.slice(0, 200), status: "draft", approvedBy: null, brief: { ...briefOf(row), contributorApprovedAt: null } as unknown as Record<string, unknown> }).where(eq(skillShotDrafts.id, id));
   await audit(db, userId, "skillshot.edit", "skill_shot_draft", id);
   return getDraft(userId, id);
 }
@@ -170,6 +244,11 @@ export async function draftAction(userId: string, id: string, action: DraftActio
     const review = reviewBlueprint(row.blueprint as unknown as Blueprint);
     // The checks guard structure only, so approval and publication also need them clean; the person still judges the teaching.
     if ((action === "approve" || action === "publish" || action === "submit") && !review.passes) throw new CaptureError(409, `The checks still have ${review.blockers.length} point${review.blockers.length === 1 ? "" : "s"} to fix: ${review.blockers[0]}`);
+    if (action === "publish" && briefOf(row).sourceLessonId) {
+      if (!briefOf(row).contributorApprovedAt) throw new CaptureError(409, "The coach whose lesson this is built from needs to approve the wording first.");
+      const [lesson] = await tx.select({ status: kcLessons.status }).from(kcLessons).where(eq(kcLessons.id, briefOf(row).sourceLessonId!)).limit(1);
+      if (lesson?.status !== "published") throw new CaptureError(409, "The coach's lesson is no longer published, so this Skill Shot cannot be published.");
+    }
     const blueprint = { ...(row.blueprint as unknown as Blueprint) };
     blueprint.meta = { ...blueprint.meta, reviewStatus: rule.to === "published" ? "published" : rule.to === "approved" ? "approved" : rule.to === "in_review" ? "in_review" : "draft" };
     await tx.update(skillShotDrafts).set({ status: rule.to, blueprint: blueprint as unknown as Record<string, unknown>, review: review as unknown as Record<string, unknown>, approvedBy: action === "approve" ? userId : action === "request_changes" ? null : row.approvedBy, publishedAt: action === "publish" ? new Date() : row.publishedAt }).where(eq(skillShotDrafts.id, id));

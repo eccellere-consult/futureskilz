@@ -40,16 +40,26 @@ export function DraftReview({ id }: { id: string }) {
   };
 
   if (!data) return <div className="mx-auto max-w-3xl px-5 py-16" role="status">{error ? <p className="text-crimson">{error}</p> : <p className="text-ink-light">Loading…</p>}</div>;
-  const actions = ACTIONS[data.status] ?? [];
-  const editable = data.status === "draft" || data.status === "failed" || data.status === "in_review" || data.status === "approved";
+  const contributor = data.viewer === "contributor";
+  const actions = contributor ? [] : (ACTIONS[data.status] ?? []);
+  const editable = !contributor && (data.status === "draft" || data.status === "failed" || data.status === "in_review" || data.status === "approved");
 
   return (
     <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
-      <Link className="text-sm text-teal underline underline-offset-4" href="/contribute/skill-shots">Skill Shot studio</Link>
+      <Link className="text-sm text-teal underline underline-offset-4" href={contributor ? "/contribute/dashboard" : "/contribute/skill-shots"}>{contributor ? "Dashboard" : "Skill Shot studio"}</Link>
       <p className="mt-3 font-mono text-[10px] uppercase text-ink-light">Skill Shot · {STATUS[data.status]} · {data.source === "ai" ? "AI draft" : "structure only"} · about {data.review.durationMinutes} min</p>
       <h1 className="font-display text-3xl font-semibold sm:text-4xl">{data.title}</h1>
       {error ? <p className="mt-3 border-l-2 border-crimson bg-crimson/5 px-4 py-2 text-sm text-crimson" role="alert">{error}</p> : null}
       {notice ? <p className="mt-3 border-l-2 border-teal bg-teal/5 px-4 py-2 text-sm" role="status">{notice}</p> : null}
+      {contributor ? (
+        <section className="mt-6 border-l-2 border-gold bg-gold-pale/40 p-4 text-sm" aria-label="Your approval">
+          <h2 className="font-display text-xl">Your lesson, redesigned as a Skill Shot</h2>
+          <p className="mt-1 max-w-3xl text-ink-mid">This was built from your own lesson. Watch it through. It is published only if you approve the wording. If anything changes your meaning, ask the editor for changes instead.</p>
+          {data.fromLesson?.approvedAt ? <p className="mt-2 text-teal" role="status">You approved this version.</p> : <button className="primary-button mt-3 min-h-10! px-3! py-2!" disabled={busy} onClick={() => void run(() => post(`/api/contribute/skill-shots/${id}`, { action: "contributor_approve" }), "Thank you. Your approval is recorded.")} type="button">I approve this version</button>}
+        </section>
+      ) : data.fromLesson ? (
+        <p className="mt-4 border-l-2 border-gold pl-4 text-sm" role="status">{data.fromLesson.approvedAt ? "The coach has approved this wording." : "Built from a coach's lesson: it cannot be published until the coach approves the wording. Ask them to open this page, or to find it on their dashboard."}</p>
+      ) : null}
       {data.status === "designing" ? <p className="mt-6 border-l-2 border-gold pl-4" role="status">The design agent is writing this draft. It can take a minute. This page updates by itself.</p> : null}
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">

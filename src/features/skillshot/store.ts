@@ -1,4 +1,5 @@
-import { fetchSessionUser } from "../learner/store";
+import { getSkillShot } from "../journey/model";
+import { completeSkillShot, fetchSessionUser } from "../learner/store";
 
 const key = "futureskilz.designed-passed.v1";
 
@@ -13,6 +14,8 @@ export async function completeDesigned(id: string, answers: Record<string, strin
     return body;
   }
   if (passedHere) {
+    const original = getSkillShot(id);
+    if (original) await completeSkillShot(original.slug, "", original.checkIn.correctIndex).catch(() => undefined);
     try {
       const list = loadGuestPassed();
       if (!list.includes(id)) window.localStorage.setItem(key, JSON.stringify([...list, id]));

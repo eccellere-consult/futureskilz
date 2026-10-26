@@ -31,7 +31,7 @@ export const KIND_LABEL: Record<AssetKind, string> = {
 const known = new Set(skillTaxonomy.map((skill) => skill.slug));
 
 /** The capabilities the five original Skill Shots build, and how far they take a learner. */
-const LEGACY_SKILLS: Record<string, AssetSkill[]> = {
+export const LEGACY_SKILLS: Record<string, AssetSkill[]> = {
   "ai-decision-brief": [{ skill: "ai-assisted-decision-making", toLevel: 2.5 }, { skill: "prompting", toLevel: 2.5 }, { skill: "decision-making", toLevel: 2.5 }],
   "assumption-test": [{ skill: "critical-thinking", toLevel: 2.5 }, { skill: "judgment", toLevel: 2.5 }, { skill: "analytical-thinking", toLevel: 2.5 }],
   "three-options": [{ skill: "creative-thinking", toLevel: 2.5 }, { skill: "decision-making", toLevel: 2.5 }],

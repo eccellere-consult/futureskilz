@@ -26,6 +26,7 @@ type StatementPayload = {
 
 export function Dashboard() {
   const { data, error, setError, reload } = useRemote<DashboardData>("/api/contribute/dashboard");
+  const approvals = useRemote<{ drafts: Array<{ id: string; title: string }> }>("/api/contribute/skill-shots/mine").data?.drafts ?? [];
   const [open, setOpen] = useState<string | null>(null);
   const [note, setNote] = useState("");
 
@@ -44,6 +45,16 @@ export function Dashboard() {
           <div key={label as string} className="bg-surface p-4"><dt className="font-mono text-[10px] uppercase text-ink-light">{label}</dt><dd className="mt-1 font-display text-3xl">{value}</dd></div>
         ))}
       </dl>
+
+      {approvals.length ? (
+        <section className="mt-10 border-l-2 border-gold bg-gold-pale/40 p-4" aria-label="Skill Shots waiting for your approval">
+          <h2 className="font-display text-2xl">Waiting for your approval</h2>
+          <p className="mt-1 text-sm text-ink-mid">An editor redesigned your lesson as a Skill Shot taught by Arya. It is published only if you approve the wording.</p>
+          <ul className="mt-3 divide-y divide-border border border-border bg-surface">
+            {approvals.map((draft) => <li className="flex items-center justify-between gap-3 p-4 text-sm" key={draft.id}><span className="font-semibold">{draft.title}</span><Link className="text-teal underline underline-offset-4" href={`/contribute/skill-shots/${draft.id}`}>Review and approve</Link></li>)}
+          </ul>
+        </section>
+      ) : null}
 
       <section className="mt-10" aria-label="Interviews">
         <h2 className="font-display text-2xl">My interviews</h2>
