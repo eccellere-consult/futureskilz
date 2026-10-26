@@ -43,6 +43,13 @@
       "when": 1793028346935,
       "tag": "0005_learner_pathway",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1793029903762,
+      "tag": "0006_skill_shot_drafts",
+      "breakpoints": true
     }
   ]
 }

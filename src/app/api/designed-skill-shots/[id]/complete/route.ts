@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { getDesignedSkillShot } from "@/features/skillshot";
 import { gradeKnowledgeCheck } from "@/features/skillshot/grade";
 import { isSameOrigin, readJson } from "@/server/http/request";
+import { findDesigned } from "@/server/skillshots/designed";
 import { currentSession, learnerRepository, noStore, unauthorized } from "@/server/learning/service";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ export async function POST(request: Request, { params }: RouteContext<"/api/desi
   const session = await currentSession();
   if (!session) return unauthorized();
 
-  const blueprint = getDesignedSkillShot((await params).id);
+  const blueprint = await findDesigned((await params).id);
   if (!blueprint) return NextResponse.json({ error: "Skill Shot not found." }, { status: 404, headers: noStore });
   const parsed = requestSchema.safeParse(await readJson(request).catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Answer the questions first." }, { status: 400, headers: noStore });

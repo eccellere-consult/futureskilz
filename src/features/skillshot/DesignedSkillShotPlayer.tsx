@@ -29,7 +29,7 @@ function remember(key: string, value: unknown) {
  * A designed Skill Shot taught by Arya: scene by scene, with her in a small window, concise visuals, captions, a decision for the
  * learner with a thinking pause, a short knowledge check and a task for work. Sound starts only when the learner asks.
  */
-export function DesignedSkillShotPlayer({ blueprint }: { blueprint: Blueprint }) {
+export function DesignedSkillShotPlayer({ blueprint, preview = false }: { blueprint: Blueprint; preview?: boolean }) {
   const { meta, design, scenes } = blueprint;
   const voice = useSpeechOutput("en");
   const [index, setIndex] = useState(0);
@@ -137,7 +137,7 @@ export function DesignedSkillShotPlayer({ blueprint }: { blueprint: Blueprint })
         <p className="border-t border-cream/10 px-6 py-2 text-[11px] leading-5 text-cream/60">{blueprint.disclosure}</p>
       </section>
 
-      <KnowledgeCheck blueprint={blueprint} />
+      <KnowledgeCheck blueprint={blueprint} preview={preview} />
 
       <section aria-label="Your task at work" className="mt-10 border-l-2 border-gold bg-gold-pale p-5">
         <p className="font-mono text-[10px] uppercase text-ink-light">Take it to work</p>
@@ -205,7 +205,7 @@ function InteractionPanel({ interaction, onChoose }: { interaction: NonNullable<
   );
 }
 
-function KnowledgeCheck({ blueprint }: { blueprint: Blueprint }) {
+function KnowledgeCheck({ blueprint, preview }: { blueprint: Blueprint; preview: boolean }) {
   const key = `fs-skillshot-${blueprint.meta.id}`;
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const score = blueprint.knowledgeCheck.filter((question) => answers[question.id] === question.correctId).length;
@@ -217,6 +217,7 @@ function KnowledgeCheck({ blueprint }: { blueprint: Blueprint }) {
     if (answers[id]) return;
     const next = { ...answers, [id]: optionId };
     setAnswers(next);
+    if (preview) return; // an editor trying a draft records nothing
     remember(key, { answers: next, at: new Date().toISOString() });
     if (Object.keys(next).length === blueprint.knowledgeCheck.length) {
       const passed = gradeKnowledgeCheck(blueprint, next).passed;
@@ -251,7 +252,7 @@ function KnowledgeCheck({ blueprint }: { blueprint: Blueprint }) {
           </div>
         ))}
       </div>
-      {done ? <p className="mt-5 border-l-2 border-teal pl-3 text-sm" role="status">You answered {score} of {blueprint.knowledgeCheck.length} correctly. Finishing shows what you understood, not what you can do: use the task below on a real problem. {saved?.signedIn ? (saved.evidenceAdded ? "This is recorded on your profile as evidence, so your skill levels and pathway now reflect it." : score >= 2 ? "Your profile already has this evidence." : "Not enough correct answers to count as evidence yet. Replay the scenes and try again later.") : "Sign in to record this on your profile; for now it stays on this device."}</p> : null}
+      {done ? <p className="mt-5 border-l-2 border-teal pl-3 text-sm" role="status">You answered {score} of {blueprint.knowledgeCheck.length} correctly. Finishing shows what you understood, not what you can do: use the task below on a real problem. {preview ? "Preview only: nothing is recorded." : saved?.signedIn ? (saved.evidenceAdded ? "This is recorded on your profile as evidence, so your skill levels and pathway now reflect it." : score >= 2 ? "Your profile already has this evidence." : "Not enough correct answers to count as evidence yet. Replay the scenes and try again later.") : "Sign in to record this on your profile; for now it stays on this device."}</p> : null}
       {saveError ? <p className="mt-2 text-sm text-crimson" role="alert">{saveError}</p> : null}
     </section>
   );

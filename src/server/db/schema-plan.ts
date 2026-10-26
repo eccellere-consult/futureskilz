@@ -213,6 +213,13 @@ export const additiveTables = [
       "ALTER TABLE `learner_pathway` ADD CONSTRAINT `learner_pathway_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;",
     ],
   },
+  {
+    table: "skill_shot_drafts",
+    statements: [
+      "CREATE TABLE `skill_shot_drafts` (\n\t`id` varchar(36) NOT NULL,\n\t`slug` varchar(80) NOT NULL,\n\t`title` varchar(200) NOT NULL,\n\t`status` enum('designing','failed','draft','in_review','approved','published','retired') NOT NULL DEFAULT 'draft',\n\t`blueprint` json NOT NULL,\n\t`review` json NOT NULL,\n\t`brief` json,\n\t`notes` json,\n\t`source` varchar(16) NOT NULL DEFAULT 'scaffold',\n\t`created_by` varchar(36) NOT NULL,\n\t`approved_by` varchar(36),\n\t`published_at` datetime,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `skill_shot_drafts_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `skill_shot_drafts_slug_idx` UNIQUE(`slug`)\n);",
+      "CREATE INDEX `skill_shot_drafts_status_idx` ON `skill_shot_drafts` (`status`);",
+    ],
+  },
 ] as const;
 
 export type SchemaPlan = "migrate" | "add-columns";

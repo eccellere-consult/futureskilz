@@ -87,7 +87,12 @@ export function reviewBlueprint(blueprint: Blueprint): Review {
 
   add("curriculum fit", [[meta.prerequisites.length >= 1, "Name the prerequisite."], [meta.relatedSkillShots.length >= 1 || design.nextLearningRecommendation.length >= 1, "Link related lessons."], [blueprint.learningPath.position.length > 10, "Say where it sits in the learning path."], [meta.parentSkill.length > 3, "Name the parent skill."]]);
 
-  const blockers = findings.flatMap((finding) => finding.critical.map((note) => `${finding.criterion}: ${note}`));
+  // A scaffold made without an AI leaves [[placeholders]] for a person to write. Text that long still passes the length checks, so name it here.
+  const unfinished = JSON.stringify(blueprint).match(/\[\[[^\]]{0,80}\]\]/g) ?? [];
+  const blockers = [
+    ...(unfinished.length ? [`unfinished: ${unfinished.length} placeholder${unfinished.length === 1 ? "" : "s"} still to be written, for example ${unfinished[0]}`] : []),
+    ...findings.flatMap((finding) => finding.critical.map((note) => `${finding.criterion}: ${note}`)),
+  ];
   const weak = findings.filter((finding) => finding.score < 4).map((finding) => `${finding.criterion}: scored ${finding.score}`);
   return { findings, blockers: [...blockers, ...weak], passes: blockers.length === 0 && weak.length === 0, humanReviewRequired: true, durationMinutes: Number(minutes.toFixed(1)) };
 }

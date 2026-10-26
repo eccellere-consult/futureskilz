@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { SiteHeader } from "@/components/site-header";
 import { getSkillShot, skillShots } from "@/features/journey/model";
 import { SkillShotExperience } from "@/features/journey/skill-shot-experience";
-import { designedSkillShots, getDesignedSkillShot } from "@/features/skillshot";
+import { designedSkillShots } from "@/features/skillshot";
+import { findDesigned } from "@/server/skillshots/designed";
 import { DesignedSkillShotPlayer } from "@/features/skillshot/DesignedSkillShotPlayer";
 
 export function generateStaticParams() {
@@ -13,13 +14,13 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const designed = getDesignedSkillShot(slug);
+  const designed = await findDesigned(slug);
   return designed ? { title: designed.meta.title, description: designed.design.learningObjective } : {};
 }
 
 export default async function SkillShotPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const designed = getDesignedSkillShot(slug);
+  const designed = await findDesigned(slug);
   const skillShot = designed ? undefined : getSkillShot(slug);
 
   if (!designed && !skillShot) notFound();
