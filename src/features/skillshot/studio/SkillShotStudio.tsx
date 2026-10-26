@@ -83,6 +83,7 @@ export function SkillShotStudio() {
       <p className="font-mono text-[10px] uppercase text-ink-light">Skill Shot studio</p>
       <h1 className="mt-1 font-display text-4xl font-semibold">Design a Skill Shot</h1>
       <p className="mt-3 max-w-3xl text-ink-mid">Give the design agent one capability and what you know. It drafts a 5 to 10 minute lesson taught by Arya, then checks the draft against the quality rubric. Every draft needs a person to review it before a learner sees it, because the checks cover structure, not teaching quality.</p>
+      <p className="mt-3 text-sm"><Link className="text-teal underline underline-offset-4" href="/contribute/skill-shots/conversations">Conversations with Arya</Link> <span className="text-ink-light">: what learners asked her, to check safety and quality.</span></p>
       {error ? <p className="mt-4 border-l-2 border-crimson bg-crimson/5 px-4 py-2 text-sm text-crimson" role="alert">{error}</p> : null}
 
       <section className="mt-8 border border-gold bg-gold-pale/40 p-5" aria-label="Content wave 1">

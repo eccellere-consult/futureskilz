@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { AryaTeacherWindow } from "@/features/arya/AryaTeacher";
+import { AryaCoachPanel } from "@/features/coach/AryaCoachPanel";
+import { PracticeNote } from "@/features/coach/PracticeNote";
 import { useSpeechOutput } from "@/features/capture/ui/speech";
 import { fetchSessionUser } from "@/features/learner/store";
 
@@ -35,6 +37,9 @@ export function DesignedSkillShotPlayer({ blueprint, preview = false }: { bluepr
   const [index, setIndex] = useState(0);
   const [bow, setBow] = useState(0);
   const [playing, setPlaying] = useState(false);
+  /** Decisions and check questions the learner has answered, so Arya knows what she may explain. */
+  const [answered, setAnswered] = useState<string[]>([]);
+  const markAnswered = (id: string) => setAnswered((list) => (list.includes(id) ? list : [...list, id]));
   const run = useRef(0);
   const times = timeline(blueprint);
   const scene = scenes[index];
@@ -78,6 +83,7 @@ export function DesignedSkillShotPlayer({ blueprint, preview = false }: { bluepr
 
   async function choose(option: ChoiceOption) {
     if (!scene.interaction) return;
+    markAnswered(scene.id);
     const correct = option.id === scene.interaction.correctId;
     const spoken = `${correct ? "Yes. " : "Not quite. "}${option.feedback}${correct ? "" : ` ${scene.interaction.rationale}`}`;
     const resume = playing;
@@ -137,12 +143,20 @@ export function DesignedSkillShotPlayer({ blueprint, preview = false }: { bluepr
         <p className="border-t border-cream/10 px-6 py-2 text-[11px] leading-5 text-cream/60">{blueprint.disclosure}</p>
       </section>
 
-      <KnowledgeCheck blueprint={blueprint} preview={preview} />
+      {preview ? (
+        <p className="mt-10 border-l-2 border-gold bg-gold-pale/50 p-4 text-sm text-ink-mid">Preview: Arya&apos;s coaching and practice feedback switch on when this Skill Shot is published, so there is nothing to ask here yet.</p>
+      ) : (
+        <AryaCoachPanel answered={answered} blueprint={blueprint} sceneId={scene.id} />
+      )}
+
+      <KnowledgeCheck blueprint={blueprint} onAnswered={markAnswered} preview={preview} />
 
       <section aria-label="Your task at work" className="mt-10 border-l-2 border-gold bg-gold-pale p-5">
         <p className="font-mono text-[10px] uppercase text-ink-light">Take it to work</p>
         <p className="mt-2 text-base leading-7">{design.workplaceTransferTask}</p>
       </section>
+
+      {preview ? null : <PracticeNote blueprint={blueprint} />}
 
       <section aria-label="Key takeaways and common mistakes" className="mt-10 grid gap-6 md:grid-cols-2">
         <div className="border border-border bg-surface p-5"><h2 className="font-display text-2xl">Remember</h2><ul className="mt-3 space-y-2 text-sm leading-6">{design.summaryTakeaways.map((item) => <li key={item} className="flex gap-2"><Check aria-hidden="true" className="mt-1 shrink-0 text-teal" size={14} />{item}</li>)}</ul></div>
@@ -205,7 +219,7 @@ function InteractionPanel({ interaction, onChoose }: { interaction: NonNullable<
   );
 }
 
-function KnowledgeCheck({ blueprint, preview }: { blueprint: Blueprint; preview: boolean }) {
+function KnowledgeCheck({ blueprint, preview, onAnswered }: { blueprint: Blueprint; preview: boolean; onAnswered: (id: string) => void }) {
   const key = `fs-skillshot-${blueprint.meta.id}`;
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const score = blueprint.knowledgeCheck.filter((question) => answers[question.id] === question.correctId).length;
@@ -217,6 +231,7 @@ function KnowledgeCheck({ blueprint, preview }: { blueprint: Blueprint; preview:
     if (answers[id]) return;
     const next = { ...answers, [id]: optionId };
     setAnswers(next);
+    onAnswered(id);
     if (preview) return; // an editor trying a draft records nothing
     remember(key, { answers: next, at: new Date().toISOString() });
     if (Object.keys(next).length === blueprint.knowledgeCheck.length) {
