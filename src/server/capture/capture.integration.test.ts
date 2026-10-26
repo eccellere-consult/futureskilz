@@ -363,6 +363,27 @@ describe.skipIf(!enabled)("expert capture, end to end", () => {
     expect(usage.meanRating).toBeCloseTo(4.67, 1);
   });
 
+  it("lists the published lesson in the marketplace with its author and a quality score that says how much is behind it", async () => {
+    const { loadListings } = await import("../marketplace/service");
+    const { coachProfileId } = await import("../marketplace/profile-id");
+    const listings = await loadListings();
+    const mine = listings.find((item) => item.id === `coach-lesson:${lessonSlug}`)!;
+    expect(mine).toBeTruthy();
+    expect(mine.kind).toBe("coach-lesson");
+    expect(mine.creator).toEqual({ name: "Asha Rao", profileId: coachProfileId(contributor) });
+    expect(JSON.stringify(mine)).not.toContain(contributor); // the page address never shows an account id
+    expect(mine.learners).toBe(3);
+    // Three learners rated it: too few to count as a rating, so quality rests on checks and the author's standing and says so.
+    expect(mine.quality.parts.find((part) => part.key === "usefulness")?.used).toBe(false);
+    expect(mine.quality.confidence).toBe("early");
+    expect(mine.quality.score).not.toBeNull();
+    // The built-in Skill Shots and kits are there too, and a redesigned one replaces its original instead of appearing twice.
+    expect(listings.some((item) => item.kind === "designed-skill-shot")).toBe(true);
+    expect(listings.some((item) => item.kind === "kit")).toBe(true);
+    const hrefs = listings.map((item) => item.href);
+    expect(new Set(hrefs).size).toBe(hrefs.length);
+  });
+
   it("shows the contributor usage for their lessons while the earnings rules are still pending", async () => {
     const dash = await earnings.contributorDashboard(contributor);
     expect(dash.earningsPolicy?.version.startsWith("demo") ?? false).toBe(false); // the sample policy is only ever a draft
