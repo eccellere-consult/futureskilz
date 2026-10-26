@@ -22,14 +22,14 @@ export type PortraitConfig = {
   width: number;
 };
 
-/** Measured on the supplied 1312 x 1199 portrait. The crop stops short of the text cards on its right edge. */
+/** Measured on the current 1254 x 1254 portrait (upright, closed-lip smile). */
 export const DEFAULT_PORTRAIT: PortraitConfig = {
-  mouth: [0.499, 0.338],
-  mouthRadius: [0.042, 0.027],
-  eyes: [[0.474, 0.227], [0.565, 0.256]],
-  eyeRadius: [0.027, 0.012],
-  focus: [0.485, 0.3],
-  width: 0.43,
+  mouth: [0.49, 0.512],
+  mouthRadius: [0.07, 0.028],
+  eyes: [[0.418, 0.353], [0.578, 0.36]],
+  eyeRadius: [0.038, 0.014],
+  focus: [0.49, 0.405],
+  width: 0.78,
 };
 
 const EXTENSIONS = ["jpg", "jpeg", "png", "webp"];
@@ -39,7 +39,11 @@ export async function portraitUrl(): Promise<string | null> {
     const url = `/avatars/arya.${extension}`;
     try {
       const response = await fetch(url, { method: "HEAD", cache: "no-store" });
-      if (response.ok && (response.headers.get("content-type") ?? "").startsWith("image/")) return url;
+      // The file's own validators go on the address, so a replaced picture is fetched afresh instead of coming from a browser or host cache.
+      if (response.ok && (response.headers.get("content-type") ?? "").startsWith("image/")) {
+        const version = response.headers.get("etag") ?? response.headers.get("last-modified") ?? response.headers.get("content-length") ?? "";
+        return version ? `${url}?v=${encodeURIComponent(version)}` : url;
+      }
     } catch {
       /* try the next */
     }
