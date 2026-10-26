@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { skillTaxonomy } from "../../../domain/skills/taxonomy";
 import { messageOf, post, useRemote } from "../../capture/ui/api";
 import type { DraftSummary } from "@/server/skillshots/service";
+import { LEGACY_BRIEFS } from "../legacy";
 import { WAVE_ONE } from "../wave1";
 import { slugOf } from "../scaffold";
 
@@ -22,6 +23,22 @@ export function SkillShotStudio() {
   const designing = data?.drafts.some((draft) => draft.status === "designing") ?? false;
   const [notice, setNotice] = useState<string | null>(null);
   const started = WAVE_ONE.filter((brief) => data?.drafts.some((draft) => draft.slug === slugOf(brief.topic) || draft.slug.startsWith(`${slugOf(brief.topic)}-`))).length;
+
+  const legacyStarted = LEGACY_BRIEFS.filter((brief) => data?.drafts.some((draft) => draft.slug === brief.slug || draft.slug.startsWith(`${brief.slug}-`))).length;
+  const startLegacy = async () => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await post<{ queued: number }>("/api/contribute/skill-shots/convert-legacy");
+      setNotice(result.queued ? `Queued ${result.queued} older Skill Shot${result.queued === 1 ? "" : "s"} for redesign.` : "All five already have a draft.");
+      reload();
+    } catch (caught) {
+      setError(messageOf(caught));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const startWave = async () => {
     setBusy(true);
@@ -74,6 +91,13 @@ export function SkillShotStudio() {
         <p className="mt-2 text-sm">{started} of {WAVE_ONE.length} started.</p>
         {notice ? <p className="mt-2 text-sm text-teal" role="status">{notice}</p> : null}
         <button className="primary-button mt-3" disabled={busy || started === WAVE_ONE.length} onClick={() => void startWave()} type="button">{started === 0 ? "Design all twelve" : started === WAVE_ONE.length ? "All twelve started" : `Design the remaining ${WAVE_ONE.length - started}`}</button>
+      </section>
+
+      <section className="mt-6 border border-border bg-surface p-5" aria-label="The older Skill Shots">
+        <h2 className="font-display text-2xl">The five older Skill Shots</h2>
+        <p className="mt-2 max-w-3xl text-sm text-ink-mid">The original four-minute Skill Shots can be redesigned in the new form, with Arya teaching, a worked case, a decision and a check. Each keeps its address, so links and learners&apos; progress carry over, and replaces the old page only when you publish it. To redesign a coach&apos;s lesson, open that lesson and choose &ldquo;Redesign as a Skill Shot&rdquo;.</p>
+        <p className="mt-2 text-sm">{legacyStarted} of {LEGACY_BRIEFS.length} started.</p>
+        <button className="primary-button mt-3" disabled={busy || legacyStarted === LEGACY_BRIEFS.length} onClick={() => void startLegacy()} type="button">{legacyStarted === LEGACY_BRIEFS.length ? "All five started" : "Redesign the older Skill Shots"}</button>
       </section>
 
       <form className="mt-8 grid gap-4 border border-border bg-surface p-5 sm:grid-cols-2" onSubmit={submit}>

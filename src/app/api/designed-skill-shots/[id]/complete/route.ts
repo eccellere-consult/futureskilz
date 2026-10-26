@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { getSkillShot } from "@/features/journey/model";
 import { gradeKnowledgeCheck } from "@/features/skillshot/grade";
 import { isSameOrigin, readJson } from "@/server/http/request";
 import { findDesigned } from "@/server/skillshots/designed";
@@ -23,6 +24,10 @@ export async function POST(request: Request, { params }: RouteContext<"/api/desi
   // The server grades the answers itself, so the browser can never award its own evidence.
   const result = gradeKnowledgeCheck(blueprint, parsed.data.answers);
   if (!result.passed) return NextResponse.json({ ...result, evidenceAdded: false, skills: [] }, { headers: noStore });
-  const outcome = await learnerRepository().completeDesignedSkillShot(session.user.id, blueprint.meta.id, blueprint.meta.skillMap);
+  const repository = learnerRepository();
+  const outcome = await repository.completeDesignedSkillShot(session.user.id, blueprint.meta.id, blueprint.meta.skillMap);
+  // A Skill Shot that replaced an original one at the same address keeps the old progress and baseline gain: the server graded this pass, so it records the old check as correct.
+  const original = getSkillShot(blueprint.meta.id);
+  if (original) await repository.completeSkillShot(session.user.id, original.slug, "", original.checkIn.correctIndex).catch(() => undefined);
   return NextResponse.json({ ...result, ...outcome }, { headers: noStore });
 }

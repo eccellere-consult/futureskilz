@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { skillTaxonomy } from "../../domain/skills/taxonomy";
 import { reviewBlueprint, type Review } from "../../features/skillshot/rubric";
-import { scaffoldBlueprint, slugOf, type SkillShotBrief } from "../../features/skillshot/scaffold";
+import { briefSlug, scaffoldBlueprint, type SkillShotBrief } from "../../features/skillshot/scaffold";
 import { parseBlueprint } from "../../features/skillshot/schema";
 import type { Blueprint } from "../../features/skillshot/types";
 import type { AiProvider } from "../providers/ai";
@@ -25,7 +25,9 @@ export const briefSchema = z.object({
   industry: z.string().trim().max(120).optional(),
   sourceNotes: z.string().trim().max(8000).default(""),
   contributor: z.string().trim().min(2).max(200),
-  sourceKind: z.enum(["expert-interview", "document", "illustrative", "method"]),
+  sourceKind: z.enum(["expert-interview", "document", "illustrative", "method", "design"]),
+  slug: z.string().regex(/^[a-z0-9-]{3,80}$/).optional(),
+  sourceLessonId: z.string().max(40).optional(),
 });
 
 export const designOutputSchema = z.object({
@@ -62,7 +64,7 @@ Reply with ONE JSON object only, no commentary, with exactly this shape:
 function pinToBrief(blueprint: Blueprint, brief: SkillShotBrief): Blueprint {
   return {
     ...blueprint,
-    meta: { ...blueprint.meta, id: slugOf(brief.topic), version: "0.1.0", reviewStatus: "draft", skillMap: brief.skills, contributorAttribution: brief.contributor, targetAudience: blueprint.meta.targetAudience || brief.audience, proficiency: brief.proficiency },
+    meta: { ...blueprint.meta, id: briefSlug(brief), version: "0.1.0", reviewStatus: "draft", skillMap: brief.skills, contributorAttribution: brief.contributor, targetAudience: blueprint.meta.targetAudience || brief.audience, proficiency: brief.proficiency },
   };
 }
 
@@ -81,7 +83,12 @@ export function createInstructionalDesignAgent(ai: AiProvider): AgentDefinition<
       };
       if (ai.name === "deterministic") return scaffold();
 
-      const user = JSON.stringify({ brief: { ...brief, sourceNotes: undefined }, authorNotes: brief.sourceNotes || "(none: write a clearly illustrative case)" });
+      const fromLesson = Boolean(brief.sourceLessonId);
+      const user = JSON.stringify({
+        brief: { ...brief, sourceNotes: undefined, sourceLessonId: undefined },
+        authorNotes: brief.sourceNotes || "(none: write a clearly illustrative case)",
+        ...(fromLesson ? { contributorWords: "The notes are a coach's own words from an approved lesson. Keep their key sentences in the narration where you can, in their meaning and order. Add the plain-language structure, the decision and the check, but add NO fact, number, name or experience that is not in the notes. Set the source kind to expert-interview and label the source with the credit line." } : {}),
+      });
       const notes: string[] = [];
       let previous: string | null = null;
       let problems: string[] = [];

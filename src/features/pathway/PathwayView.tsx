@@ -70,7 +70,7 @@ export function PathwayView({ snapshot }: { snapshot: LearnerSnapshot }) {
     const guest: Evidence[] = snapshot.account ? [] : loadGuestPassed().flatMap((id) => (designedById(id)?.meta.skillMap ?? []).map(({ skill, toLevel }) => ({ skill, correct: true, ceiling: toLevel })));
     const estimates = estimateSkills(snapshot.scores, guest, snapshot.skillLevels ?? []);
     const gaps = computeGaps(role, estimates, horizon);
-    return { gaps, pathway: planPathway(gaps, [...coachAssets, ...builtInAssets()], { budgetMinutes: weeklyBudgetMinutes(weekly, horizon) }) };
+    return { gaps, pathway: planPathway(gaps, [...coachAssets, ...builtInAssets().filter((asset) => !coachAssets.some((other) => other.href === asset.href))], { budgetMinutes: weeklyBudgetMinutes(weekly, horizon) }) };
   }, [role, snapshot.scores, snapshot.account, snapshot.skillLevels, horizon, weekly, coachAssets]);
 
   if (!loaded) return <div className="mt-12 min-h-40" aria-label="Loading your target role" />;

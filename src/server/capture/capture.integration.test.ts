@@ -294,6 +294,36 @@ describe.skipIf(!enabled)("expert capture, end to end", () => {
     expect(offered.some((lesson) => lesson.slug === lessonSlug)).toBe(true);
   });
 
+  it("redesigns a published lesson as a Skill Shot that only the coach's approval lets through", async () => {
+    const studio = await import("../skillshots/service");
+    const { rootCauseSkillShot } = await import("../../features/skillshot/samples/root-cause");
+    await expect(studio.designFromLesson(contributor, lessonId)).rejects.toThrow(/Only an editor/);
+    const started = await studio.designFromLesson(editor, lessonId);
+    expect(started.fromLesson).toMatchObject({ lessonId, approvedAt: null });
+    await expect(studio.designFromLesson(editor, lessonId)).rejects.toThrow(/already has/);
+    let draft = started;
+    for (let i = 0; i < 40 && draft.status === "designing"; i += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      draft = await studio.getDraft(editor, started.id);
+    }
+    expect(draft.status).toBe("draft");
+
+    // The coach sees their own draft, and only theirs.
+    expect((await studio.getDraft(contributor, draft.id)).viewer).toBe("contributor");
+    expect((await studio.listMyApprovals(contributor)).map((item) => item.id)).toContain(draft.id);
+    await expect(studio.draftAction(contributor, draft.id, "submit")).rejects.toThrow(/Only an editor/);
+
+    const saved = await studio.saveBlueprint(editor, draft.id, structuredClone(rootCauseSkillShot));
+    expect(saved.passes).toBe(true);
+    await studio.draftAction(editor, draft.id, "submit");
+    await studio.draftAction(editor, draft.id, "approve");
+    await expect(studio.draftAction(editor, draft.id, "publish")).rejects.toThrow(/coach .* needs to approve/);
+    const approved = await studio.contributorApproveDraft(contributor, draft.id);
+    expect(approved.fromLesson?.approvedAt).toBeTruthy();
+    expect((await studio.listMyApprovals(contributor)).map((item) => item.id)).not.toContain(draft.id);
+    expect((await studio.draftAction(editor, draft.id, "publish")).status).toBe("published");
+  });
+
   it("splits credit across contributors only if it adds up to 100%", async () => {
     const db = await shared.database();
     const second = randomUUID();

@@ -39,7 +39,7 @@ describe.skipIf(!enabled)("Skill Shot studio", () => {
     expect(draft.passes).toBe(false);
 
     await expect(service.draftAction(editor, draft.id, "submit")).rejects.toThrow(/still have/);
-    await expect(service.getDraft(learner, draft.id)).rejects.toThrow(/Only an editor/);
+    await expect(service.getDraft(learner, draft.id)).rejects.toThrow(/was not found/);
 
     const written = structuredClone(rootCauseSkillShot);
     const saved = await service.saveBlueprint(editor, draft.id, written);
@@ -78,5 +78,27 @@ describe.skipIf(!enabled)("Skill Shot studio", () => {
     expect(wave).toHaveLength(WAVE_ONE.length);
     expect(wave.every((draft) => draft.status === "draft")).toBe(true);
     expect(await service.designWaveOne(editor)).toEqual({ queued: 0, alreadyStarted: WAVE_ONE.length });
+  });
+
+  it("queues the five older Skill Shots at their old addresses, once", async () => {
+    const { createDatabase } = await import("../db/client");
+    const schema = await import("../db/schema");
+    const service = await import("./service");
+    const { skillShots } = await import("../../features/journey/model");
+    const db = createDatabase();
+    const editor = randomUUID();
+    await db.insert(schema.users).values({ id: editor, email: `old-${editor.slice(0, 6)}@example.test`, displayName: "Old Editor" });
+    await db.insert(schema.userRoles).values({ userId: editor, role: "editor" });
+
+    expect((await service.convertLegacySkillShots(editor)).queued).toBe(skillShots.length);
+    let drafts = await service.listDrafts(editor);
+    for (let i = 0; i < 60 && drafts.some((draft) => draft.status === "designing"); i += 1) {
+      await sleep(250);
+      drafts = await service.listDrafts(editor);
+    }
+    for (const shot of skillShots) expect(drafts.some((draft) => draft.slug === shot.slug && draft.status === "draft"), shot.slug).toBe(true);
+    expect(await service.convertLegacySkillShots(editor)).toEqual({ queued: 0, alreadyStarted: skillShots.length });
+    // Nothing is shown to learners until an editor publishes it.
+    expect(await service.getPublishedBlueprint(skillShots[0].slug)).toBeNull();
   });
 });

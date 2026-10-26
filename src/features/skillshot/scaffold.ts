@@ -11,10 +11,15 @@ export type SkillShotBrief = {
   /** What the author knows: facts, steps, an example. The design agent works only from this and from stated method knowledge. */
   sourceNotes: string;
   contributor: string;
-  sourceKind: "expert-interview" | "document" | "illustrative" | "method";
+  sourceKind: "expert-interview" | "document" | "illustrative" | "method" | "design";
+  /** A fixed address, used when a Skill Shot replaces an older one so links and progress carry over. */
+  slug?: string;
+  /** Set when the draft is built from a coach's published lesson: the coach's own words are the source and the coach approves the result. */
+  sourceLessonId?: string;
 };
 
 export const slugOf = (text: string): string => text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "skill-shot";
+export const briefSlug = (brief: Pick<SkillShotBrief, "topic" | "slug">): string => brief.slug ?? slugOf(brief.topic);
 
 const TODO = (what: string) => `[[${what}]]`;
 const names = new Map(skillTaxonomy.map((skill) => [skill.slug, skill.name]));
@@ -40,7 +45,7 @@ export function scaffoldBlueprint(brief: SkillShotBrief): Blueprint {
   });
   return {
     meta: {
-      id: slugOf(brief.topic),
+      id: briefSlug(brief),
       title: brief.topic,
       version: "0.1.0",
       domain: skillName,
