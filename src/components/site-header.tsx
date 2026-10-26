@@ -6,7 +6,7 @@ import { AccountMenu } from "./account-menu";
 
 export function SiteHeader({ step }: { step?: string }) {
   return (
-    <header className="border-b border-gold/30 bg-ink text-cream">
+    <header className="border-b border-gold/30 bg-ink text-cream print:hidden">
       <div className="mx-auto flex min-h-18 w-full max-w-7xl items-center justify-between px-5 sm:px-8">
         <Link className="font-serif text-2xl font-semibold text-gold-light" href="/">
           FutureSkilz<span className="text-cream">.</span>

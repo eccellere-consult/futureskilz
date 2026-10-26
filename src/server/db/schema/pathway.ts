@@ -1,4 +1,4 @@
-import { datetime, index, mysqlEnum, mysqlTable, text, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
+import { datetime, index, int, mysqlEnum, mysqlTable, text, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 import { createdAtColumn, jsonColumn, referenceColumn, updatedAtColumn } from "./columns";
 import { users } from "./core";
@@ -75,4 +75,26 @@ export const coachMessages = mysqlTable(
     createdAt: createdAtColumn(),
   },
   (table) => [index("coach_messages_user_idx").on(table.userId, table.skillShotId, table.createdAt), index("coach_messages_flag_idx").on(table.flag, table.createdAt)],
+);
+
+/**
+ * A link to a learner's Skill Passport. Only a hash of the link's secret is kept, so a leaked database does not leak working
+ * links, and the secret is shown to the learner once. A link can expire, and the learner can revoke it at any time.
+ */
+export const passportShares = mysqlTable(
+  "passport_shares",
+  {
+    id: referenceColumn("id").primaryKey(),
+    userId: referenceColumn("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull(),
+    label: varchar("label", { length: 120 }).notNull().default(""),
+    /** What the link shows: { name, targetRole, evidence } as chosen by the learner. */
+    include: jsonColumn<Record<string, boolean>>("include").notNull(),
+    expiresAt: datetime("expires_at").notNull(),
+    revokedAt: datetime("revoked_at"),
+    views: int("views").notNull().default(0),
+    lastViewedAt: datetime("last_viewed_at"),
+    createdAt: createdAtColumn(),
+  },
+  (table) => [uniqueIndex("passport_shares_token_idx").on(table.tokenHash), index("passport_shares_user_idx").on(table.userId, table.createdAt)],
 );

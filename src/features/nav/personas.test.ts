@@ -3,10 +3,10 @@ import { describe, expect, it } from "vitest";
 import { PERSONA_MENUS, activeItem, homeFor, personaOfPath, personasFor, primaryPersona } from "./personas";
 
 describe("role menus", () => {
-  it("gives a plain learner only the learner menu, with a roadmap, the role explorer, a learning path and training material", () => {
+  it("gives a plain learner only the learner menu, with a roadmap, the role explorer, a passport, a learning path and training material", () => {
     expect(personasFor([])).toEqual(["learner"]);
     expect(personasFor(undefined)).toEqual(["learner"]);
-    expect(PERSONA_MENUS.learner.items.map((item) => item.label)).toEqual(["My roadmap", "Explore roles", "Learning path", "Training material"]);
+    expect(PERSONA_MENUS.learner.items.map((item) => item.label)).toEqual(["My roadmap", "Explore roles", "Skill Passport", "Learning path", "Training material"]);
   });
 
   it("gives each other kind of person what they work with, and nothing from the other menus", () => {
