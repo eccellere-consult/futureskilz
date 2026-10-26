@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { AryaPanel, useDayPart } from "@/features/arya/AryaPanel";
+import { studentWelcome } from "@/features/arya/scripts";
+
 import {
   availableDiscoverySkills,
   challengeOptions,
@@ -34,6 +37,7 @@ const guideMessages = [
 export function OnboardingFlow() {
   const router = useRouter();
   const [step, setStep] = useState(0);
+  const dayPart = useDayPart();
   const [draft, setDraft] = useState<LearnerDraft>(emptyLearnerDraft);
   const [account, setAccount] = useState<{ user: SessionUser; hasProfile: boolean } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -104,7 +108,7 @@ export function OnboardingFlow() {
       <aside className="h-fit border-t-2 border-gold bg-ink px-6 py-8 text-cream sm:p-10 lg:sticky lg:top-8 lg:p-12">
         <div className="flex items-center gap-3 text-gold-light"><MessageCircle aria-hidden="true" size={18} /><p className="font-mono text-[11px] uppercase">A conversation with Arya</p></div>
         <h1 className="mt-5 max-w-xl font-serif text-5xl leading-none font-light text-cream sm:text-6xl">Let’s work out where you are, together.</h1>
-        <p className="mt-6 max-w-lg text-base leading-7 text-cream/65">{guideMessages[step]}</p>
+        <AryaPanel autoKey={step} className="mt-6 max-w-lg" script={step === 0 ? studentWelcome(dayPart) : guideMessages[step]} stageClassName="h-64" />
         <div className="mt-10 border-t border-cream/15 pt-6">
           <div className="flex items-center gap-3 text-sm text-gold-light"><Check aria-hidden="true" size={18} />About six minutes</div>
           <div className="mt-6 min-h-24 space-y-3 text-xs leading-5 text-cream/60">

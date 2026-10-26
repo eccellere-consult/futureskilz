@@ -80,7 +80,17 @@ describe.skipIf(!enabled)("expert capture, end to end", () => {
     const view = await svc.getView(contributor, projectId);
     expect(view.prompt?.kind).toBe("question");
     expect(view.prompt?.text).toMatch(/future professionals/);
-    expect(view.transcript[0].text).toMatch(/AI interview companion, not a person/);
+    expect(view.transcript[0].text).toMatch(/Arya, an AI interviewer, not a person/);
+    expect(view.needsPlan).toBe(true);
+    expect(view.person.length).toBeGreaterThan(0);
+  });
+
+  it("lets the contributor choose how the interview is shaped, and only the owner", async () => {
+    await expect(svc.setInterviewPlan(editor, projectId, { mode: "arya", skipPhases: [], topics: [] })).rejects.toThrow(/not found/);
+    await expect(svc.setInterviewPlan(contributor, projectId, { mode: "nonsense" })).rejects.toThrow(/could not be read/);
+    const view = await svc.setInterviewPlan(contributor, projectId, { mode: "arya", skipPhases: ["A", "O"], topics: [] });
+    expect(view.needsPlan).toBe(false);
+    expect(view.plan).toEqual({ mode: "arya", skipPhases: [], topics: [] });
   });
 
   it("keeps another contributor out of the interview", async () => {

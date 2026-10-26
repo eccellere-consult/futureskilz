@@ -91,7 +91,7 @@ const STEPS: Record<PersonaId, Step[]> = {
   ],
   coach: [
     {
-      id: "talk", title: "A conversation, not a form", caption: "An AI companion asks one question at a time. Speak or type, pause, and carry on another day.", url: "/contribute/interview",
+      id: "talk", title: "A conversation, not a form", caption: "Arya, an AI interviewer, asks one question at a time. Speak or type, pause, and carry on another day.", url: "/contribute/interview",
       render: () => (
         <div>
           <div className="grid sm:grid-cols-[1fr_11rem] bg-ink text-cream">

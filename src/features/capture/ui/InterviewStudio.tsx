@@ -4,9 +4,14 @@ import { ArrowRight, CheckCircle2, Download, FileUp, Mic, MicOff, Pause, Repeat2
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { useDayPart } from "@/features/arya/AryaPanel";
+import { ArayaStage } from "@/features/arya/ArayaStage";
+import { CoachIntro } from "@/features/arya/CoachIntro";
+import { PlanEditor } from "@/features/arya/PlanEditor";
+import { coachInterviewIntro, coachWelcomeBack, planAcknowledgement } from "@/features/arya/scripts";
+import type { InterviewPlan } from "@/features/capture/types";
 import type { InterviewView } from "@/server/capture/interview-service";
 
-import { Avatar } from "./Avatar";
 import { ApiError, api, messageOf, post } from "./api";
 import { RoleEditor } from "./RoleEditor";
 import { useSpeechInput, useSpeechOutput } from "./speech";
@@ -33,7 +38,9 @@ export function InterviewStudio({ projectId }: { projectId: string }) {
   const [showTranscript, setShowTranscript] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [recapOpen, setRecapOpen] = useState(true);
+  const [showPlan, setShowPlan] = useState(false);
   const spokenFor = useRef<string | null>(null);
+  const dayPart = useDayPart();
 
   const language = view?.project.language ?? "en";
   const voiceIn = useSpeechInput(language, (text) => setDraft((current) => `${current}${current && !current.endsWith(" ") ? " " : ""}${text}`));
@@ -52,12 +59,12 @@ export function InterviewStudio({ projectId }: { projectId: string }) {
 
   const prompt = view?.prompt ?? null;
 
-  // The companion reads each new question aloud when the contributor turned that on.
+  // Arya reads each new question aloud when the contributor turned that on.
   useEffect(() => {
-    if (!prompt || !voiceOut.enabled || spokenFor.current === prompt.id) return;
+    if (!prompt || view?.needsPlan || !voiceOut.enabled || spokenFor.current === prompt.id) return;
     spokenFor.current = prompt.id;
     voiceOut.speak([heard.join(" "), prompt.text].filter(Boolean).join(" "));
-  }, [prompt, voiceOut, heard]);
+  }, [prompt, voiceOut, heard, view?.needsPlan]);
 
   const send = useCallback(
     async (body: Record<string, unknown>) => {
@@ -89,6 +96,20 @@ export function InterviewStudio({ projectId }: { projectId: string }) {
     }
     void send({ action: "answer", text, modality: voiceIn.supported && voiceIn.listening ? "voice" : "text" });
   };
+
+  async function choosePlan(plan: InterviewPlan) {
+    setBusy(true);
+    setError(null);
+    try {
+      setView(await post<InterviewView>(`/api/contribute/projects/${projectId}/plan`, plan));
+      setShowPlan(false);
+      setHeard([planAcknowledgement(plan.mode)]);
+    } catch (caught) {
+      setError(messageOf(caught));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function finishSession() {
     setBusy(true);
@@ -160,9 +181,10 @@ export function InterviewStudio({ projectId }: { projectId: string }) {
 
       {view.recap && recapOpen ? (
         <section aria-label="Where we stopped" className="mb-5 border-l-2 border-gold bg-gold-pale px-4 py-3 text-sm" role="status">
-          <p className="font-semibold">Welcome back.</p>
+          <p className="font-semibold">{`Welcome back${view.person ? `, ${view.person}` : ""}. Arya here.`}</p>
           <p className="mt-1 leading-6">{view.recap.line}</p>
           <div className="mt-2 flex gap-2">
+            <button className="inline-flex min-h-9 items-center gap-1.5 border border-ink px-3 py-1.5 text-xs font-semibold" onClick={() => voiceOut.speak(coachWelcomeBack(dayPart, view.person, view.recap?.line))} type="button"><Volume2 aria-hidden="true" size={14} /> Hear Arya</button>
             <button className="primary-button min-h-9! px-3! py-1.5! text-xs" onClick={() => setRecapOpen(false)} type="button">Carry on where we stopped</button>
             <button className="text-xs underline underline-offset-4" onClick={() => setRecapOpen(false)} type="button">Choose another section below</button>
           </div>
@@ -174,7 +196,7 @@ export function InterviewStudio({ projectId }: { projectId: string }) {
           {/* The call */}
           <section aria-label="Conversation" className="overflow-hidden border border-ink bg-ink text-cream">
             <div className="grid sm:grid-cols-[minmax(0,1fr)_14rem]">
-              <Avatar listening={voiceIn.listening} speaking={voiceOut.speaking} />
+              <ArayaStage className="min-h-72 sm:min-h-80" level={voiceOut.level} listening={voiceIn.listening} speaking={voiceOut.speaking} />
               <div className="flex flex-col justify-between border-t border-cream/15 p-4 sm:border-l sm:border-t-0">
                 <div>
                   <p className="font-mono text-[10px] uppercase text-gold-light">You</p>
@@ -195,6 +217,14 @@ export function InterviewStudio({ projectId }: { projectId: string }) {
                   <p className="mt-2 text-sm text-cream/80">Next you review what I heard. Nothing is published until you confirm it.</p>
                   <Link className="primary-button mt-4" href={`/contribute/${projectId}/review`}>Review my knowledge <ArrowRight aria-hidden="true" size={16} /></Link>
                 </div>
+              ) : view.needsPlan ? (
+                <div>
+                  <p className="font-mono text-[10px] uppercase text-gold-light">Arya · your interviewer</p>
+                  <p className="mt-2 font-display text-xl leading-snug sm:text-2xl">{coachInterviewIntro(dayPart, view.person)}</p>
+                  <button className="mt-4 inline-flex min-h-11 items-center gap-2 border border-gold px-4 text-sm font-semibold text-gold-light hover:bg-gold/10" onClick={() => (voiceOut.speaking ? voiceOut.cancel() : voiceOut.speak(coachInterviewIntro(dayPart, view.person)))} type="button">
+                    <Volume2 aria-hidden="true" size={16} /> {voiceOut.speaking ? "Stop" : "Hear Arya"}
+                  </button>
+                </div>
               ) : prompt ? (
                 <>
                   <p className="font-mono text-[10px] uppercase text-gold-light">
@@ -213,8 +243,17 @@ export function InterviewStudio({ projectId }: { projectId: string }) {
           {error ? <p className="border-l-2 border-crimson bg-crimson/5 px-4 py-2 text-sm text-crimson" role="alert">{error}</p> : null}
           {voiceIn.problem ? <p className="border-l-2 border-gold px-4 py-2 text-sm text-ink-mid" role="status">{voiceIn.problem}</p> : null}
 
+          {view.needsPlan && !complete ? <CoachIntro busy={busy} name={view.person} onChoose={(plan) => void choosePlan(plan)} /> : null}
+
+          {showPlan && view.plan ? (
+            <section aria-label="Change my plan" className="border border-border bg-surface p-4 sm:p-5">
+              <h2 className="font-display text-xl">Change the plan</h2>
+              <div className="mt-3"><PlanEditor busy={busy} initial={view.plan} mode={view.plan.mode === "self" ? "self" : "edit"} onCancel={() => setShowPlan(false)} onSave={(plan) => void choosePlan(plan)} /></div>
+            </section>
+          ) : null}
+
           {/* The answer */}
-          {!complete && prompt ? (
+          {!complete && prompt && !view.needsPlan ? (
             <section aria-label="Your answer" className="border border-border bg-surface p-4 sm:p-5">
               {prompt.kind === "confirm_roles" ? (
                 <RoleEditor
@@ -309,7 +348,7 @@ export function InterviewStudio({ projectId }: { projectId: string }) {
             <section aria-label="Transcript" className="max-h-96 overflow-y-auto border border-border bg-surface p-4 text-sm">
               {view.transcript.map((line) => (
                 <p key={line.id} className={`mb-3 leading-6 ${line.speaker === "expert" ? "text-ink" : "text-ink-light"}`}>
-                  <span className="font-mono text-[10px] uppercase">{line.speaker === "expert" ? "You" : "Companion (AI)"}</span>
+                  <span className="font-mono text-[10px] uppercase">{line.speaker === "expert" ? "You" : "Arya (AI)"}</span>
                   <br />
                   {line.text}
                 </p>
@@ -335,6 +374,14 @@ export function InterviewStudio({ projectId }: { projectId: string }) {
             </p>
           </section>
 
+          {view.plan ? (
+            <section>
+              <h2 className="font-mono text-[10px] uppercase text-ink-light">Your plan</h2>
+              <p className="mt-2 text-sm">{view.plan.mode === "arya" ? "Arya leads" : view.plan.mode === "edit" ? "Arya's plan, edited by you" : "Structured by you"}{view.plan.skipPhases.length ? ` · ${view.plan.skipPhases.length} optional part${view.plan.skipPhases.length === 1 ? "" : "s"} left out` : ""}{view.plan.topics.length ? ` · ${view.plan.topics.length} topic${view.plan.topics.length === 1 ? "" : "s"} of yours` : ""}</p>
+              <button className="mt-1 text-xs text-teal underline underline-offset-4" onClick={() => setShowPlan((open) => !open)} type="button">{showPlan ? "Close" : "Change my plan"}</button>
+            </section>
+          ) : null}
+
           {view.roles.length > 0 ? (
             <section>
               <h2 className="font-mono text-[10px] uppercase text-ink-light">Your jobs</h2>
@@ -358,7 +405,7 @@ export function InterviewStudio({ projectId }: { projectId: string }) {
 
           <section className="border border-border bg-surface p-3 text-xs leading-5 text-ink-mid">
             <p className="font-semibold text-ink">You are in control</p>
-            <p className="mt-1">I am an AI, not a person. I record and transcribe only with your consent, never invent details about your career, and publish nothing until you have reviewed and approved it.</p>
+            <p className="mt-1">I am Arya, an AI and not a person. I record and transcribe only with your consent, never invent details about your career, and publish nothing until you have reviewed and approved it.</p>
           </section>
         </aside>
       </div>

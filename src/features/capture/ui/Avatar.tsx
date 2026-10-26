@@ -12,7 +12,7 @@ export function Avatar({ speaking, listening }: { speaking: boolean; listening: 
         <circle cx="113" cy="88" r="3.4" fill="#0e0e0d" className="cx-blink" />
         <rect x="88" y="104" width="24" height="3" rx="1.5" fill="#b8913a" className="cx-mouth" />
       </svg>
-      <p className="mt-2 font-mono text-[10px] uppercase tracking-wide text-gold-light">AI interview companion</p>
+      <p className="mt-2 font-mono text-[10px] uppercase tracking-wide text-gold-light">Arya · AI interviewer</p>
       <p className="sr-only" aria-live="polite">{speaking ? "The companion is speaking." : listening ? "The microphone is listening." : "Waiting for your answer."}</p>
     </div>
   );

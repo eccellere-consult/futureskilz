@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { AryaPanel, useDayPart } from "@/features/arya/AryaPanel";
+import { coachWelcome } from "@/features/arya/scripts";
 import { fetchSessionUser, type SessionUser } from "@/features/learner/store";
 import { SignInForm } from "@/features/learner/sign-in-form";
 
@@ -23,7 +25,7 @@ const STATUS: Record<string, string> = {
 };
 
 const STEPS = [
-  { icon: Mic, title: "Talk, in your own words", body: "A friendly AI companion asks one question at a time. Speak or type. Pause whenever you like and carry on another day." },
+  { icon: Mic, title: "Talk, in your own words", body: "Arya, our AI interviewer, asks one question at a time. Speak or type. Pause whenever you like and carry on another day." },
   { icon: BookOpenCheck, title: "Check what I heard", body: "Every statement is shown with the exact words it came from. Confirm, correct or reject each one." },
   { icon: ShieldCheck, title: "Decide what is shared", body: "Nothing is published without your approval. Sensitive details can be anonymised or kept private." },
 ];
@@ -40,6 +42,7 @@ export function ContributeHome() {
   const [consents, setConsents] = useState<Partial<Record<ConsentPurpose, boolean>>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dayPart = useDayPart();
 
   useEffect(() => {
     let active = true;
@@ -79,11 +82,18 @@ export function ContributeHome() {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-5 py-10 sm:px-8 sm:py-16">
-      <p className="font-mono text-[10px] uppercase text-ink-light">Expert contributors</p>
-      <h1 className="mt-2 max-w-3xl font-display text-4xl font-semibold leading-tight sm:text-6xl">Your experience deserves to be taught.</h1>
-      <p className="mt-5 max-w-2xl text-lg leading-8 text-ink-mid">
-        Tell the story of your career in conversation. FutureSkilz turns what you teach into short lessons for people entering the field, keeps your name on them, and shows you how they are used.
-      </p>
+      <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+        <div>
+          <p className="font-mono text-[10px] uppercase text-ink-light">Expert contributors</p>
+          <h1 className="mt-2 max-w-3xl font-display text-4xl font-semibold leading-tight sm:text-6xl">Your experience deserves to be taught.</h1>
+          <p className="mt-5 max-w-2xl text-lg leading-8 text-ink-mid">
+            Tell the story of your career in conversation. FutureSkilz turns what you teach into short lessons for people entering the field, keeps your name on them, and shows you how they are used.
+          </p>
+        </div>
+        <section aria-label="Arya, your guide" className="bg-ink p-4 text-cream sm:p-5">
+          <AryaPanel script={coachWelcome(dayPart)} stageClassName="h-64" />
+        </section>
+      </div>
 
       <ol className="mt-10 grid gap-px border border-border bg-border sm:grid-cols-3">
         {STEPS.map((step, index) => (
@@ -160,9 +170,9 @@ export function ContributeHome() {
 
             {error ? <p className="mt-3 text-sm text-crimson" role="alert">{error}</p> : null}
             <button className="primary-button mt-4 w-full sm:w-auto" disabled={busy || !ready} onClick={() => void start()} type="button">
-              {busy ? "Starting…" : "Meet my interview companion"} <ArrowRight aria-hidden="true" size={16} />
+              {busy ? "Starting…" : "Meet Arya, my interviewer"} <ArrowRight aria-hidden="true" size={16} />
             </button>
-            <p className="mt-3 text-xs leading-5 text-ink-light">The companion is an AI, not a person. Your voice and likeness are never cloned or synthesised without your separate, written consent.</p>
+            <p className="mt-3 text-xs leading-5 text-ink-light">Arya is an AI, not a person. Your voice and likeness are never cloned or synthesised without your separate, written consent.</p>
           </section>
         </div>
       ) : null}
