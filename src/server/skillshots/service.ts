@@ -5,6 +5,7 @@ import type { z } from "zod";
 
 import { reviewBlueprint, type Review } from "@/features/skillshot/rubric";
 import { scaffoldBlueprint, slugOf } from "@/features/skillshot/scaffold";
+import { WAVE_ONE } from "@/features/skillshot/wave1";
 import { parseBlueprint } from "@/features/skillshot/schema";
 import type { Blueprint } from "@/features/skillshot/types";
 import { DatabaseAgentRunRecorder } from "@/server/agents/database-recorder";
@@ -60,6 +61,41 @@ export async function designSkillShot(userId: string, rawBrief: unknown): Promis
   void completeDesign(userId, id, slug, brief);
   const [row] = await db.select().from(skillShotDrafts).where(eq(skillShotDrafts.id, id));
   return detail(row);
+}
+
+/**
+ * Content wave 1: queues every brief that has no draft yet and designs them one after another on the server, so the editor can
+ * close the page. Running them one at a time keeps the AI cost and the load on the host predictable.
+ */
+export async function designWaveOne(userId: string): Promise<{ queued: number; alreadyStarted: number }> {
+  await requireStaff(userId);
+  const db = await database();
+  const existing = await db.select({ slug: skillShotDrafts.slug }).from(skillShotDrafts);
+  const queue: Array<{ id: string; slug: string; brief: z.infer<typeof briefSchema> }> = [];
+  for (const raw of WAVE_ONE) {
+    const brief = briefSchema.parse(raw);
+    const base = slugOf(brief.topic);
+    if (existing.some((row) => row.slug === base || row.slug.startsWith(`${base}-`))) continue;
+    const id = newUuid();
+    const placeholder = { ...scaffoldBlueprint(brief), meta: { ...scaffoldBlueprint(brief).meta, id: base } };
+    await db.insert(skillShotDrafts).values({ id, slug: base, title: brief.topic.slice(0, 200), status: "designing", blueprint: placeholder as unknown as Record<string, unknown>, review: reviewBlueprint(placeholder) as unknown as Record<string, unknown>, brief: brief as unknown as Record<string, unknown>, notes: ["Waiting in the queue for the design agent."], source: "scaffold", createdBy: userId });
+    queue.push({ id, slug: base, brief });
+  }
+  await audit(db, userId, "skillshot.wave1", "skill_shot_draft", null, { queued: queue.length });
+  void runQueue(userId, queue);
+  return { queued: queue.length, alreadyStarted: WAVE_ONE.length - queue.length };
+}
+
+async function runQueue(userId: string, queue: Array<{ id: string; slug: string; brief: z.infer<typeof briefSchema> }>): Promise<void> {
+  const db = await database();
+  for (let i = 0; i < queue.length; i += 1) {
+    // Touching the rows still waiting keeps them from looking lost.
+    for (let j = i + 1; j < queue.length; j += 1) {
+      await db.update(skillShotDrafts).set({ notes: [`Waiting in the queue (${j - i} ahead of this one).`] }).where(and(eq(skillShotDrafts.id, queue[j].id), eq(skillShotDrafts.status, "designing"))).catch(() => undefined);
+    }
+    await db.update(skillShotDrafts).set({ notes: ["The design agent is working on this draft."] }).where(eq(skillShotDrafts.id, queue[i].id)).catch(() => undefined);
+    await completeDesign(userId, queue[i].id, queue[i].slug, queue[i].brief);
+  }
 }
 
 async function completeDesign(userId: string, id: string, slug: string, brief: z.infer<typeof briefSchema>): Promise<void> {
