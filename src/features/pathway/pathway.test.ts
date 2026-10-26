@@ -22,6 +22,18 @@ describe("estimates", () => {
   });
 });
 
+describe("evidence on the account", () => {
+  it("raises confidence and never lowers a level the learner's own descriptions already support", () => {
+    const diag = [{ skill: "problem-solving", level: 3.5, confidence: 0.4, kind: "reported-behaviour" as const }];
+    // A level earned only from lessons starts at zero, so one pass leaves 0.5 on the account.
+    const e = estimateSkills(scores, [], [{ skill: "problem-solving", level: 0.5, confidence: 0.4, evidenceCount: 1 }], diag);
+    expect(estimateFor(e, "problem-solving")).toMatchObject({ level: 3.5, source: "evidence", confidence: 0.4 });
+    // Where the account holds more, it wins.
+    const higher = estimateSkills(scores, [], [{ skill: "problem-solving", level: 4, confidence: 0.5, evidenceCount: 2 }], diag);
+    expect(estimateFor(higher, "problem-solving")).toMatchObject({ level: 4, confidence: 0.5 });
+  });
+});
+
 describe("gaps and pathway", () => {
   const role = getRole("ai-product-manager")!;
   const gaps = computeGaps(role, estimateSkills(scores), "90-days");

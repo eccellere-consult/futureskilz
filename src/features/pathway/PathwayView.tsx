@@ -6,11 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { LearnerSnapshot } from "../learner/draft";
 import { builtInAssets, KIND_LABEL, type LearningAsset } from "./assets";
-import { designedById } from "./assets";
-import { estimateSkills, labelFor, type Evidence } from "./estimate";
-import { loadDiagnosticAnswers } from "../diagnostic/store";
-import { scoreDiagnostic } from "../diagnostic/engine";
-import { loadGuestPassed } from "../skillshot/store";
+import { labelFor } from "./estimate";
+import { useLearnerEstimates } from "./use-estimates";
 import { computeGaps, weeklyBudgetMinutes, type Horizon, type SkillGap } from "./gaps";
 import { planPathway } from "./journey";
 import { getRole, TARGET_ROLES } from "./roles";
@@ -28,13 +25,7 @@ export function PathwayView({ snapshot }: { snapshot: LearnerSnapshot }) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [coachAssets, setCoachAssets] = useState<LearningAsset[]>([]);
-  const [guestDiagnostic, setGuestDiagnostic] = useState<NonNullable<LearnerSnapshot["diagnostic"]>>([]);
-
-  useEffect(() => {
-    // Signed-in learners get their diagnostic with the snapshot; a guest's answers live on this device.
-    if (snapshot.account) return;
-    void loadDiagnosticAnswers().then(({ answers }) => setGuestDiagnostic(scoreDiagnostic(answers).skills));
-  }, [snapshot.account]);
+  const estimates = useLearnerEstimates(snapshot);
 
   useEffect(() => {
     let active = true;
@@ -75,12 +66,9 @@ export function PathwayView({ snapshot }: { snapshot: LearnerSnapshot }) {
 
   const plan = useMemo(() => {
     if (!role) return null;
-    // Signed in: the account holds the levels. Guest: passes kept on this device count as device-only evidence.
-    const guest: Evidence[] = snapshot.account ? [] : loadGuestPassed().flatMap((id) => (designedById(id)?.meta.skillMap ?? []).map(({ skill, toLevel }) => ({ skill, correct: true, ceiling: toLevel })));
-    const estimates = estimateSkills(snapshot.scores, guest, snapshot.skillLevels ?? [], snapshot.account ? (snapshot.diagnostic ?? []) : guestDiagnostic);
     const gaps = computeGaps(role, estimates, horizon);
     return { gaps, pathway: planPathway(gaps, [...coachAssets, ...builtInAssets().filter((asset) => !coachAssets.some((other) => other.href === asset.href))], { budgetMinutes: weeklyBudgetMinutes(weekly, horizon) }) };
-  }, [role, snapshot.scores, snapshot.account, snapshot.skillLevels, snapshot.diagnostic, guestDiagnostic, horizon, weekly, coachAssets]);
+  }, [role, estimates, horizon, weekly, coachAssets]);
 
   if (!loaded) return <div className="mt-12 min-h-40" aria-label="Loading your target role" />;
 

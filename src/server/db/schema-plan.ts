@@ -236,6 +236,14 @@ export const additiveTables = [
       "CREATE INDEX `coach_messages_flag_idx` ON `coach_messages` (`flag`,`created_at`);",
     ],
   },
+  {
+    table: "passport_shares",
+    statements: [
+      "CREATE TABLE `passport_shares` (\n\t`id` varchar(36) NOT NULL,\n\t`user_id` varchar(36) NOT NULL,\n\t`token_hash` varchar(64) NOT NULL,\n\t`label` varchar(120) NOT NULL DEFAULT '',\n\t`include` json NOT NULL,\n\t`expires_at` datetime NOT NULL,\n\t`revoked_at` datetime,\n\t`views` int NOT NULL DEFAULT 0,\n\t`last_viewed_at` datetime,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `passport_shares_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `passport_shares_token_idx` UNIQUE(`token_hash`)\n);",
+      "ALTER TABLE `passport_shares` ADD CONSTRAINT `passport_shares_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;",
+      "CREATE INDEX `passport_shares_user_idx` ON `passport_shares` (`user_id`,`created_at`);",
+    ],
+  },
 ] as const;
 
 export type SchemaPlan = "migrate" | "add-columns";

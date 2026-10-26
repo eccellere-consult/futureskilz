@@ -65,9 +65,17 @@ export function estimateSkills(scores: PillarScore[] | undefined, evidence: Evid
       source: "evidence",
     });
   }
-  // What the account holds wins where it has evidence behind it, because it already includes every gain earned so far.
+  // What the account holds has evidence behind it. A level earned only from lessons starts at zero, so it can sit below what the
+  // baseline or the learner's own descriptions already say; evidence adds confidence and never lowers a level.
   for (const row of stored) {
-    if (row.evidenceCount > 0) out.set(row.skill, { skill: row.skill, level: row.level, confidence: row.confidence, source: "evidence" });
+    if (row.evidenceCount <= 0) continue;
+    const prior = out.get(row.skill);
+    out.set(row.skill, {
+      skill: row.skill,
+      level: Math.max(prior?.level ?? 0, row.level),
+      confidence: Math.max(prior?.confidence ?? 0, row.confidence),
+      source: "evidence",
+    });
   }
   return out;
 }
