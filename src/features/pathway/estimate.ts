@@ -7,8 +7,8 @@ import type { PillarId, PillarScore } from "../assessment/model";
  * psychometric precision.
  */
 
-export type EstimateSource = "baseline" | "inferred" | "evidence" | "none";
-export type SkillEstimate = { skill: string; level: number | null; confidence: number; source: EstimateSource };
+export type EstimateSource = "baseline" | "inferred" | "diagnostic" | "evidence" | "none";
+export type SkillEstimate = { skill: string; level: number | null; confidence: number; source: EstimateSource; /** Diagnostic only: the learner also described a result. */ withResult?: boolean };
 
 /** The baseline area each capability is read from. The first in a list is the anchor. */
 export const PILLAR_SKILLS: Record<PillarId, string[]> = {
@@ -33,7 +33,10 @@ export type Evidence = { skill: string; correct: boolean; ceiling?: number };
 /** Levels the account already holds, with how many pieces of evidence stand behind them. */
 export type StoredSkillLevel = { skill: string; level: number; confidence: number; evidenceCount: number };
 
-export function estimateSkills(scores: PillarScore[] | undefined, evidence: Evidence[] = [], stored: StoredSkillLevel[] = []): Map<string, SkillEstimate> {
+/** What the conversational diagnostic found about a skill, from recent situations the learner described. */
+export type DiagnosticLevel = { skill: string; level: number; confidence: number; kind: "reported-behaviour" | "reported-behaviour-with-result" };
+
+export function estimateSkills(scores: PillarScore[] | undefined, evidence: Evidence[] = [], stored: StoredSkillLevel[] = [], diagnostic: DiagnosticLevel[] = []): Map<string, SkillEstimate> {
   const out = new Map<string, SkillEstimate>();
   for (const score of scores ?? []) {
     const level = levelFromScore(score.score);
@@ -45,6 +48,11 @@ export function estimateSkills(scores: PillarScore[] | undefined, evidence: Evid
         : { skill, level: Number((level * INFERRED_DISCOUNT).toFixed(2)), confidence: INFERRED_CONFIDENCE, source: "inferred" };
       if (!existing || candidate.confidence > existing.confidence) out.set(skill, candidate);
     });
+  }
+  // Answers about recent situations beat a short self-rating where they carry at least as much confidence.
+  for (const item of diagnostic) {
+    const existing = out.get(item.skill);
+    if (!existing || item.confidence >= existing.confidence) out.set(item.skill, { skill: item.skill, level: item.level, confidence: item.confidence, source: "diagnostic", withResult: item.kind === "reported-behaviour-with-result" });
   }
   for (const item of evidence) {
     if (!item.correct) continue;
@@ -64,10 +72,14 @@ export function estimateSkills(scores: PillarScore[] | undefined, evidence: Evid
   return out;
 }
 
+export const labelFor = (estimate: SkillEstimate): string =>
+  estimate.source === "diagnostic" && estimate.withResult ? "From a recent situation and the result you described (self-reported)" : SOURCE_LABEL[estimate.source];
+
 export const estimateFor = (estimates: Map<string, SkillEstimate>, skill: string): SkillEstimate =>
   estimates.get(skill) ?? { skill, level: null, confidence: 0, source: "none" };
 
 export const SOURCE_LABEL: Record<EstimateSource, string> = {
+  diagnostic: "From your answers about recent situations (self-reported behaviour)",
   baseline: "From your baseline answer (self-report)",
   inferred: "Inferred from a related baseline answer",
   evidence: "Includes evidence from lessons you completed",

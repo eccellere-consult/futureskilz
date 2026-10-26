@@ -7,7 +7,9 @@ import { useEffect, useMemo, useState } from "react";
 import type { LearnerSnapshot } from "../learner/draft";
 import { builtInAssets, KIND_LABEL, type LearningAsset } from "./assets";
 import { designedById } from "./assets";
-import { estimateSkills, SOURCE_LABEL, type Evidence } from "./estimate";
+import { estimateSkills, labelFor, type Evidence } from "./estimate";
+import { loadDiagnosticAnswers } from "../diagnostic/store";
+import { scoreDiagnostic } from "../diagnostic/engine";
 import { loadGuestPassed } from "../skillshot/store";
 import { computeGaps, weeklyBudgetMinutes, type Horizon, type SkillGap } from "./gaps";
 import { planPathway } from "./journey";
@@ -26,6 +28,13 @@ export function PathwayView({ snapshot }: { snapshot: LearnerSnapshot }) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [coachAssets, setCoachAssets] = useState<LearningAsset[]>([]);
+  const [guestDiagnostic, setGuestDiagnostic] = useState<NonNullable<LearnerSnapshot["diagnostic"]>>([]);
+
+  useEffect(() => {
+    // Signed-in learners get their diagnostic with the snapshot; a guest's answers live on this device.
+    if (snapshot.account) return;
+    void loadDiagnosticAnswers().then(({ answers }) => setGuestDiagnostic(scoreDiagnostic(answers).skills));
+  }, [snapshot.account]);
 
   useEffect(() => {
     let active = true;
@@ -68,10 +77,10 @@ export function PathwayView({ snapshot }: { snapshot: LearnerSnapshot }) {
     if (!role) return null;
     // Signed in: the account holds the levels. Guest: passes kept on this device count as device-only evidence.
     const guest: Evidence[] = snapshot.account ? [] : loadGuestPassed().flatMap((id) => (designedById(id)?.meta.skillMap ?? []).map(({ skill, toLevel }) => ({ skill, correct: true, ceiling: toLevel })));
-    const estimates = estimateSkills(snapshot.scores, guest, snapshot.skillLevels ?? []);
+    const estimates = estimateSkills(snapshot.scores, guest, snapshot.skillLevels ?? [], snapshot.account ? (snapshot.diagnostic ?? []) : guestDiagnostic);
     const gaps = computeGaps(role, estimates, horizon);
     return { gaps, pathway: planPathway(gaps, [...coachAssets, ...builtInAssets().filter((asset) => !coachAssets.some((other) => other.href === asset.href))], { budgetMinutes: weeklyBudgetMinutes(weekly, horizon) }) };
-  }, [role, snapshot.scores, snapshot.account, snapshot.skillLevels, horizon, weekly, coachAssets]);
+  }, [role, snapshot.scores, snapshot.account, snapshot.skillLevels, snapshot.diagnostic, guestDiagnostic, horizon, weekly, coachAssets]);
 
   if (!loaded) return <div className="mt-12 min-h-40" aria-label="Loading your target role" />;
 
@@ -131,6 +140,7 @@ function Result({ gaps, pathway, horizon, weekly }: { gaps: SkillGap[]; pathway:
         <p className="mt-4 text-xs leading-5 text-cream/55">
           Based on a short self-rating, so treat it as a starting estimate. Completing lessons and showing your work makes it firmer.
         </p>
+        <Link className="mt-4 inline-block text-sm text-gold-light underline underline-offset-4" href="/assessment/deeper">Make it firmer: a five-minute conversation about recent situations</Link>
       </div>
 
       <section aria-labelledby="gap-table">
@@ -147,7 +157,7 @@ function Result({ gaps, pathway, horizon, weekly }: { gaps: SkillGap[]; pathway:
                 <tr className="border-b border-border align-top" key={gap.skill}>
                   <td className="py-3 pr-4"><span className="font-medium">{gap.name}</span>{gap.criticality === 3 ? <span className="ml-2 font-mono text-[10px] uppercase text-gold">core</span> : null}</td>
                   <td className="py-3 pr-4">{gap.required.toFixed(1)}</td>
-                  <td className="py-3 pr-4">{gap.current === null ? "–" : gap.current.toFixed(1)}<span className="block text-[11px] text-ink-light">{SOURCE_LABEL[gap.estimate.source]}</span></td>
+                  <td className="py-3 pr-4">{gap.current === null ? "–" : gap.current.toFixed(1)}<span className="block text-[11px] text-ink-light">{labelFor(gap.estimate)}</span></td>
                   <td className="py-3"><span className={gap.status === "gap" ? "text-gold" : gap.status === "met" ? "text-teal" : "text-ink-mid"}>{STATUS[gap.status]}</span></td>
                 </tr>
               ))}
