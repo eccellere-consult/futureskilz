@@ -56,4 +56,27 @@ describe.skipIf(!enabled)("Skill Shot studio", () => {
     expect((await service.listPublishedBlueprints()).some((item) => item.meta.id === draft.slug)).toBe(true);
     await expect(service.saveBlueprint(editor, draft.id, written)).rejects.toThrow(/not edited in place/);
   });
+
+  it("queues content wave 1 once, designs the twelve one after another, and never doubles them", async () => {
+    const { createDatabase } = await import("../db/client");
+    const schema = await import("../db/schema");
+    const service = await import("./service");
+    const { WAVE_ONE } = await import("../../features/skillshot/wave1");
+    const db = createDatabase();
+    const editor = randomUUID();
+    await db.insert(schema.users).values({ id: editor, email: `wave-${editor.slice(0, 6)}@example.test`, displayName: "Wave Editor" });
+    await db.insert(schema.userRoles).values({ userId: editor, role: "editor" });
+
+    const first = await service.designWaveOne(editor);
+    expect(first.queued).toBe(WAVE_ONE.length);
+    let drafts = await service.listDrafts(editor);
+    for (let i = 0; i < 60 && drafts.some((draft) => draft.status === "designing"); i += 1) {
+      await sleep(250);
+      drafts = await service.listDrafts(editor);
+    }
+    const wave = drafts.filter((draft) => WAVE_ONE.some((brief) => draft.title === brief.topic));
+    expect(wave).toHaveLength(WAVE_ONE.length);
+    expect(wave.every((draft) => draft.status === "draft")).toBe(true);
+    expect(await service.designWaveOne(editor)).toEqual({ queued: 0, alreadyStarted: WAVE_ONE.length });
+  });
 });

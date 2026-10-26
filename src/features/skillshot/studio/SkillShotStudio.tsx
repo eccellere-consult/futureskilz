@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { skillTaxonomy } from "../../../domain/skills/taxonomy";
 import { messageOf, post, useRemote } from "../../capture/ui/api";
 import type { DraftSummary } from "@/server/skillshots/service";
+import { WAVE_ONE } from "../wave1";
+import { slugOf } from "../scaffold";
 
 const STATUS: Record<string, string> = { designing: "Being designed…", failed: "Could not be designed", draft: "Draft", in_review: "In review", approved: "Approved", published: "Live", retired: "Retired" };
 
@@ -18,6 +20,23 @@ export function SkillShotStudio() {
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({ topic: "", skill: "problem-solving", toLevel: 2.5, audience: "", proficiency: "foundational", role: "", industry: "", sourceKind: "illustrative", contributor: "FutureSkilz Learning Design", sourceNotes: "" });
   const designing = data?.drafts.some((draft) => draft.status === "designing") ?? false;
+  const [notice, setNotice] = useState<string | null>(null);
+  const started = WAVE_ONE.filter((brief) => data?.drafts.some((draft) => draft.slug === slugOf(brief.topic) || draft.slug.startsWith(`${slugOf(brief.topic)}-`))).length;
+
+  const startWave = async () => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await post<{ queued: number; alreadyStarted: number }>("/api/contribute/skill-shots/wave-one");
+      setNotice(result.queued ? `Queued ${result.queued} Skill Shot${result.queued === 1 ? "" : "s"}. They are designed one after another on the server, so you can leave this page.` : "All twelve already have a draft.");
+      reload();
+    } catch (caught) {
+      setError(messageOf(caught));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (!designing) return;
@@ -48,6 +67,14 @@ export function SkillShotStudio() {
       <h1 className="mt-1 font-display text-4xl font-semibold">Design a Skill Shot</h1>
       <p className="mt-3 max-w-3xl text-ink-mid">Give the design agent one capability and what you know. It drafts a 5 to 10 minute lesson taught by Arya, then checks the draft against the quality rubric. Every draft needs a person to review it before a learner sees it, because the checks cover structure, not teaching quality.</p>
       {error ? <p className="mt-4 border-l-2 border-crimson bg-crimson/5 px-4 py-2 text-sm text-crimson" role="alert">{error}</p> : null}
+
+      <section className="mt-8 border border-gold bg-gold-pale/40 p-5" aria-label="Content wave 1">
+        <h2 className="font-display text-2xl">Content wave 1: twelve Skill Shots</h2>
+        <p className="mt-2 max-w-3xl text-sm text-ink-mid">Chosen from the skills that most roles need and no lesson builds yet: operations, leadership, coaching, product decisions, conflict, listening, strategy, AI analysis, AI basics, handovers, project planning and responsible AI. The agent drafts them one after another from plain method notes and labelled illustrative cases. Each draft still needs your review before learners see it.</p>
+        <p className="mt-2 text-sm">{started} of {WAVE_ONE.length} started.</p>
+        {notice ? <p className="mt-2 text-sm text-teal" role="status">{notice}</p> : null}
+        <button className="primary-button mt-3" disabled={busy || started === WAVE_ONE.length} onClick={() => void startWave()} type="button">{started === 0 ? "Design all twelve" : started === WAVE_ONE.length ? "All twelve started" : `Design the remaining ${WAVE_ONE.length - started}`}</button>
+      </section>
 
       <form className="mt-8 grid gap-4 border border-border bg-surface p-5 sm:grid-cols-2" onSubmit={submit}>
         <label className="text-sm sm:col-span-2">Topic, as a learner would say it<input className={field} maxLength={160} minLength={4} onChange={set("topic")} placeholder="Find the cause, not just the symptom" required value={form.topic} /></label>
