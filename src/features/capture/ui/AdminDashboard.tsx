@@ -67,6 +67,8 @@ export function AdminDashboard() {
         </ul>
       </section>
 
+      <p className="mt-8 text-xs text-ink-light">Live version {process.env.NEXT_PUBLIC_BUILD_ID ?? "unknown"}, built {process.env.NEXT_PUBLIC_BUILT_AT ?? "unknown"}. The same is shown at /api/health.</p>
+
       <section aria-label="Recent activity" className="mt-8">
         <h2 className="font-display text-2xl">Recent activity</h2>
         {data.recent.length === 0 ? <p className="mt-2 text-sm text-ink-light">Nothing recorded yet.</p> : <ul className="mt-3 divide-y divide-border border border-border bg-surface text-sm">{data.recent.map((row) => <li key={row.id} className="flex justify-between gap-3 p-3"><span>{row.action} <span className="text-ink-light">· {row.entity}</span></span><span className="text-xs text-ink-light">{shortDate(row.at)}</span></li>)}</ul>}

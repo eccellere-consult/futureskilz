@@ -17,6 +17,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      # The host installs with the npm that ships with Node 22, so the lockfile must satisfy that too, not only npm 11.
+      - run: npm ci --dry-run
       - run: npm install --global npm@11.11.0
       - run: npm ci
       - run: npm run lint
