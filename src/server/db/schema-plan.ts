@@ -227,6 +227,15 @@ export const additiveTables = [
       "ALTER TABLE `learner_diagnostic` ADD CONSTRAINT `learner_diagnostic_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;",
     ],
   },
+  {
+    table: "coach_messages",
+    statements: [
+      "CREATE TABLE `coach_messages` (\n\t`id` varchar(36) NOT NULL,\n\t`user_id` varchar(36) NOT NULL,\n\t`skill_shot_id` varchar(80) NOT NULL,\n\t`kind` enum('question','practice') NOT NULL DEFAULT 'question',\n\t`message` text NOT NULL,\n\t`reply` text NOT NULL,\n\t`source` varchar(12) NOT NULL,\n\t`flag` varchar(16),\n\t`payload` json,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `coach_messages_id` PRIMARY KEY(`id`)\n);",
+      "ALTER TABLE `coach_messages` ADD CONSTRAINT `coach_messages_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;",
+      "CREATE INDEX `coach_messages_user_idx` ON `coach_messages` (`user_id`,`skill_shot_id`,`created_at`);",
+      "CREATE INDEX `coach_messages_flag_idx` ON `coach_messages` (`flag`,`created_at`);",
+    ],
+  },
 ] as const;
 
 export type SchemaPlan = "migrate" | "add-columns";

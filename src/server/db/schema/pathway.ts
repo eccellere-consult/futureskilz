@@ -1,4 +1,4 @@
-import { datetime, index, mysqlEnum, mysqlTable, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
+import { datetime, index, mysqlEnum, mysqlTable, text, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 import { createdAtColumn, jsonColumn, referenceColumn, updatedAtColumn } from "./columns";
 import { users } from "./core";
@@ -51,3 +51,28 @@ export const learnerDiagnostic = mysqlTable("learner_diagnostic", {
   createdAt: createdAtColumn(),
   updatedAt: updatedAtColumn(),
 });
+
+/**
+ * Every exchange with Arya as a coach inside a Skill Shot (a question, or a practice note and her feedback), for signed-in
+ * learners. It is the audit trail for safety and quality: editors can read it, a safety flag marks what was held back or removed,
+ * and a learner can delete their own history.
+ */
+export const coachMessages = mysqlTable(
+  "coach_messages",
+  {
+    id: referenceColumn("id").primaryKey(),
+    userId: referenceColumn("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    skillShotId: varchar("skill_shot_id", { length: 80 }).notNull(),
+    kind: mysqlEnum("kind", ["question", "practice"]).notNull().default("question"),
+    /** What the learner wrote, after personal details were removed. */
+    message: text("message").notNull(),
+    reply: text("reply").notNull(),
+    /** Who wrote the reply: the AI, plain rules, or a fixed safety message. */
+    source: varchar("source", { length: 12 }).notNull(),
+    /** crisis, injection or redacted when a safety rule acted on the message. */
+    flag: varchar("flag", { length: 16 }),
+    payload: jsonColumn<Record<string, unknown>>("payload"),
+    createdAt: createdAtColumn(),
+  },
+  (table) => [index("coach_messages_user_idx").on(table.userId, table.skillShotId, table.createdAt), index("coach_messages_flag_idx").on(table.flag, table.createdAt)],
+);
