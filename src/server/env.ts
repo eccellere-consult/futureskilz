@@ -26,6 +26,8 @@ const serverEnvironmentSchema = z.object({
   /** Comma-separated addresses that become admins the first time they sign in (the owner, so there is someone to create the rest). */
   BOOTSTRAP_ADMIN_EMAILS: z.string().optional(),
   DEMO_ACCESS_CODE: z.string().min(12).optional(),
+  /** "auto" gives Arya a studio-quality voice through OpenAI when a key is set; "browser" always uses the visitor's own device voice. */
+  ARYA_VOICE: z.enum(["auto", "browser"]).default("auto"),
 });
 
 export type ServerEnvironment = z.infer<typeof serverEnvironmentSchema>;

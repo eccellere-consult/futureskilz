@@ -24,12 +24,17 @@ export function checkCode(code: string, ip: string): boolean {
   const now = Date.now();
   const entry = attempts.get(ip);
   if (entry && now - entry.first < 15 * 60_000 && entry.count >= 10) return false;
-  if (!entry || now - entry.first >= 15 * 60_000) attempts.set(ip, { count: 0, first: now });
-  attempts.get(ip)!.count += 1;
-  if (!expected) return false;
   const a = Buffer.from(code);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
+  const b = Buffer.from(expected ?? "");
+  const right = !!expected && a.length === b.length && timingSafeEqual(a, b);
+  // Only wrong guesses count: building the demo takes about a dozen correct calls in a row, which must never lock the owner out.
+  if (right) {
+    attempts.delete(ip);
+    return true;
+  }
+  if (!entry || now - entry.first >= 15 * 60_000) attempts.set(ip, { count: 1, first: now });
+  else entry.count += 1;
+  return false;
 }
 
 /** Opens a normal session for a seeded demo person. Only addresses on the reserved demo domain can ever be signed in this way. */

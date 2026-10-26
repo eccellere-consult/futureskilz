@@ -163,6 +163,12 @@ export type Prompt = {
   decision?: "next_role" | "more_processes" | "leads_people" | "go_deeper" | "resume" | "sensitivity";
 };
 
+/** How the expert wants the conversation shaped: Arya leads, the expert edits Arya's outline, or builds their own. */
+export type PlanMode = "arya" | "edit" | "self";
+
+/** The expert's choices about the outline. Optional parts left out are never asked; topics raise matching questions. */
+export type InterviewPlan = { mode: PlanMode; skipPhases: PhaseId[]; topics: string[] };
+
 export type InterviewStage = "welcome" | "interviewing" | "wrapping" | "complete";
 
 /** The checkpoint saved after every turn. Resuming loads this; nothing the expert said needs repeating. */
@@ -189,6 +195,8 @@ export type InterviewState = {
   sessionCount: number;
   turnsThisSession: number;
   lastPhase: PhaseId | null;
+  /** Set when the expert chooses how to shape the interview. Absent on older checkpoints, which then follow Arya's full outline. */
+  plan?: InterviewPlan;
 };
 
 export type PhaseProgress = {

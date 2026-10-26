@@ -6,6 +6,7 @@ import { extractByRules, extractFollowUp, careerFactFromRole, type DraftFact } f
 import { REQUIRED_CONSENTS, type ConsentPurpose, type ConsentState } from "@/features/capture/gates";
 import {
   advance,
+  applyPlan,
   beginSession,
   buildRecap,
   chooseElsewhere,
@@ -18,9 +19,10 @@ import {
   type Recap,
   type TurnInput,
 } from "@/features/capture/planner";
+import { readPlan } from "@/features/capture/plan";
 import { PHASE_LABELS, getQuestion } from "@/features/capture/question-bank";
 import { buildTimeline, roleCandidatesFromText, yearsLabel, type Timeline } from "@/features/capture/timeline";
-import type { CareerRole, InterviewState, KnownFact, PlannerContext, Prompt, Segment } from "@/features/capture/types";
+import type { CareerRole, InterviewPlan, InterviewState, KnownFact, PlannerContext, Prompt, Segment } from "@/features/capture/types";
 import {
   kcConsents,
   kcContributors,
@@ -56,7 +58,7 @@ import {
 export const TERMS_VERSION = "2026-10-v1";
 
 const WELCOME =
-  "Hello, and thank you for being here. I am an AI interview companion, not a person. I will ask one question at a time, listen, and ask for an example when it helps. You can pause, skip, say you are not sure, or come back another day. Nothing is published without your review.";
+  "Hello, and thank you for being here. I am Arya, an AI interviewer, not a person. I will ask one question at a time, listen, and ask for an example when it helps. You can pause, skip, say you are not sure, or come back another day. Nothing is published without your review.";
 
 export type PromptView = {
   id: string;
@@ -86,6 +88,12 @@ export type InterviewView = {
   stats: { facts: number; confirmed: number; pending: number; uploads: number; topicsCovered: number };
   openCount: number;
   consents: Partial<Record<ConsentPurpose, boolean>>;
+  /** First name of the contributor, so Arya can greet them properly. */
+  person: string;
+  /** How the expert chose to shape the interview, if they have. */
+  plan: InterviewPlan | null;
+  /** True until the expert has either chosen a plan or answered anything: the moment for Arya's introduction. */
+  needsPlan: boolean;
 };
 
 const roleName = (role: CareerRole): string => [role.title, role.company].filter(Boolean).join(" at ") || "Unnamed job";
@@ -319,6 +327,11 @@ export async function getView(userId: string, projectId: string, extras: { heard
   return buildView(db, project, extras);
 }
 
+async function firstNameOf(executor: Executor, userId: string): Promise<string> {
+  const [row] = await executor.select({ name: users.displayName }).from(users).where(eq(users.id, userId)).limit(1);
+  return (row?.name ?? "").trim().split(/\s+/)[0] ?? "";
+}
+
 async function buildView(executor: Executor, project: ProjectRow, extras: { heard?: string[]; recap?: Recap | null } = {}): Promise<InterviewView> {
   const state = readState(project);
   const roles = await loadRoles(executor, project.id);
@@ -349,6 +362,9 @@ async function buildView(executor: Executor, project: ProjectRow, extras: { hear
     },
     openCount: openQuestions(state, ctx, 100).length,
     consents: await currentConsents(executor, project.contributorId),
+    person: await firstNameOf(executor, project.contributorId),
+    plan: state.plan ?? null,
+    needsPlan: !state.plan && state.sessionCount === 1 && Object.keys(state.entries).length === 0,
   };
 }
 
@@ -598,6 +614,20 @@ export async function addCorrection(userId: string, projectId: string, text: str
   const session = await openSession(db, projectId);
   await insertSegment(db, projectId, session?.id ?? null, { source: "correction", speaker: "expert", text: clean, roleId: roleId ?? null });
   await audit(db, userId, "correction.add", "project", projectId);
+}
+
+/** The expert chooses how the conversation is shaped. Takes effect from the next question; nothing already said is lost. */
+export async function setInterviewPlan(userId: string, projectId: string, input: unknown): Promise<InterviewView> {
+  const plan = readPlan(input);
+  if (!plan) throw new CaptureError(400, "That plan could not be read.");
+  const db = await database();
+  return db.transaction(async (tx) => {
+    const project = await requireProject(tx, userId, projectId, { forUpdate: true });
+    const next = applyPlan(readState(project), plan);
+    await tx.update(kcProjects).set({ state: next as unknown as Record<string, unknown> }).where(eq(kcProjects.id, projectId));
+    await audit(tx, userId, "interview.plan", "project", projectId, { mode: plan.mode, skipped: plan.skipPhases.length, topics: plan.topics.length });
+    return buildView(tx, await requireProject(tx, userId, projectId));
+  });
 }
 
 export async function jumpTo(userId: string, projectId: string, roleId: string | null): Promise<InterviewView> {

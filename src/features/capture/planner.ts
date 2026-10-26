@@ -6,6 +6,7 @@ import {
   type EntryState,
   type Expectation,
   type FollowUp,
+  type InterviewPlan,
   type InterviewState,
   type KnownFact,
   type PhaseId,
@@ -91,6 +92,14 @@ export function startOrResume(state: InterviewState, ctx: PlannerContext): TurnR
   const prompt = choosePrompt(next, ctx);
   next.prompt = prompt;
   return { state: next, heard: [], prompt, effects: [] };
+}
+
+/** Records how the expert wants the interview shaped. Topics they name are treated like the focus they gave at the start. */
+export function applyPlan(state: InterviewState, plan: InterviewPlan): InterviewState {
+  const next = structuredClone(state);
+  next.plan = plan;
+  next.focusTerms = Array.from(new Set([...next.focusTerms, ...focusTermsFrom(plan.topics.join(" "))])).slice(0, 24);
+  return next;
 }
 
 /** A new session begins: keep the saved prompt, so the expert carries on exactly where they stopped. */
@@ -442,7 +451,10 @@ function attempted(state: InterviewState, key: string, roleId: string | null, pr
   return !!entry && ATTEMPTED.has(entry.status);
 }
 
+const planSkips = (state: InterviewState, phase: PhaseId): boolean => !!state.plan?.skipPhases.includes(phase);
+
 function eligible(state: InterviewState, def: QuestionDef, roleId: string | null, processId: string | null): boolean {
+  if (def.scope !== "project" && planSkips(state, def.phase)) return false;
   const entry = state.entries[entryKey(def.key, roleId, processId)];
   if (entry && entry.status !== "revisit") return false;
   return (def.needs ?? []).every((need) => {
@@ -547,7 +559,7 @@ function roleStep(state: InterviewState, ctx: PlannerContext, role: CareerRole):
   for (const def of QUESTION_BANK) {
     if (def.scope !== "role") continue;
     if (def.tier === "deep" && !deep) continue;
-    if (def.phase === "J" && leadsAnswer === "no") continue;
+    if (def.phase === "J" && (leadsAnswer === "no" || planSkips(state, "J"))) continue;
     if (!eligible(state, def, role.id, null)) continue;
     if (def.phase === "J" && leadsAnswer === undefined) continue;
     candidates.push({ def, processId: null, value: score(state, def, role.id, ctx) });
@@ -556,7 +568,7 @@ function roleStep(state: InterviewState, ctx: PlannerContext, role: CareerRole):
   // Process-scoped questions: continue the process in progress, or start the first one.
   const processes = state.processes.filter((process) => process.roleId === role.id);
   const picks = Object.values(state.entries).filter((entry) => entry.questionKey === "g.pick" && entry.roleId === role.id);
-  if (picks.length === 0 && attempted(state, "f.duties", role.id)) {
+  if (picks.length === 0 && !planSkips(state, "G") && attempted(state, "f.duties", role.id)) {
     const def = getQuestion("g.pick")!;
     candidates.push({ def, processId: newId(), value: score(state, def, role.id, ctx) + 1 });
   }
@@ -569,7 +581,7 @@ function roleStep(state: InterviewState, ctx: PlannerContext, role: CareerRole):
   }
 
   // J needs a yes/no first: did the expert lead people in this role?
-  if (leadsAnswer === undefined && attempted(state, "f.duties", role.id)) {
+  if (leadsAnswer === undefined && !planSkips(state, "J") && attempted(state, "f.duties", role.id)) {
     return {
       id: newId(),
       kind: "choice",
@@ -764,6 +776,7 @@ export function choosePrompt(state: InterviewState, ctx: PlannerContext): Prompt
 // ---------------------------------------------------------------------------------------------------------------------
 
 function phaseStatus(state: InterviewState, phase: PhaseId, roleId: string | null, current: PhaseId | undefined): PhaseProgress["status"] {
+  if (roleId && planSkips(state, phase)) return "not_applicable";
   if (roleId && phase === "J" && state.choices[`leads_people@${roleId}`] === "no") return "not_applicable";
   const defs = QUESTION_BANK.filter((question) => question.phase === phase && question.tier === "core");
   const processIds = state.processes.filter((process) => process.roleId === roleId).map((process) => process.id);
