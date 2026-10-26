@@ -24,6 +24,7 @@ export function AccountMenu() {
   if (!user) {
     return (
       <div className="flex items-center gap-2">
+        <Link className="hidden text-xs text-cream/80 underline-offset-4 hover:underline sm:inline" href="/lessons">Lessons</Link>
         <Link className="hidden text-xs text-gold-light underline-offset-4 hover:underline md:inline" href="/join?as=coach">Become a coach</Link>
         <Link className="inline-flex min-h-9 items-center gap-2 border border-cream/25 px-3 text-xs font-medium text-cream hover:border-gold-light hover:text-gold-light" href="/join">
           <UserRound aria-hidden="true" size={15} /> Sign in
@@ -44,15 +45,6 @@ export function AccountMenu() {
 
   return (
     <div className="flex items-center gap-2">
-      <Link className="text-xs font-semibold text-gold-light underline-offset-4 hover:underline" href="/learn">My learning</Link>
-      {user.roles?.some((role) => ["contributor", "editor", "admin"].includes(role)) ? (
-        <Link className="hidden text-xs text-gold-light underline-offset-4 hover:underline md:inline" href="/contribute/dashboard">Coach dashboard</Link>
-      ) : (
-        <Link className="hidden text-xs text-gold-light underline-offset-4 hover:underline md:inline" href="/contribute">Become a coach</Link>
-      )}
-      {user.roles?.some((role) => ["editor", "admin"].includes(role)) ? <Link className="hidden text-xs text-cream/80 underline-offset-4 hover:underline lg:inline" href="/contribute/editor">Editor desk</Link> : null}
-      {user.roles?.includes("admin") ? <Link className="hidden text-xs text-cream/80 underline-offset-4 hover:underline lg:inline" href="/contribute/admin">Earnings</Link> : null}
-      {user.roles?.includes("admin") ? <Link className="hidden text-xs text-cream/80 underline-offset-4 hover:underline lg:inline" href="/contribute/admin/users">Accounts</Link> : null}
       <span className="hidden max-w-36 truncate text-xs text-cream/70 md:inline" title={user.email}>{user.displayName}</span>
       <button
         aria-label="Sign out"
