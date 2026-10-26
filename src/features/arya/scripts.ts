@@ -55,3 +55,16 @@ export function planAcknowledgement(mode: "arya" | "edit" | "self"): string {
   if (mode === "edit") return "Thank you. I have your edited plan, and I will follow it. You can change it later from the side of this page.";
   return "Thank you. I will follow the structure you chose, and I will cover everything you listed.";
 }
+
+/** The deeper diagnostic: recent situations, not ratings, one at a time. */
+export function diagnosticWelcome(part: DayPart, name?: string): string {
+  return [
+    `${greeting(part, name)} I am Arya. ${ARYA_IS_AI}`,
+    "I would like to understand how you work, so I will ask about recent situations, one at a time. Please choose what you actually did, not what you think you should have done.",
+    "If you have not been in a situation recently, say so. That is a good answer, and I will not guess. It takes about five minutes.",
+  ].join(" ");
+}
+
+export function diagnosticClose(): string {
+  return "Thank you. Here is what I heard, what it may mean, and how far to trust it. Nothing here is a verdict. It is where we start.";
+}

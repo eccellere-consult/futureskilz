@@ -2,6 +2,8 @@ import "server-only";
 
 import { and, desc, eq, gt, inArray } from "drizzle-orm";
 
+import { scoreDiagnostic, type DiagnosticAnswer } from "@/features/diagnostic/engine";
+
 import { scoreAssessment, type AssessmentAnswers, type PillarId } from "@/features/assessment/model";
 import { getSkillShot } from "@/features/journey/model";
 import type { LearnerDraft } from "@/features/learner/draft";
@@ -13,6 +15,7 @@ import {
   assessmentResponses,
   goals,
   goalSkills,
+  learnerDiagnostic,
   learnerProfiles,
   learnerSkills,
   practiceSessions,
@@ -406,6 +409,9 @@ export class LearnerRepository {
   }
 
   async loadSnapshot(userId: string) {
-    return projectSnapshot(await this.loadState(userId));
+    const snapshot = projectSnapshot(await this.loadState(userId));
+    const [row] = await this.database.select({ answers: learnerDiagnostic.answers }).from(learnerDiagnostic).where(eq(learnerDiagnostic.userId, userId)).limit(1);
+    if (row) snapshot.diagnostic = scoreDiagnostic(row.answers as unknown as DiagnosticAnswer[]).skills.map(({ skill, level, confidence, kind }) => ({ skill, level, confidence, kind }));
+    return snapshot;
   }
 }

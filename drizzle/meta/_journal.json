@@ -50,6 +50,13 @@
       "when": 1793029903762,
       "tag": "0006_skill_shot_drafts",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1793034170536,
+      "tag": "0007_learner_diagnostic",
+      "breakpoints": true
     }
   ]
 }

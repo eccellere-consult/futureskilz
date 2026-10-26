@@ -220,6 +220,13 @@ export const additiveTables = [
       "CREATE INDEX `skill_shot_drafts_status_idx` ON `skill_shot_drafts` (`status`);",
     ],
   },
+  {
+    table: "learner_diagnostic",
+    statements: [
+      "CREATE TABLE `learner_diagnostic` (\n\t`user_id` varchar(36) NOT NULL,\n\t`answers` json NOT NULL,\n\t`completed_at` datetime,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `learner_diagnostic_user_id` PRIMARY KEY(`user_id`)\n);",
+      "ALTER TABLE `learner_diagnostic` ADD CONSTRAINT `learner_diagnostic_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;",
+    ],
+  },
 ] as const;
 
 export type SchemaPlan = "migrate" | "add-columns";

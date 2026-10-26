@@ -39,3 +39,15 @@ export const skillShotDrafts = mysqlTable(
   },
   (table) => [uniqueIndex("skill_shot_drafts_slug_idx").on(table.slug), index("skill_shot_drafts_status_idx").on(table.status)],
 );
+
+/**
+ * The learner's answers in the conversational diagnostic: one row each, overwritten when they retake it. Only the answers are
+ * stored; levels are recomputed from them every time, so a change to the rules never leaves stale scores behind.
+ */
+export const learnerDiagnostic = mysqlTable("learner_diagnostic", {
+  userId: referenceColumn("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  answers: jsonColumn<Array<Record<string, unknown>>>("answers").notNull(),
+  completedAt: datetime("completed_at"),
+  createdAt: createdAtColumn(),
+  updatedAt: updatedAtColumn(),
+});
