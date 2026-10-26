@@ -6,14 +6,17 @@ import { useEffect, useRef, useState } from "react";
 
 import { AryaTeacherWindow } from "@/features/arya/AryaTeacher";
 import { useSpeechOutput } from "@/features/capture/ui/speech";
+import { fetchSessionUser } from "@/features/learner/store";
 
 import { WORDS_PER_MINUTE, clock, sceneSeconds, timeline, totalSeconds, wordCount } from "./duration";
 import type { Blueprint, ChoiceOption, Scene } from "./types";
+import { gradeKnowledgeCheck } from "./grade";
+import { completeDesigned } from "./store";
 import { SceneVisual } from "./visuals";
 
 const sleep = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 
-/** Remembers a learner's answers on this device only. Recording evidence on the account comes later. */
+/** Keeps a learner's answers on this device so a reload does not lose them. The account records only a passed check, graded on the server. */
 function remember(key: string, value: unknown) {
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
@@ -207,12 +210,20 @@ function KnowledgeCheck({ blueprint }: { blueprint: Blueprint }) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const score = blueprint.knowledgeCheck.filter((question) => answers[question.id] === question.correctId).length;
   const done = Object.keys(answers).length === blueprint.knowledgeCheck.length;
+  const [saved, setSaved] = useState<{ signedIn: boolean; evidenceAdded: boolean; skills: string[] } | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   function answer(id: string, optionId: string) {
     if (answers[id]) return;
     const next = { ...answers, [id]: optionId };
     setAnswers(next);
     remember(key, { answers: next, at: new Date().toISOString() });
+    if (Object.keys(next).length === blueprint.knowledgeCheck.length) {
+      const passed = gradeKnowledgeCheck(blueprint, next).passed;
+      void fetchSessionUser()
+        .then((user) => completeDesigned(blueprint.meta.id, next, passed).then((outcome) => setSaved({ signedIn: Boolean(user), evidenceAdded: outcome.evidenceAdded, skills: outcome.skills })))
+        .catch((caught: unknown) => setSaveError(caught instanceof Error ? caught.message : "Your result could not be saved."));
+    }
   }
 
   return (
@@ -240,7 +251,8 @@ function KnowledgeCheck({ blueprint }: { blueprint: Blueprint }) {
           </div>
         ))}
       </div>
-      {done ? <p className="mt-5 border-l-2 border-teal pl-3 text-sm" role="status">You answered {score} of {blueprint.knowledgeCheck.length} correctly. Finishing shows what you understood, not what you can do: use the task below on a real problem. Your answers are kept on this device.</p> : null}
+      {done ? <p className="mt-5 border-l-2 border-teal pl-3 text-sm" role="status">You answered {score} of {blueprint.knowledgeCheck.length} correctly. Finishing shows what you understood, not what you can do: use the task below on a real problem. {saved?.signedIn ? (saved.evidenceAdded ? "This is recorded on your profile as evidence, so your skill levels and pathway now reflect it." : score >= 2 ? "Your profile already has this evidence." : "Not enough correct answers to count as evidence yet. Replay the scenes and try again later.") : "Sign in to record this on your profile; for now it stays on this device."}</p> : null}
+      {saveError ? <p className="mt-2 text-sm text-crimson" role="alert">{saveError}</p> : null}
     </section>
   );
 }

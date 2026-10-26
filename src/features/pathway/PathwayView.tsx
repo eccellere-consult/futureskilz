@@ -6,7 +6,9 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { LearnerSnapshot } from "../learner/draft";
 import { builtInAssets, KIND_LABEL, type LearningAsset } from "./assets";
-import { estimateSkills, SOURCE_LABEL } from "./estimate";
+import { designedById } from "./assets";
+import { estimateSkills, SOURCE_LABEL, type Evidence } from "./estimate";
+import { loadGuestPassed } from "../skillshot/store";
 import { computeGaps, weeklyBudgetMinutes, type Horizon, type SkillGap } from "./gaps";
 import { planPathway } from "./journey";
 import { getRole, TARGET_ROLES } from "./roles";
@@ -64,10 +66,12 @@ export function PathwayView({ snapshot }: { snapshot: LearnerSnapshot }) {
 
   const plan = useMemo(() => {
     if (!role) return null;
-    const estimates = estimateSkills(snapshot.scores);
+    // Signed in: the account holds the levels. Guest: passes kept on this device count as device-only evidence.
+    const guest: Evidence[] = snapshot.account ? [] : loadGuestPassed().flatMap((id) => (designedById(id)?.meta.skillMap ?? []).map(({ skill, toLevel }) => ({ skill, correct: true, ceiling: toLevel })));
+    const estimates = estimateSkills(snapshot.scores, guest, snapshot.skillLevels ?? []);
     const gaps = computeGaps(role, estimates, horizon);
     return { gaps, pathway: planPathway(gaps, [...coachAssets, ...builtInAssets()], { budgetMinutes: weeklyBudgetMinutes(weekly, horizon) }) };
-  }, [role, snapshot.scores, horizon, weekly, coachAssets]);
+  }, [role, snapshot.scores, snapshot.account, snapshot.skillLevels, horizon, weekly, coachAssets]);
 
   if (!loaded) return <div className="mt-12 min-h-40" aria-label="Loading your target role" />;
 
