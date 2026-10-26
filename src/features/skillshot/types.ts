@@ -69,6 +69,8 @@ export type Blueprint = {
     relatedSkillShots: string[];
     contributorAttribution: string;
     reviewStatus: ReviewStatus;
+    /** The capabilities this builds and the level a learner can reach (0 to 5), as the Skill Graph names them. */
+    skillMap: Array<{ skill: string; toLevel: number }>;
   };
   design: {
     learningNeed: string;

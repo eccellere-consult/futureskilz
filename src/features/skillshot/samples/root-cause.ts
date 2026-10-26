@@ -23,6 +23,7 @@ export const rootCauseSkillShot: Blueprint = {
     relatedSkillShots: ["assumption-test", "three-options"],
     contributorAttribution: "FutureSkilz Learning Design (illustrative case; not drawn from any expert's experience)",
     reviewStatus: "draft",
+    skillMap: [{ skill: "problem-solving", toLevel: 2.5 }, { skill: "analytical-thinking", toLevel: 2.5 }, { skill: "critical-thinking", toLevel: 2 }],
   },
   design: {
     learningNeed: "A fix that does not last wastes time and trust. People often treat what they can see, so the problem returns.",
