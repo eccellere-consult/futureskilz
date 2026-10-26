@@ -5,3 +5,4 @@ export * from "./operations";
 export * from "./workspace";
 export * from "./capture";
 export * from "./credentials";
+export * from "./pathway";

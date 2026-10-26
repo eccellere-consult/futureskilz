@@ -36,6 +36,13 @@
       "when": 1792936744991,
       "tag": "0004_user_credentials",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1793028346935,
+      "tag": "0005_learner_pathway",
+      "breakpoints": true
     }
   ]
 }

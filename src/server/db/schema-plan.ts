@@ -206,6 +206,13 @@ export const additiveTables = [
       "ALTER TABLE `user_credentials` ADD CONSTRAINT `user_credentials_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;",
     ],
   },
+  {
+    table: "learner_pathway",
+    statements: [
+      "CREATE TABLE `learner_pathway` (\n\t`user_id` varchar(36) NOT NULL,\n\t`target_role` varchar(60) NOT NULL,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `learner_pathway_user_id` PRIMARY KEY(`user_id`)\n);",
+      "ALTER TABLE `learner_pathway` ADD CONSTRAINT `learner_pathway_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;",
+    ],
+  },
 ] as const;
 
 export type SchemaPlan = "migrate" | "add-columns";
