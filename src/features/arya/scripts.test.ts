@@ -6,8 +6,9 @@ describe("Arya's scripts", () => {
   it("greets by the visitor's local time, and neutrally when the time is unknown", () => {
     expect([5, 11, 12, 16, 17, 23].map(dayPartOf)).toEqual(["morning", "morning", "afternoon", "afternoon", "evening", "evening"]);
     expect(dayPartOf(-1)).toBe("day");
-    expect(greeting("morning", "Asha Rao")).toBe("Good morning, Asha.");
-    expect(greeting("day")).toBe("Hello.");
+    expect(greeting("morning", "Asha Rao")).toBe("Namaste, Asha. Good morning.");
+    expect(greeting("morning", "Asha Rao", true)).toBe("Namaste, Asha ji. Good morning.");
+    expect(greeting("day")).toBe("Namaste.");
   });
 
   it("always introduces herself and says she is an AI, in all three conversations", () => {

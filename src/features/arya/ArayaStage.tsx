@@ -1,93 +1,57 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 
-import type { Drive } from "./arya-scene";
+import type { AryaState } from "./engine/arya-pose";
+
+// The 3D engine loads only in the browser, and only when Arya is on the page.
+const Arya3D = dynamic(() => import("./engine/arya-3d").then((m) => m.Arya3D), { ssr: false });
 
 type Props = {
   speaking: boolean;
   listening: boolean;
-  /** 0..1 now: how loud the voice is, read every frame. */
-  level: () => number;
+  thinking?: boolean;
+  /** `full` is head and shoulders; `compact` is a close crop of the face, for a small window. */
+  variant?: "full" | "compact";
+  /** Plays her bow once each time this number changes (a greeting). */
+  greetNonce?: number;
   /** Shown under the figure. Always says she is an AI. */
-  caption?: string;
+  caption?: string | null;
   className?: string;
 };
 
-function webglAvailable(): boolean {
-  try {
-    const probe = document.createElement("canvas");
-    return !!(probe.getContext("webgl2") || probe.getContext("webgl"));
-  } catch {
-    return false;
-  }
-}
-
-/** Arya, live in 3D. Falls back to a still portrait where the browser has no WebGL. */
-export function ArayaStage({ speaking, listening, level, caption = "Arya · your AI guide", className = "" }: Props) {
-  const canvas = useRef<HTMLCanvasElement | null>(null);
-  const live = useRef({ speaking, listening, level });
-  const [state, setState] = useState<"loading" | "ready" | "fallback">("loading");
+/** Arya, live: her photograph brought to life in 3D (or a 3D model, or the built-in figure). Stops drawing when off screen. */
+export function ArayaStage({ speaking, listening, thinking = false, variant = "full", greetNonce, caption = "Arya · your AI guide", className = "" }: Props) {
+  const box = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    live.current = { speaking, listening, level };
-  }, [speaking, listening, level]);
-
-  useEffect(() => {
-    const element = canvas.current;
-    if (!element) return;
-    let active = true;
-    let dispose: (() => void) | null = null;
-    let observer: ResizeObserver | null = null;
-    const drive: Drive = { level: () => live.current.level(), listening: () => live.current.listening, speaking: () => live.current.speaking };
-
-    (async () => {
-      if (!webglAvailable()) {
-        if (active) setState("fallback");
-        return;
-      }
-      try {
-        const { modelAvailable, createModelArya } = await import("./arya-model");
-        // Best available look: a commissioned 3D model, then the supplied portrait, then the built-in 3D figure.
-        const portrait = (await modelAvailable()) ? null : await (await import("./arya-portrait")).portraitUrl();
-        const scene = (await modelAvailable())
-          ? await createModelArya(element, drive)
-          : portrait
-            ? await (await import("./arya-portrait")).createPortraitArya(element, drive, portrait)
-            : (await import("./arya-scene")).createProceduralArya(element, drive);
-        if (!active) {
-          scene.dispose();
-          return;
-        }
-        dispose = scene.dispose;
-        observer = new ResizeObserver(() => scene.resize());
-        observer.observe(element);
-        setState("ready");
-      } catch {
-        if (active) setState("fallback");
-      }
-    })();
-
-    return () => {
-      active = false;
-      observer?.disconnect();
-      dispose?.();
-    };
+    const element = box.current;
+    if (!element || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), { rootMargin: "120px" });
+    observer.observe(element);
+    return () => observer.disconnect();
   }, []);
 
+  const state: AryaState = speaking ? "speaking" : listening ? "listening" : thinking ? "thinking" : "idle";
+
   return (
-    <div className={`relative isolate overflow-hidden bg-linear-to-b from-purple via-[#2a1a3a] to-ink ${className}`}>
-      <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_50%_38%,rgba(212,174,106,0.28),transparent_70%)]" />
-      {state === "fallback" ? (
-        <div className="flex h-full min-h-56 flex-col items-center justify-center text-center text-cream/80">
-          <p className="font-display text-5xl text-gold-light">A</p>
-          <p className="mt-2 px-4 text-xs">Arya is shown here when your browser supports 3D. You can still read and hear everything she says.</p>
-        </div>
-      ) : (
-        <canvas ref={canvas} aria-hidden="true" className={`block h-full min-h-56 w-full transition-opacity duration-700 ${state === "ready" ? "opacity-100" : "opacity-0"}`} />
-      )}
-      <p className="absolute inset-x-0 bottom-2 text-center font-mono text-[10px] uppercase tracking-wide text-gold-light">{caption}</p>
-      <p className="sr-only" aria-live="polite">{speaking ? "Arya is speaking." : listening ? "The microphone is listening." : "Waiting for you."}</p>
+    <div ref={box} className={`relative isolate overflow-hidden bg-linear-to-b from-purple via-[#2a1a3a] to-ink ${className}`}>
+      <div className="absolute inset-0">
+        <Arya3D
+          fallback={
+            // eslint-disable-next-line @next/next/no-img-element
+            <img alt="Arya, your AI guide" className="h-full w-full object-cover object-top" src="/avatars/arya.webp" />
+          }
+          greetNonce={greetNonce}
+          paused={!visible}
+          state={state}
+          variant={variant}
+        />
+      </div>
+      {caption ? <p className="pointer-events-none absolute inset-x-0 bottom-0 bg-linear-to-t from-ink/80 to-transparent pb-2 pt-6 text-center font-mono text-[10px] uppercase tracking-wide text-gold-light">{caption}</p> : null}
+      <p className="sr-only" aria-live="polite">{speaking ? "Arya is speaking." : listening ? "The microphone is listening." : "Arya is waiting."}</p>
     </div>
   );
 }

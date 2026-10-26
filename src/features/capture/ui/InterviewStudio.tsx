@@ -196,7 +196,7 @@ export function InterviewStudio({ projectId }: { projectId: string }) {
           {/* The call */}
           <section aria-label="Conversation" className="overflow-hidden border border-ink bg-ink text-cream">
             <div className="grid sm:grid-cols-[minmax(0,1fr)_14rem]">
-              <ArayaStage className="min-h-72 sm:min-h-80" level={voiceOut.level} listening={voiceIn.listening} speaking={voiceOut.speaking} />
+              <ArayaStage className="min-h-72 sm:min-h-80" listening={voiceIn.listening} speaking={voiceOut.speaking} thinking={busy} />
               <div className="flex flex-col justify-between border-t border-cream/15 p-4 sm:border-l sm:border-t-0">
                 <div>
                   <p className="font-mono text-[10px] uppercase text-gold-light">You</p>

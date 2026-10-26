@@ -11,9 +11,11 @@ export function dayPartOf(hour: number): DayPart {
   return hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
 }
 
-export function greeting(part: DayPart, name?: string): string {
-  const who = name?.trim() ? `, ${name.trim().split(/\s+/)[0]}` : "";
-  return part === "day" ? `Hello${who}.` : `Good ${part}${who}.`;
+/** Namaste, then the time of day. `respect` adds "ji" after the name, as one would to a senior professional. */
+export function greeting(part: DayPart, name?: string, respect = false): string {
+  const first = name?.trim().split(/\s+/)[0];
+  const who = first ? `, ${first}${respect ? " ji" : ""}` : "";
+  return part === "day" ? `Namaste${who}.` : `Namaste${who}. Good ${part}.`;
 }
 
 export const ARYA_IS_AI = "I am an AI, not a person.";
@@ -38,14 +40,14 @@ export function coachWelcome(part: DayPart): string {
 
 export function coachInterviewIntro(part: DayPart, name?: string): string {
   return [
-    `${greeting(part, name)} I am Arya, and I will be your interviewer.`,
+    `${greeting(part, name, true)} I am Arya, and I will be your interviewer.`,
     `${ARYA_IS_AI} I record and transcribe only with the consent you gave, I will never invent anything about your career, and nothing is published until you have reviewed and approved it.`,
     "Before we begin, how would you like to shape our conversation? I can lead, using a plan I have prepared. You can pick from my plan and edit it. Or you can structure the interview yourself.",
   ].join(" ");
 }
 
 export function coachWelcomeBack(part: DayPart, name?: string, recap?: string): string {
-  return [`${greeting(part, name)} Welcome back. I am Arya.`, recap ?? "We can carry on exactly where we stopped.", "Nothing you told me before needs repeating."].join(" ");
+  return [`${greeting(part, name, true)} Welcome back. I am Arya.`, recap ?? "We can carry on exactly where we stopped.", "Nothing you told me before needs repeating."].join(" ");
 }
 
 export function planAcknowledgement(mode: "arya" | "edit" | "self"): string {

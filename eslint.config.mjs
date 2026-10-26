@@ -7,6 +7,8 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Plain Node test helpers (the fake AI server for the browser journey) use CommonJS require.
   { files: ["e2e/**/*.cjs"], rules: { "@typescript-eslint/no-require-imports": "off" } },
+  // The avatar engine moves three.js objects every frame (that is what a render loop is), which React's render-purity rules misread.
+  { files: ["src/features/arya/engine/**"], rules: { "react-hooks/immutability": "off", "react-hooks/set-state-in-effect": "off", "react-hooks/refs": "off", "react-hooks/purity": "off" } },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

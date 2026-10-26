@@ -3,6 +3,8 @@
 import { ChevronLeft, ChevronRight, Download, Star, Volume2, VolumeX } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { AryaTeacherWindow } from "@/features/arya/AryaTeacher";
+
 import type { LessonSpec } from "../lessons";
 
 import { formatDuration, messageOf, post } from "./api";
@@ -45,6 +47,7 @@ export function LessonPlayer({ spec, slug, credits, preview = false }: { spec: L
   const [thanks, setThanks] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState(false);
+  const [bow, setBow] = useState(0);
   const voice = useSpeechOutput("en");
   const [seen, setSeen] = useState<number[]>([0]);
   const key = useRef<string>("");
@@ -120,7 +123,8 @@ export function LessonPlayer({ spec, slug, credits, preview = false }: { spec: L
       {spec.prerequisites.length ? <p className="mt-1 text-xs text-ink-light">Helpful first: {spec.prerequisites.join("; ")}</p> : null}
 
       <section aria-label="Lesson" className={`mt-6 overflow-hidden border border-ink bg-linear-to-br ${SCENE_TONE[scene.kind] ?? "from-surface to-surface"}`}>
-        <div className="min-h-64 p-6 sm:p-10">
+        <div className="relative min-h-64 p-6 pr-32 sm:p-10 sm:pr-56">
+          <AryaTeacherWindow bow={bow} className="absolute right-3 top-3 h-28 w-28 sm:right-5 sm:top-5 sm:h-44 sm:w-44" speaking={voice.speaking} />
           <p className="font-mono text-[10px] uppercase opacity-70">Scene {index + 1} of {spec.scenes.length} · {scene.title}</p>
           <ul className="mt-4 space-y-3">
             {scene.onScreen.map((line, i) => (
@@ -140,7 +144,7 @@ export function LessonPlayer({ spec, slug, credits, preview = false }: { spec: L
           ) : null}
         </div>
         <div className="border-t border-current/15 bg-ink/90 px-6 py-4 text-cream" aria-live="polite">
-          <p className="font-mono text-[10px] uppercase text-gold-light">Captions</p>
+          <p className="font-mono text-[10px] uppercase text-gold-light">Arya says</p>
           <p className="mt-1 text-sm leading-6">{caption}</p>
         </div>
       </section>
@@ -151,13 +155,16 @@ export function LessonPlayer({ spec, slug, credits, preview = false }: { spec: L
           {spec.scenes.map((s, i) => <button key={s.id} aria-current={i === index} aria-label={`Scene ${i + 1}: ${s.title}`} className={`h-2.5 w-8 ${i === index ? "bg-gold" : seen.includes(i) ? "bg-ink/50" : "bg-border"}`} onClick={() => go(i)} type="button" />)}
         </div>
         <button aria-label="Next scene" className="icon-button" disabled={last} onClick={() => go(index + 1)} type="button"><ChevronRight aria-hidden="true" size={18} /></button>
+        <button className="ml-auto inline-flex min-h-10 items-center gap-2 border border-gold px-3 text-sm font-semibold" onClick={() => { if (voice.speaking) voice.cancel(); else { setBow((n) => n + 1); voice.speak(caption); } }} type="button">
+          <Volume2 aria-hidden="true" size={16} /> {voice.speaking ? "Stop" : "Hear Arya"}
+        </button>
         {voice.supported ? (
-          <button aria-pressed={voice.enabled} className="ml-auto inline-flex min-h-10 items-center gap-2 border border-border px-3 text-sm" onClick={() => voice.setEnabled(!voice.enabled)} type="button">
-            {voice.enabled ? <Volume2 aria-hidden="true" size={16} /> : <VolumeX aria-hidden="true" size={16} />} Read aloud: {voice.enabled ? "on" : "off"}
+          <button aria-pressed={voice.enabled} className="inline-flex min-h-10 items-center gap-2 border border-border px-3 text-sm" onClick={() => voice.setEnabled(!voice.enabled)} type="button">
+            {voice.enabled ? <Volume2 aria-hidden="true" size={16} /> : <VolumeX aria-hidden="true" size={16} />} Arya teaches aloud: {voice.enabled ? "on" : "off"}
           </button>
         ) : null}
       </div>
-      <p className="mt-2 text-xs text-ink-light">The voice is a standard synthetic voice from your device. It is not {spec.attribution}&apos;s voice.</p>
+      <p className="mt-2 text-xs text-ink-light">Arya, an AI teacher, presents this lesson in a synthetic voice. The words are {spec.attribution}&apos;s own; the voice is not theirs.</p>
 
       {last && !done ? (
         <div className="mt-6 border border-border bg-surface p-4">

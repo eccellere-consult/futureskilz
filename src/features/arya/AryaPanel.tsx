@@ -1,7 +1,7 @@
 "use client";
 
 import { Square, Volume2, VolumeX } from "lucide-react";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { useSpeechOutput } from "@/features/capture/ui/speech";
 
@@ -30,6 +30,7 @@ type Props = {
 export function AryaPanel({ script, autoKey, language = "en", className = "", stageClassName = "h-72", quiet = false }: Props) {
   const voice = useSpeechOutput(language);
   const { enabled, speak } = voice;
+  const [bow, setBow] = useState(0);
 
   useEffect(() => {
     if (enabled && autoKey !== undefined) speak(script);
@@ -38,10 +39,10 @@ export function AryaPanel({ script, autoKey, language = "en", className = "", st
 
   return (
     <div className={className}>
-      <ArayaStage className={stageClassName} level={voice.level} listening={false} speaking={voice.speaking} />
+      <ArayaStage className={stageClassName} greetNonce={bow} listening={false} speaking={voice.speaking} />
       {quiet ? null : <p aria-live="polite" className="mt-4 text-base leading-7 text-cream/85">{script}</p>}
       <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-        <button className="inline-flex min-h-11 items-center gap-2 border border-gold px-4 font-semibold text-gold-light hover:bg-gold/10" onClick={() => (voice.speaking ? voice.cancel() : voice.speak(script))} type="button">
+        <button className="inline-flex min-h-11 items-center gap-2 border border-gold px-4 font-semibold text-gold-light hover:bg-gold/10" onClick={() => { if (voice.speaking) voice.cancel(); else { setBow((n) => n + 1); voice.speak(script); } }} type="button">
           {voice.speaking ? <><Square aria-hidden="true" size={15} /> Stop</> : <><Volume2 aria-hidden="true" size={16} /> Hear Arya</>}
         </button>
         <button aria-pressed={voice.enabled} className="inline-flex min-h-11 items-center gap-2 text-cream/70 underline underline-offset-4 hover:text-cream" onClick={() => voice.setEnabled(!voice.enabled)} type="button">
