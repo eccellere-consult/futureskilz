@@ -4,6 +4,7 @@ import { and, desc, eq, lt } from "drizzle-orm";
 import type { z } from "zod";
 
 import { reviewBlueprint, type Review } from "@/features/skillshot/rubric";
+import { governanceFor, type Governance } from "@/features/marketplace/governance";
 import { lessonBrief } from "@/features/skillshot/from-lesson";
 import { LEGACY_BRIEFS } from "@/features/skillshot/legacy";
 import { briefSlug, scaffoldBlueprint } from "@/features/skillshot/scaffold";
@@ -27,6 +28,8 @@ export type DraftDetail = DraftSummary & {
   /** Set when the draft was built from a coach's lesson: the coach must approve the new wording before it is published. */
   fromLesson: { lessonId: string; approvedAt: string | null } | null;
   viewer: "staff" | "contributor";
+  /** How much human review this needs, chosen by its risk, and why. */
+  governance: Governance;
 };
 export type DraftAction = "submit" | "approve" | "request_changes" | "publish" | "retire";
 
@@ -39,11 +42,22 @@ const summarise = (row: Row): DraftSummary => {
   const review = row.review as unknown as Review;
   return { id: row.id, slug: row.slug, title: row.title, status: row.status, source: row.source, passes: Boolean(review?.passes), blockers: review?.blockers?.length ?? 0, updatedAt: row.updatedAt.toISOString() };
 };
-type Brief = { sourceLessonId?: string; contributorApprovedAt?: string | null };
+type Brief = { sourceLessonId?: string; contributorApprovedAt?: string | null; sourceKind?: "illustrative" | "method" | "design" | "expert-interview" | "document"; sourceNotes?: string };
+
+/** The review path for a draft: from its topic, where its facts came from, whether it makes claims about real parties, and how sure the checks are. */
+function governanceOf(row: Row): Governance {
+  const brief = briefOf(row);
+  const blueprint = row.blueprint as unknown as Blueprint;
+  const review = row.review as unknown as Review;
+  const text = [row.title, blueprint.design?.learningObjective, brief.sourceNotes].filter(Boolean).join(" ");
+  const sourceKind = brief.sourceKind ?? "method";
+  const figures = /\d+\s?%|[$₹€]\s?\d|\b\d{2,}\s?(percent|crore|lakh|million)\b/i.test(text);
+  return governanceFor({ text, sourceKind, hasRealClaims: figures && (sourceKind === "expert-interview" || sourceKind === "document"), fromCoach: Boolean(brief.sourceLessonId), newContributor: false, enterpriseSensitive: false, confidence: review?.passes ? 0.9 : 0.4 });
+}
 const briefOf = (row: Row): Brief => ((row.brief as unknown as Brief | null) ?? {});
 const detail = (row: Row, viewer: DraftDetail["viewer"] = "staff"): DraftDetail => {
   const brief = briefOf(row);
-  return { ...summarise(row), blueprint: row.blueprint as unknown as Blueprint, review: row.review as unknown as Review, notes: (row.notes as string[] | null) ?? [], fromLesson: brief.sourceLessonId ? { lessonId: brief.sourceLessonId, approvedAt: brief.contributorApprovedAt ?? null } : null, viewer };
+  return { ...summarise(row), blueprint: row.blueprint as unknown as Blueprint, review: row.review as unknown as Review, notes: (row.notes as string[] | null) ?? [], fromLesson: brief.sourceLessonId ? { lessonId: brief.sourceLessonId, approvedAt: brief.contributorApprovedAt ?? null } : null, viewer, governance: governanceOf(row) };
 };
 
 async function freeSlug(base: string): Promise<string> {
@@ -244,6 +258,10 @@ export async function draftAction(userId: string, id: string, action: DraftActio
     const review = reviewBlueprint(row.blueprint as unknown as Blueprint);
     // The checks guard structure only, so approval and publication also need them clean; the person still judges the teaching.
     if ((action === "approve" || action === "publish" || action === "submit") && !review.passes) throw new CaptureError(409, `The checks still have ${review.blockers.length} point${review.blockers.length === 1 ? "" : "s"} to fix: ${review.blockers[0]}`);
+    // Sensitive, regulated or low-confidence content needs an admin's approval to go live, not only an editor's.
+    if (action === "publish" && governanceOf(row).mode === "C" && !(await rolesOf(tx, userId)).has("admin")) {
+      throw new CaptureError(403, `This needs an admin to approve and publish it (${governanceOf(row).reasons[0]})`);
+    }
     if (action === "publish" && briefOf(row).sourceLessonId) {
       if (!briefOf(row).contributorApprovedAt) throw new CaptureError(409, "The coach whose lesson this is built from needs to approve the wording first.");
       const [lesson] = await tx.select({ status: kcLessons.status }).from(kcLessons).where(eq(kcLessons.id, briefOf(row).sourceLessonId!)).limit(1);

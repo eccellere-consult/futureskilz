@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { messageOf, patch, post, useRemote } from "../../capture/ui/api";
+import { MODE_LABEL } from "../../marketplace/governance";
 import { DesignedSkillShotPlayer } from "../DesignedSkillShotPlayer";
 import type { DraftAction, DraftDetail } from "@/server/skillshots/service";
 
@@ -70,6 +71,13 @@ export function DraftReview({ id }: { id: string }) {
           <section className="border border-ink bg-surface p-4" aria-label="Actions">
             <h2 className="font-display text-xl">What you can do</h2>
             {actions.length ? <div className="mt-3 flex flex-wrap gap-2">{actions.map((action) => <button className={LABEL[action].primary ? "primary-button min-h-10! px-3! py-2!" : "underline underline-offset-4"} disabled={busy} key={action} onClick={() => void run(() => post(`/api/contribute/skill-shots/${id}`, { action }), `${LABEL[action].label}: done.`)} type="button">{LABEL[action].label}</button>)}</div> : <p className="mt-2 text-sm text-ink-mid">Nothing to do right now.</p>}
+          </section>
+
+          <section className="border border-border bg-surface p-4 text-sm" aria-label="Review path">
+            <h2 className="font-display text-xl">Review path</h2>
+            <p className="mt-1 font-semibold">{MODE_LABEL[data.governance.mode]} <span className="font-normal text-ink-light">· {data.governance.risk} risk</span></p>
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-ink-mid">{data.governance.steps.map((step) => <li key={step}>{step}</li>)}</ol>
+            <p className="mt-2 text-xs text-ink-light">Why: {data.governance.reasons.join(" ")}</p>
           </section>
 
           {data.notes.length ? <section className="border border-border bg-surface p-4 text-sm" aria-label="Agent notes"><h2 className="font-display text-xl">From the design agent</h2><ul className="mt-2 list-disc space-y-1 pl-5 text-ink-mid">{data.notes.map((note) => <li key={note}>{note}</li>)}</ul></section> : null}

@@ -101,4 +101,32 @@ describe.skipIf(!enabled)("Skill Shot studio", () => {
     // Nothing is shown to learners until an editor publishes it.
     expect(await service.getPublishedBlueprint(skillShots[0].slug)).toBeNull();
   });
+
+  it("sends a sensitive topic to an admin to publish, and shows the review path with its reasons", async () => {
+    const { createDatabase } = await import("../db/client");
+    const schema = await import("../db/schema");
+    const service = await import("./service");
+    const { rootCauseSkillShot } = await import("../../features/skillshot/samples/root-cause");
+    const db = createDatabase();
+    const editor = randomUUID();
+    const admin = randomUUID();
+    await db.insert(schema.users).values([{ id: editor, email: `ge-${editor.slice(0, 6)}@example.test`, displayName: "Gov Editor" }, { id: admin, email: `ga-${admin.slice(0, 6)}@example.test`, displayName: "Gov Admin" }]);
+    await db.insert(schema.userRoles).values([{ userId: editor, role: "editor" }, { userId: admin, role: "admin" }]);
+
+    const started = await service.designSkillShot(editor, { topic: `Handling a harassment complaint ${randomUUID().slice(0, 5)}`, skills: [{ skill: "conflict-management", toLevel: 2.5 }], audience: "Managers who receive complaints", proficiency: "working", sourceKind: "method", contributor: "Test", sourceNotes: "" });
+    let draft = started;
+    for (let i = 0; i < 20 && draft.status === "designing"; i += 1) {
+      await sleep(250);
+      draft = await service.getDraft(editor, started.id);
+    }
+    expect(draft.governance.mode).toBe("C");
+    expect(draft.governance.reasons.join(" ")).toMatch(/employment law/);
+    const written = structuredClone(rootCauseSkillShot);
+    written.meta.title = draft.title;
+    await service.saveBlueprint(editor, draft.id, written);
+    await service.draftAction(editor, draft.id, "submit");
+    await service.draftAction(editor, draft.id, "approve");
+    await expect(service.draftAction(editor, draft.id, "publish")).rejects.toThrow(/needs an admin/);
+    expect((await service.draftAction(admin, draft.id, "publish")).status).toBe("published");
+  });
 });
