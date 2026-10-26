@@ -48,7 +48,7 @@ The GitHub repository root must be this directory. Hostinger documentation does 
 
 Set production environment variables in hPanel, never in Git. Use `.env.example` as the key list and supply independent random values of at least 32 characters for `SESSION_SECRET` and `MAGIC_LINK_SECRET`.
 
-Pushes to `main` trigger Hostinger rebuilds. Use hPanel Restart for runtime-only restarts. Do not upload `.next` manually.
+Pushes to `main` trigger Hostinger rebuilds. To see which version is live, open `/api/health`: it reports `build.id` (the commit) and `build.builtAt`; if they are older than your last merge, the rebuild failed or has not run, so check the deployment log in hPanel. The lockfile must install with the npm that ships with Node 22 (`npm ci`), which CI checks. Use hPanel Restart for runtime-only restarts. Do not upload `.next` manually.
 
 ## Accounts and saved progress
 
