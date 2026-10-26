@@ -12,24 +12,24 @@ export const dynamic = "force-dynamic";
 const AREAS = [
   {
     icon: Compass,
-    label: "Skills",
-    title: "Your skills and journey",
-    body: "See where you stand, what to build next, and the short Skill Shots that move you forward.",
-    links: [["/journey", "Open my journey"], ["/assessment", "Retake the skills check"], ["/profile", "My profile"]],
-  },
-  {
-    icon: Wrench,
-    label: "Training kits",
-    title: "Problem Solving kit",
-    body: "Work a real business problem from definition to a one-page report, one proven method at a time. More kits will join this shelf.",
-    links: [["/problem-solving", "Open the Problem Solving kit"], ["/problem-solving/5w2h?demo=1", "See a worked example first"]],
+    label: "Roadmap",
+    title: "Your roadmap",
+    body: "See where you stand, what to build first, and the short path that gets you there.",
+    links: [["/journey", "Open my roadmap"], ["/assessment", "Retake the skills check"], ["/profile", "My skills profile"]],
   },
   {
     icon: BookOpen,
-    label: "Coach lessons",
-    title: "Learn from people who have done the work",
-    body: "Short lessons built from experienced professionals' own words, in paths for onboarding, readiness and upskilling.",
-    links: [["/lessons", "Browse the lesson paths"]],
+    label: "Learning path",
+    title: "Your learning path",
+    body: "Short lessons in a sensible order, built from experienced professionals' own words.",
+    links: [["/lessons", "Browse the learning paths"]],
+  },
+  {
+    icon: Wrench,
+    label: "Training material",
+    title: "Training material",
+    body: "Skill Shots taught by Arya, and hands-on kits to practise on a real problem.",
+    links: [["/training", "Open the training material"], ["/skill-shots/root-cause-five-whys", "New: find the cause, not just the symptom"], ["/problem-solving", "Problem Solving kit"]],
   },
 ] as const;
 

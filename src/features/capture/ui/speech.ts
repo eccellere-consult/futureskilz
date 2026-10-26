@@ -138,7 +138,7 @@ export type SpeechOutput = {
   enabled: boolean;
   setEnabled: (value: boolean) => void;
   /** Arya says it. Her mouth follows the sound (the avatar reads the voice engine itself). */
-  speak: (text: string) => void;
+  speak: (text: string) => Promise<void>;
   cancel: () => void;
 };
 
@@ -158,13 +158,13 @@ export function useSpeechOutput(language: string): SpeechOutput {
   }, []);
 
   const speak = useCallback(
-    (text: string) => {
-      if (!text) return;
+    (text: string): Promise<void> => {
+      if (!text) return Promise.resolve();
       aryaVoice.unlock(); // inside a tap this lets iOS play audio later; harmless elsewhere
       token.current += 1;
       const mine = token.current;
       setSpeaking(true);
-      void aryaVoice.speak(text, language).then(() => {
+      return aryaVoice.speak(text, language).then(() => {
         if (token.current === mine) setSpeaking(false);
       });
     },
