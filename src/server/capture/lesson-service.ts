@@ -6,6 +6,7 @@ import { evaluateLessonGates, type Gate } from "@/features/capture/gates";
 import { buildKnowledgePackage, publishableText } from "@/features/capture/knowledge-package";
 import { allowedActions, transition, type Actor, type LessonAction, type LessonStatus } from "@/features/capture/lesson-workflow";
 import { blueprintLessons, buildLearningPaths, checkLesson, type LearningPath, type LessonSpec } from "@/features/capture/lessons";
+import { cleanSkillMap, suggestSkills, type LessonSkillMap } from "@/features/pathway/skill-map";
 import { kcContributors, kcDocuments, kcLessonAttribution, kcLessons, kcProjects } from "@/server/db/schema";
 
 import { currentConsents } from "./interview-service";
@@ -13,7 +14,7 @@ import { fingerprintOf } from "./review-service";
 import { CaptureError, audit, database, iso, loadFacts, loadRoles, loadSegmentsById, newUuid, rolesOf, type Executor } from "./shared";
 
 type LessonRow = typeof kcLessons.$inferSelect;
-type SpecWithBase = LessonSpec & { baseSlug?: string };
+type SpecWithBase = LessonSpec & { baseSlug?: string; skillMap?: LessonSkillMap };
 
 const specOf = (row: LessonRow): SpecWithBase => row.spec as unknown as SpecWithBase;
 
@@ -59,7 +60,11 @@ export async function generateLessons(actorId: string, projectId: string): Promi
         unchanged += 1;
         continue;
       }
-      const spec: SpecWithBase = { ...lesson, baseSlug };
+      // A rewritten lesson keeps its earlier skills as suggestions to re-confirm; a new one gets rule-based suggestions.
+      const skillMap: LessonSkillMap = existing?.spec && specOf(existing).skillMap
+        ? { status: "suggested", skills: specOf(existing).skillMap!.skills }
+        : { status: "suggested", skills: suggestSkills(lesson).map(({ skill, toLevel }) => ({ skill, toLevel })) };
+      const spec: SpecWithBase = { ...lesson, baseSlug, skillMap };
       if (existing && ["draft", "in_review", "awaiting_contributor"].includes(existing.status)) {
         await tx.update(kcLessons).set({ spec: spec as unknown as Record<string, unknown>, factIds: lesson.factIds, issues, title: lesson.title, durationSeconds: lesson.durationSeconds, status: "draft", editorApprovedAt: null, editorApprovedBy: null, contributorApprovedAt: null }).where(eq(kcLessons.id, existing.id));
         await audit(tx, actorId, "lesson.regenerate", "lesson", existing.id);
@@ -266,6 +271,23 @@ export async function editLesson(userId: string, lessonId: string, edit: LessonE
   return getLessonDetail(userId, lessonId);
 }
 
+/** An editor confirms which Skill Graph capabilities a lesson builds. It is metadata, so wording approvals stay as they are. */
+export async function setLessonSkills(userId: string, lessonId: string, skills: unknown): Promise<LessonDetail> {
+  const db = await database();
+  const cleaned = cleanSkillMap(skills);
+  if (cleaned.length === 0) throw new CaptureError(400, "Choose at least one skill this lesson builds.");
+  await db.transaction(async (tx) => {
+    const roles = await rolesOf(tx, userId);
+    if (!roles.has("editor") && !roles.has("admin")) throw new CaptureError(403, "Only an editor can confirm the skills a lesson builds.");
+    const [row] = await tx.select().from(kcLessons).where(eq(kcLessons.id, lessonId)).for("update");
+    if (!row) throw new CaptureError(404, "That lesson was not found.");
+    const spec: SpecWithBase = { ...specOf(row), skillMap: { status: "confirmed", skills: cleaned, confirmedAt: new Date().toISOString() } };
+    await tx.update(kcLessons).set({ spec: spec as unknown as Record<string, unknown> }).where(eq(kcLessons.id, lessonId));
+    await audit(tx, userId, "lesson.skills", "lesson", lessonId, { skills: cleaned.map((item) => item.skill) });
+  });
+  return getLessonDetail(userId, lessonId);
+}
+
 /** Who is credited, in basis points that add up to 10000. Changing it after publication is an admin decision and is audited. */
 export async function setAttribution(userId: string, lessonId: string, shares: Array<{ contributorId: string; shareBp: number; creditedAs?: string }>): Promise<LessonDetail["attribution"]> {
   const db = await database();
@@ -307,7 +329,7 @@ async function publicCredits(executor: Executor, lessonId: string) {
   return attribution.map((item) => ({ name: item.name, creditedAs: item.creditedAs }));
 }
 
-export async function listPublishedLessons(): Promise<Array<{ slug: string; title: string; spec: LessonSpec }>> {
+export async function listPublishedLessons(): Promise<Array<{ slug: string; title: string; spec: SpecWithBase }>> {
   const db = await database();
   const rows = await db.select().from(kcLessons).where(eq(kcLessons.status, "published")).orderBy(desc(kcLessons.publishedAt));
   return rows.map((row) => ({ slug: row.slug, title: row.title, spec: specOf(row) }));

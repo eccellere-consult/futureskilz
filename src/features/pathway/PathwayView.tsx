@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import type { LearnerSnapshot } from "../learner/draft";
-import { builtInAssets, KIND_LABEL } from "./assets";
-import { estimateSkills, SOURCE_LABEL } from "./estimate";
+import { builtInAssets, KIND_LABEL, type LearningAsset } from "./assets";
+import { designedById } from "./assets";
+import { estimateSkills, SOURCE_LABEL, type Evidence } from "./estimate";
+import { loadGuestPassed } from "../skillshot/store";
 import { computeGaps, weeklyBudgetMinutes, type Horizon, type SkillGap } from "./gaps";
 import { planPathway } from "./journey";
 import { getRole, TARGET_ROLES } from "./roles";
@@ -23,6 +25,18 @@ export function PathwayView({ snapshot }: { snapshot: LearnerSnapshot }) {
   const [roleId, setRoleId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [coachAssets, setCoachAssets] = useState<LearningAsset[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/pathway/assets", { cache: "no-store" })
+      .then((response) => (response.ok ? (response.json() as Promise<{ assets: LearningAsset[] }>) : { assets: [] }))
+      .then(({ assets }) => active && setCoachAssets(assets))
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -52,10 +66,12 @@ export function PathwayView({ snapshot }: { snapshot: LearnerSnapshot }) {
 
   const plan = useMemo(() => {
     if (!role) return null;
-    const estimates = estimateSkills(snapshot.scores);
+    // Signed in: the account holds the levels. Guest: passes kept on this device count as device-only evidence.
+    const guest: Evidence[] = snapshot.account ? [] : loadGuestPassed().flatMap((id) => (designedById(id)?.meta.skillMap ?? []).map(({ skill, toLevel }) => ({ skill, correct: true, ceiling: toLevel })));
+    const estimates = estimateSkills(snapshot.scores, guest, snapshot.skillLevels ?? []);
     const gaps = computeGaps(role, estimates, horizon);
-    return { gaps, pathway: planPathway(gaps, builtInAssets(), { budgetMinutes: weeklyBudgetMinutes(weekly, horizon) }) };
-  }, [role, snapshot.scores, horizon, weekly]);
+    return { gaps, pathway: planPathway(gaps, [...coachAssets, ...builtInAssets()], { budgetMinutes: weeklyBudgetMinutes(weekly, horizon) }) };
+  }, [role, snapshot.scores, snapshot.account, snapshot.skillLevels, horizon, weekly, coachAssets]);
 
   if (!loaded) return <div className="mt-12 min-h-40" aria-label="Loading your target role" />;
 
@@ -153,6 +169,7 @@ function Result({ gaps, pathway, horizon, weekly }: { gaps: SkillGap[]; pathway:
                 <div>
                   <p className="font-mono text-[10px] uppercase text-teal">{KIND_LABEL[step.asset.kind]} · builds {step.name.toLowerCase()} to level {step.targetLevel}</p>
                   <h4 className="mt-2 font-serif text-2xl">{step.asset.title}</h4>
+                  {step.asset.attribution ? <p className="mt-1 text-xs text-ink-light">{step.asset.attribution}</p> : null}
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-light">{step.whyNow}</p>
                   <dl className="mt-3 grid max-w-2xl gap-2 text-sm leading-6">
                     <div><dt className="inline font-medium">Target behaviour: </dt><dd className="inline text-ink-light">{step.targetBehaviour}</dd></div>

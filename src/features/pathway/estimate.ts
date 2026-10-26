@@ -28,9 +28,12 @@ export const EVIDENCE_CONFIDENCE_GAIN = 0.1;
 /** The stored scale is 0 to 5; the baseline scores run 25 to 100. */
 export const levelFromScore = (score: number): number => Math.max(0, Math.min(5, score / 20));
 
-export type Evidence = { skill: string; correct: boolean };
+/** A correct check on a skill. `ceiling` is how far that lesson can take someone, so one lesson never claims more than it teaches. */
+export type Evidence = { skill: string; correct: boolean; ceiling?: number };
+/** Levels the account already holds, with how many pieces of evidence stand behind them. */
+export type StoredSkillLevel = { skill: string; level: number; confidence: number; evidenceCount: number };
 
-export function estimateSkills(scores: PillarScore[] | undefined, evidence: Evidence[] = []): Map<string, SkillEstimate> {
+export function estimateSkills(scores: PillarScore[] | undefined, evidence: Evidence[] = [], stored: StoredSkillLevel[] = []): Map<string, SkillEstimate> {
   const out = new Map<string, SkillEstimate>();
   for (const score of scores ?? []) {
     const level = levelFromScore(score.score);
@@ -46,12 +49,17 @@ export function estimateSkills(scores: PillarScore[] | undefined, evidence: Evid
   for (const item of evidence) {
     if (!item.correct) continue;
     const current = out.get(item.skill) ?? { skill: item.skill, level: 0, confidence: 0, source: "none" as EstimateSource };
+    const now = current.level ?? 0;
     out.set(item.skill, {
       skill: item.skill,
-      level: Math.min(5, (current.level ?? 0) + EVIDENCE_LEVEL_GAIN),
+      level: Math.max(now, Math.min(item.ceiling ?? 5, now + EVIDENCE_LEVEL_GAIN)),
       confidence: Math.min(1, current.confidence + EVIDENCE_CONFIDENCE_GAIN),
       source: "evidence",
     });
+  }
+  // What the account holds wins where it has evidence behind it, because it already includes every gain earned so far.
+  for (const row of stored) {
+    if (row.evidenceCount > 0) out.set(row.skill, { skill: row.skill, level: row.level, confidence: row.confidence, source: "evidence" });
   }
   return out;
 }

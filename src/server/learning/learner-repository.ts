@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, gt, inArray } from "drizzle-orm";
 
 import { scoreAssessment, type AssessmentAnswers, type PillarId } from "@/features/assessment/model";
 import { getSkillShot } from "@/features/journey/model";
@@ -33,6 +33,8 @@ import {
   pillarAnchorSkills,
   projectSnapshot,
   skillShotEvidenceSource,
+  designedEvidenceSource,
+  designedEvidenceType,
   verifySkillShotResults,
   type StoredLearnerState,
 } from "./snapshot";
@@ -104,6 +106,38 @@ export class LearnerRepository {
     return this.database.transaction((transaction) =>
       this.writeSkillShotResult(transaction, catalog, userId, slug, practice, checkInAnswer),
     );
+  }
+
+  /** Records a passed designed Skill Shot: one piece of evidence per skill it builds, once, never above what the lesson teaches. */
+  async completeDesignedSkillShot(userId: string, id: string, skills: Array<{ skill: string; toLevel: number }>): Promise<{ evidenceAdded: boolean; skills: string[] }> {
+    const catalog = await this.catalog();
+    return this.database.transaction(async (transaction) => {
+      const added: string[] = [];
+      const now = new Date();
+      for (const { skill, toLevel } of skills) {
+        const skillId = catalog.skillIdBySlug.get(skill);
+        if (!skillId) continue;
+        const source = designedEvidenceSource(id, skill);
+        const [existing] = await transaction.select({ id: skillEvidence.id }).from(skillEvidence).where(and(eq(skillEvidence.learnerId, userId), eq(skillEvidence.source, source))).limit(1);
+        if (existing) continue;
+        await transaction.insert(skillEvidence).values({ learnerId: userId, skillId, evidenceType: designedEvidenceType, score: 1, source, evaluator: "rule:designed-check-v1", confidence: 0.5 });
+        const [current] = await transaction
+          .select({ currentLevel: learnerSkills.currentLevel, confidence: learnerSkills.confidence, evidenceCount: learnerSkills.evidenceCount })
+          .from(learnerSkills)
+          .where(and(eq(learnerSkills.learnerId, userId), eq(learnerSkills.skillId, skillId)))
+          .limit(1);
+        const level = current?.currentLevel ?? 0;
+        const values = {
+          currentLevel: Math.max(level, Math.min(toLevel, level + checkInLevelGain)),
+          confidence: Math.min(1, (current?.confidence ?? baselineConfidence) + checkInConfidenceGain),
+          evidenceCount: (current?.evidenceCount ?? 0) + 1,
+          lastAssessedAt: now,
+        };
+        await transaction.insert(learnerSkills).values({ learnerId: userId, skillId, targetLevel: prioritySkillTargetLevel, ...values }).onDuplicateKeyUpdate({ set: values });
+        added.push(skill);
+      }
+      return { evidenceAdded: added.length > 0, skills: added };
+    });
   }
 
   async saveWelcomeSummary(userId: string, summary: string, source: "ai" | "template"): Promise<void> {
@@ -191,7 +225,7 @@ export class LearnerRepository {
       const earned = await executor
         .select({ id: skillEvidence.id })
         .from(skillEvidence)
-        .where(and(eq(skillEvidence.learnerId, userId), eq(skillEvidence.skillId, skillId), eq(skillEvidence.evidenceType, checkInEvidenceType)));
+        .where(and(eq(skillEvidence.learnerId, userId), eq(skillEvidence.skillId, skillId), inArray(skillEvidence.evidenceType, [checkInEvidenceType, designedEvidenceType])));
       const level = Math.min(5, levelFromScore(pillar.score) + earned.length * checkInLevelGain);
       const confidence = Math.min(1, baselineConfidence + earned.length * checkInConfidenceGain);
       const values = { currentLevel: level, confidence, evidenceCount: earned.length, lastAssessedAt: now };
@@ -334,7 +368,21 @@ export class LearnerRepository {
       .where(eq(practiceSessions.learnerId, userId))
       .orderBy(practiceSessions.createdAt);
 
+    const heldRows = await this.database
+      .select({ skillId: learnerSkills.skillId, currentLevel: learnerSkills.currentLevel, confidence: learnerSkills.confidence, evidenceCount: learnerSkills.evidenceCount })
+      .from(learnerSkills)
+      .where(and(eq(learnerSkills.learnerId, userId), gt(learnerSkills.evidenceCount, 0)));
+    const designedRows = await this.database
+      .select({ source: skillEvidence.source })
+      .from(skillEvidence)
+      .where(and(eq(skillEvidence.learnerId, userId), eq(skillEvidence.evidenceType, designedEvidenceType)));
+
     return {
+      skillLevels: heldRows.flatMap(({ skillId, currentLevel, confidence, evidenceCount }) => {
+        const skill = slugBySkillId.get(skillId);
+        return skill ? [{ skill, level: currentLevel, confidence, evidenceCount }] : [];
+      }),
+      designedEvidenceSources: designedRows.map(({ source }) => source),
       displayName: user?.displayName ?? "",
       profile: profile ?? null,
       goal: goal
