@@ -384,6 +384,18 @@ describe.skipIf(!enabled)("expert capture, end to end", () => {
     expect(new Set(hrefs).size).toBe(hrefs.length);
   });
 
+  it("gives a coach a public page that shows their name, headline and live lessons, and never an account id", async () => {
+    const { getCoachProfile } = await import("../marketplace/service");
+    const { coachProfileId } = await import("../marketplace/profile-id");
+    const profile = await getCoachProfile(coachProfileId(contributor));
+    expect(profile?.name).toBe("Asha Rao");
+    expect(profile?.lessons.some((item) => item.id === `coach-lesson:${lessonSlug}`)).toBe(true);
+    expect(profile?.learnersReached).toBe(3);
+    expect(JSON.stringify(profile)).not.toContain(contributor);
+    expect(await getCoachProfile("0123456789abcdef")).toBeNull();
+    expect(await getCoachProfile("not-an-id")).toBeNull();
+  });
+
   it("shows the contributor usage for their lessons while the earnings rules are still pending", async () => {
     const dash = await earnings.contributorDashboard(contributor);
     expect(dash.earningsPolicy?.version.startsWith("demo") ?? false).toBe(false); // the sample policy is only ever a draft
