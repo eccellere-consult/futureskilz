@@ -22,13 +22,14 @@ export type PortraitConfig = {
   width: number;
 };
 
+/** Measured on the supplied 1312 x 1199 portrait. The crop stops short of the text cards on its right edge. */
 export const DEFAULT_PORTRAIT: PortraitConfig = {
-  mouth: [0.45, 0.338],
-  mouthRadius: [0.05, 0.03],
-  eyes: [[0.428, 0.225], [0.526, 0.234]],
-  eyeRadius: [0.03, 0.013],
-  focus: [0.42, 0.33],
-  width: 0.58,
+  mouth: [0.499, 0.338],
+  mouthRadius: [0.042, 0.027],
+  eyes: [[0.474, 0.227], [0.565, 0.256]],
+  eyeRadius: [0.027, 0.012],
+  focus: [0.485, 0.3],
+  width: 0.43,
 };
 
 const EXTENSIONS = ["jpg", "jpeg", "png", "webp"];
