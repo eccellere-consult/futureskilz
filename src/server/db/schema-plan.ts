@@ -244,6 +244,15 @@ export const additiveTables = [
       "CREATE INDEX `passport_shares_user_idx` ON `passport_shares` (`user_id`,`created_at`);",
     ],
   },
+  {
+    table: "book_projects",
+    statements: [
+      "CREATE TABLE `book_projects` (\n\t`id` varchar(36) NOT NULL,\n\t`project_id` varchar(36) NOT NULL,\n\t`contributor_id` varchar(36) NOT NULL,\n\t`status` enum('writing','ready','failed','approved') NOT NULL DEFAULT 'writing',\n\t`step` varchar(120) NOT NULL DEFAULT '',\n\t`book` json,\n\t`source` varchar(16) NOT NULL DEFAULT 'outline',\n\t`page_count` int,\n\t`interior_pdf` longtext,\n\t`cover_pdf` longtext,\n\t`cover_art` longtext,\n\t`error` text,\n\t`approved_at` datetime,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `book_projects_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `book_projects_project_idx` UNIQUE(`project_id`)\n);",
+      "ALTER TABLE `book_projects` ADD CONSTRAINT `book_projects_project_id_kc_projects_id_fk` FOREIGN KEY (`project_id`) REFERENCES `kc_projects`(`id`) ON DELETE cascade ON UPDATE no action;",
+      "ALTER TABLE `book_projects` ADD CONSTRAINT `book_projects_contributor_id_users_id_fk` FOREIGN KEY (`contributor_id`) REFERENCES `users`(`id`) ON DELETE restrict ON UPDATE no action;",
+      "CREATE INDEX `book_projects_contributor_idx` ON `book_projects` (`contributor_id`,`updated_at`);",
+    ],
+  },
 ] as const;
 
 export type SchemaPlan = "migrate" | "add-columns";
