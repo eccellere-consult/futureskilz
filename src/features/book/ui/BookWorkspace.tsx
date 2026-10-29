@@ -20,6 +20,7 @@ export function BookWorkspace({ projectId }: { projectId: string }) {
   const { data, error, setError, reload } = useRemote<Payload>(base);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [ask, setAsk] = useState<{ chapter: number; instruction: string } | null>(null);
   const [form, setForm] = useState<{ title: string; subtitle: string; dedication: string } | null>(null);
   const book = data?.book ?? null;
   const writing = book?.status === "writing";
@@ -92,6 +93,15 @@ export function BookWorkspace({ projectId }: { projectId: string }) {
                 <li key={chapter.number} className="border-t border-border pt-3">
                   <p className="font-semibold">Chapter {chapter.number}. {chapter.title}</p>
                   <p className="text-ink-mid">{chapter.sections[0]?.paragraphs[0]?.slice(0, 260)}…</p>
+                  {ask?.chapter === chapter.number ? (
+                    <div className="mt-2 space-y-2">
+                      <label className="block"><span className="text-xs font-semibold">What should the writer change?</span>
+                        <input className="mt-1 w-full border border-border bg-cream p-2" value={ask.instruction} maxLength={600} placeholder="For example: open with the night shift story, and make it shorter" onChange={(event) => setAsk({ ...ask, instruction: event.target.value })} />
+                      </label>
+                      <button type="button" className="primary-button" disabled={busy || ask.instruction.trim().length < 4} onClick={() => run(async () => { await post(base, ask); setAsk(null); }, "The writer is on it. This takes a minute or two.")}>Ask the writer</button>
+                      <button type="button" className="ml-3 text-teal underline underline-offset-4" onClick={() => setAsk(null)}>Cancel</button>
+                    </div>
+                  ) : <button type="button" className="mt-1 text-teal underline underline-offset-4" onClick={() => setAsk({ chapter: chapter.number, instruction: "" })}>Ask the writer to rewrite this chapter</button>}
                 </li>
               ))}
             </ol>

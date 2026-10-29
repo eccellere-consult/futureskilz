@@ -5,7 +5,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { getQuestion } from "@/features/capture/question-bank";
 import { MIN_WORDS_FOR_BOOK, bookSchema, wordCount, type Book, type SourceAnswer } from "@/features/book/types";
 import { DatabaseAgentRunRecorder } from "@/server/agents/database-recorder";
-import { createBookWriterAgent } from "@/server/agents/book-writer";
+import { createBookWriterAgent, createChapterWriterAgent } from "@/server/agents/book-writer";
 import { AgentRunner } from "@/server/agents/runner";
 import { CaptureError, audit, database, newUuid, requireProject } from "@/server/capture/shared";
 import { createDatabase } from "@/server/db/client";
@@ -38,7 +38,7 @@ const toStatus = (row: typeof bookProjects.$inferSelect): BookStatus => ({ id: r
 
 export async function getBookStatus(userId: string, projectId: string): Promise<BookStatus | null> {
   const db = await database();
-  await requireProject(db, userId, projectId);
+  await requireProject(db, userId, projectId, { staff: true });
   const [row] = await db.select().from(bookProjects).where(eq(bookProjects.projectId, projectId)).limit(1);
   return row ? toStatus(row) : null;
 }
@@ -46,7 +46,7 @@ export async function getBookStatus(userId: string, projectId: string): Promise<
 /** Starts writing. The host cuts off long requests, so this returns at once and the screen polls for the finished book. */
 export async function startBook(userId: string, projectId: string): Promise<BookStatus> {
   const db = await database();
-  const project = await requireProject(db, userId, projectId);
+  const project = await requireProject(db, userId, projectId, { staff: true });
   const [existing] = await db.select().from(bookProjects).where(eq(bookProjects.projectId, projectId)).limit(1);
   if (existing?.status === "writing" && Date.now() - existing.updatedAt.getTime() < 10 * 60_000) return toStatus(existing);
   const { words } = await gatherAnswers(projectId);
@@ -69,7 +69,7 @@ async function writeBook(id: string, projectId: string, userId: string): Promise
   const db = await database();
   try {
     const { answers } = await gatherAnswers(projectId);
-    const [author] = await db.select({ name: users.displayName }).from(users).where(eq(users.id, (await requireProject(db, userId, projectId)).contributorId)).limit(1);
+    const [author] = await db.select({ name: users.displayName }).from(users).where(eq(users.id, (await requireProject(db, userId, projectId, { staff: true })).contributorId)).limit(1);
     await setStep(id, "Shaping the chapters");
     const { ai } = createProviders();
     const runner = new AgentRunner(new DatabaseAgentRunRecorder(createDatabase(), ai));
@@ -87,10 +87,56 @@ async function writeBook(id: string, projectId: string, userId: string): Promise
   }
 }
 
+/**
+ * On request: the writer rewrites one chapter, following an instruction ("make it shorter", "open with the plant fire",
+ * "more practical"). The author, an editor or an admin can ask. The chapter is rewritten from the interview answers, not from the
+ * old text alone, so nothing is invented. An approval is withdrawn, because the words changed.
+ */
+export async function requestChapter(userId: string, projectId: string, number: number, instruction: string): Promise<BookStatus> {
+  const db = await database();
+  await requireProject(db, userId, projectId, { staff: true });
+  const [row] = await db.select().from(bookProjects).where(eq(bookProjects.projectId, projectId)).limit(1);
+  if (!row?.book || row.status === "writing") throw new CaptureError(409, "Write the book first, and wait for it to finish.");
+  const book = row.book as unknown as Book;
+  if (!book.chapters.some((chapter) => chapter.number === number)) throw new CaptureError(404, "That chapter was not found.");
+  const clean = instruction.replace(/\s+/g, " ").trim().slice(0, 600);
+  if (clean.length < 4) throw new CaptureError(400, "Tell the writer what you want changed, in a few words.");
+  const { ai } = createProviders();
+  if (ai.name === "deterministic") throw new CaptureError(409, "The writer needs the AI service, which is not set up on this site.");
+  await db.update(bookProjects).set({ status: "writing", step: `Rewriting chapter ${number}` }).where(eq(bookProjects.id, row.id));
+  await audit(db, userId, "book.chapter.request", "book_project", row.id, { chapter: number, instruction: clean });
+  void rewriteChapter(row.id, projectId, userId, number, clean);
+  const [fresh] = await db.select().from(bookProjects).where(eq(bookProjects.id, row.id));
+  return toStatus(fresh);
+}
+
+async function rewriteChapter(id: string, projectId: string, userId: string, number: number, instruction: string): Promise<void> {
+  const db = await database();
+  const [row] = await db.select().from(bookProjects).where(eq(bookProjects.id, id)).limit(1);
+  const previous = row?.status === "writing" && row.book ? (row.book as unknown as Book) : null;
+  try {
+    if (!previous) throw new Error("book missing");
+    const { answers } = await gatherAnswers(projectId);
+    const { ai } = createProviders();
+    const runner = new AgentRunner(new DatabaseAgentRunRecorder(createDatabase(), ai));
+    const result = await runner.run(createChapterWriterAgent(ai), { author: previous.author, answers, book: previous, number, instruction }, { userId });
+    const next = bookSchema.parse({ ...previous, chapters: previous.chapters.map((chapter) => (chapter.number === number ? result.chapter : chapter)), generatedAt: new Date().toISOString() });
+    const art: CoverArt = row.coverArt ? { data: Buffer.from(row.coverArt, "base64"), kind: "png" } : null;
+    await setStep(id, "Laying out the pages");
+    const interior = await renderInterior(next);
+    const cover = await renderCover(next, interior.pages, art);
+    await db.update(bookProjects).set({ status: "ready", step: "Ready to read", book: next as unknown as Record<string, unknown>, pageCount: interior.pages, interiorPdf: interior.pdf.toString("base64"), coverPdf: cover.toString("base64"), approvedAt: null, error: result.note }).where(eq(bookProjects.id, id));
+  } catch (error) {
+    console.error("[book chapter]", error instanceof Error ? error.message : error);
+    // The book is unchanged; put it back so it can be read and downloaded.
+    await db.update(bookProjects).set({ status: "ready", step: "Ready to read", error: "The chapter could not be rewritten, so the book is unchanged. Try again in a minute." }).where(eq(bookProjects.id, id)).catch(() => undefined);
+  }
+}
+
 /** The author's own edits to the front of the book, then the PDFs are laid out again. */
 export async function editBook(userId: string, projectId: string, patch: { title?: string; subtitle?: string; dedication?: string }): Promise<BookStatus> {
   const db = await database();
-  await requireProject(db, userId, projectId);
+  await requireProject(db, userId, projectId, { staff: true });
   const [row] = await db.select().from(bookProjects).where(eq(bookProjects.projectId, projectId)).limit(1);
   if (!row?.book || row.status === "writing") throw new CaptureError(409, "There is no finished book to change yet.");
   const clean = (value: string | undefined, max: number) => (typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, max) : undefined);
@@ -134,7 +180,7 @@ export function manuscriptText(book: Book): string {
 
 export async function bookFile(userId: string, projectId: string, kind: BookFile): Promise<{ body: Buffer; type: string; name: string }> {
   const db = await database();
-  await requireProject(db, userId, projectId);
+  await requireProject(db, userId, projectId, { staff: true });
   const [row] = await db.select().from(bookProjects).where(eq(bookProjects.projectId, projectId)).limit(1);
   if (!row?.book || row.status === "writing" || row.status === "failed") throw new CaptureError(404, "The book is not ready yet.");
   const book = row.book as unknown as Book;

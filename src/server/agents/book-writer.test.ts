@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import type { AiProvider } from "../providers/ai";
-import { createBookWriterAgent } from "./book-writer";
+import { outlineBook } from "../../features/book/outline";
+import { createBookWriterAgent, createChapterWriterAgent } from "./book-writer";
 
 const long = (seed: string) => `${seed} We checked the figures every morning, then walked the floor and spoke to the shift lead about what the numbers meant that day.`;
 const answers = ["A", "B", "F", "G", "K", "L", "O"].map((phase, i) => ({ key: `q${i}`, phase, question: `Question ${i}`, answer: long(`Story ${phase}.`) }));
@@ -39,5 +40,24 @@ describe("book writer agent", () => {
     const short = JSON.stringify({ title: "Tiny", sections: [{ paragraphs: ["Too short."] }], takeaways: ["a", "b"], tryThis: "x" });
     const out = await createBookWriterAgent(fake((system) => (system.includes("ONE chapter") ? short : frameReply))).execute(input, {} as never);
     expect(out.book.chapters.some((c) => c.title === "Tiny")).toBe(false);
+  });
+});
+
+describe("chapter writer on request", () => {
+  const book = outlineBook({ author: "Ravi Menon", answers });
+  const request = { author: "Ravi Menon", answers, book, number: 2, instruction: "Open with the night shift and make it shorter" };
+
+  it("rewrites the chosen chapter and keeps its number", async () => {
+    const seen: string[] = [];
+    const ai = fake((system) => { seen.push(system); return chapterReply; });
+    const out = await createChapterWriterAgent(ai).execute(request, {} as never);
+    expect(out.chapter.number).toBe(2);
+    expect(out.chapter.title).toBe("A Better Title");
+    expect(out.note).toMatch(/night shift/);
+  });
+
+  it("fails rather than change the book when the reply is unusable or no AI is set", async () => {
+    await expect(createChapterWriterAgent(fake(() => "nope")).execute(request, {} as never)).rejects.toThrow();
+    await expect(createChapterWriterAgent({ name: "deterministic", model: "d", generate: async () => { throw new Error("x"); } }).execute(request, {} as never)).rejects.toThrow(/No AI/);
   });
 });

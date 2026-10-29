@@ -106,4 +106,39 @@ export function createBookWriterAgent(ai: AiProvider): AgentDefinition<BookInput
   };
 }
 
+export const chapterRequestSchema = z.object({
+  author: z.string().min(2).max(120),
+  answers: bookInputSchema.shape.answers,
+  book: z.custom<Book>(),
+  number: z.number().int().min(1).max(5),
+  instruction: z.string().trim().min(4).max(600),
+});
+export type ChapterRequest = z.infer<typeof chapterRequestSchema>;
+
+const REQUEST_SYSTEM = `You are an editor rewriting ONE chapter of a short business book at the request of the author, an editor or an admin. ${RULES}
+Follow the requester's instruction, but keep every fact in the author's answers and add none. Return the same JSON shape as a chapter: {"number","title","subtitle","epigraph?":{"text","by?"},"sections":[{"heading?","paragraphs":[],"pullQuote?"}],"takeaways":[3],"tryThis"}. Write 700 to 1100 words unless the instruction asks for another length.`;
+
+/** Writer on request: rewrites one chapter following an instruction. Fails (and the book stays as it was) if the reply is unusable. */
+export function createChapterWriterAgent(ai: AiProvider): AgentDefinition<ChapterRequest, { chapter: BookChapter; note: string | null }> {
+  return {
+    name: "book-chapter-writer",
+    version: "1",
+    inputSchema: chapterRequestSchema as unknown as z.ZodType<ChapterRequest>,
+    outputSchema: z.custom<{ chapter: BookChapter; note: string | null }>(),
+    costCeilingMicros: 120_000,
+    requiresApproval: true,
+    async execute(input) {
+      if (ai.name === "deterministic") throw new Error("No AI configured.");
+      const group = groupAnswers(input.answers)[input.number - 1];
+      const current = input.book.chapters.find((chapter) => chapter.number === input.number);
+      if (!group || !current) throw new Error("Chapter not found.");
+      const user = `Author: ${input.author}\nBook: ${input.book.title}. Chapter ${input.number} of ${input.book.chapters.length}: ${current.title}.\n\nInstruction: ${input.instruction}\n\nThe current chapter:\n${current.sections.flatMap((s) => s.paragraphs).join("\n").slice(0, 6000)}\n\nThe author's answers:\n${digest(group.items)}`;
+      const response = await ai.generate({ temperature: 0.7, maxOutputTokens: 3500, messages: [{ role: "system", content: REQUEST_SYSTEM }, { role: "user", content: user }] });
+      const parsed = chapterSchema.safeParse({ ...(parseJson(response.content) as Record<string, unknown>), number: input.number });
+      if (!parsed.success) throw new Error("The reply did not fit the chapter format.");
+      return { chapter: parsed.data, note: `Chapter ${input.number} was rewritten on request: ${input.instruction}` };
+    },
+  };
+}
+
 export { sectionSchema };
