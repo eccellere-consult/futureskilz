@@ -301,6 +301,22 @@ export const QUESTION_BANK: QuestionDef[] = [
     why: "It lets me point learners to good resources." }),
 
   // Phase O — career synthesis (project-level, last)
+  // The book questions: story, setback, method, big idea, title. They shape the interview into a book and a training video.
+  q({ key: "o.book_moment", phase: "O", scope: "project", tier: "core", weight: 8, minWords: 40, expects: [], produces: ["tacit"],
+    text: "Think of one moment in your career that you would open a book with. Where were you, who was there, and what happened?",
+    why: "Good books start inside a real scene. Yours becomes the opening of the story." }),
+  q({ key: "o.book_mistake", phase: "O", scope: "project", tier: "core", weight: 8, minWords: 40, expects: [], produces: ["tacit"],
+    text: "What setback or mistake taught you the most? What happened, what did it cost, and what do you do differently now?",
+    why: "Readers trust a lesson that cost something. This becomes a turning point in the book." }),
+  q({ key: "o.book_method", phase: "O", scope: "project", tier: "core", weight: 8, minWords: 30, expects: [], produces: ["tacit", "process"],
+    text: "Is there a way of working or a rule of thumb you rely on? Describe it in three to five steps, and give it a name if you can.",
+    why: "A named method is something a reader can remember and use." }),
+  q({ key: "o.book_idea", phase: "O", scope: "project", tier: "core", weight: 7, minWords: 12, expects: [], produces: ["tacit"],
+    text: "If a reader remembers only one idea from you, what should it be? Say it in one or two sentences.",
+    why: "A book is strongest when it has one big idea. This is yours." }),
+  q({ key: "o.book_title", phase: "O", scope: "project", tier: "core", weight: 5, minWords: 1, expects: [], produces: ["tacit"],
+    text: "If this were a book, what would you call it, and who is it for?",
+    why: "The title and the reader decide how the book is written." }),
   q({ key: "o.journey", phase: "O", scope: "project", tier: "core", weight: 9, minWords: 60, expects: [], produces: ["career"],
     text: "In five to ten sentences, how would you describe your whole career journey?",
     why: "Your own summary becomes the story at the top of your profile." }),

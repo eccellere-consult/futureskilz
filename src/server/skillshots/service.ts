@@ -16,7 +16,9 @@ import { briefSchema, createInstructionalDesignAgent } from "@/server/agents/ins
 import { AgentRunner } from "@/server/agents/runner";
 import { CaptureError, audit, database, newUuid, rolesOf } from "@/server/capture/shared";
 import { createDatabase } from "@/server/db/client";
-import { kcLessons, skillShotDrafts } from "@/server/db/schema";
+import { bookProjects, kcLessons, skillShotDrafts } from "@/server/db/schema";
+import { chapterBrief } from "@/features/book/training";
+import type { Book } from "@/features/book/types";
 import { createProviders } from "@/server/providers";
 
 type Row = typeof skillShotDrafts.$inferSelect;
@@ -138,6 +140,27 @@ export async function designFromLesson(userId: string, lessonId: string): Promis
   void completeDesign(userId, queued.id, queued.slug, brief);
   const [row] = await db.select().from(skillShotDrafts).where(eq(skillShotDrafts.id, queued.id));
   return detail(row);
+}
+
+/** The chapters of an author-approved book, designed as Skill Shot drafts. Editors review them before any learner sees them. */
+export async function designFromBook(userId: string, projectId: string): Promise<{ queued: number; alreadyStarted: number }> {
+  await requireStaff(userId);
+  const db = await database();
+  const [row] = await db.select().from(bookProjects).where(eq(bookProjects.projectId, projectId)).limit(1);
+  if (!row?.book) throw new CaptureError(404, "That project has no book yet.");
+  if (row.status !== "approved") throw new CaptureError(409, "The author has not approved the book yet. Training is made only from an approved book.");
+  const book = row.book as unknown as Book;
+  const tag = projectId.replace(/-/g, "").slice(0, 8);
+  const existing = await db.select({ slug: skillShotDrafts.slug }).from(skillShotDrafts);
+  const queue: Queued[] = [];
+  for (const chapter of book.chapters) {
+    const brief = briefSchema.parse(chapterBrief(book, chapter, tag));
+    if (existing.some((draft) => draft.slug === brief.slug)) continue;
+    queue.push(await insertDesigning(userId, brief, brief.slug ?? briefSlug(brief), "Waiting in the queue for the design agent."));
+  }
+  await audit(db, userId, "skillshot.fromBook", "book_project", row.id, { queued: queue.length });
+  void runQueue(userId, queue);
+  return { queued: queue.length, alreadyStarted: book.chapters.length - queue.length };
 }
 
 async function runQueue(userId: string, queue: Array<{ id: string; slug: string; brief: z.infer<typeof briefSchema> }>): Promise<void> {

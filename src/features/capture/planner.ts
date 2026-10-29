@@ -29,7 +29,7 @@ import {
  */
 
 const PROJECT_OPENING = ["a.teach", "a.topics", "a.limits", "b.first_job", "b.prepare", "b.day_one", "c.walk"];
-const PROJECT_CLOSING = ["l.mentors", "m.wish", "o.journey", "o.strengths", "o.teach", "o.materials", "o.missing"];
+const PROJECT_CLOSING = ["l.mentors", "m.wish", "o.book_moment", "o.book_mistake", "o.book_method", "o.book_idea", "o.book_title", "o.journey", "o.strengths", "o.teach", "o.materials", "o.missing"];
 const MAX_PROCESSES_PER_ROLE = 3;
 const ATTEMPTED = new Set(["asked", "partial", "covered", "skipped", "unknown", "confidential", "not_applicable"]);
 

@@ -71,6 +71,13 @@
       "when": 1793036072123,
       "tag": "0009_passport_shares",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1793241178636,
+      "tag": "0010_book_projects",
+      "breakpoints": true
     }
   ]
 }

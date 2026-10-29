@@ -66,6 +66,7 @@ export function Dashboard() {
               <div className="flex gap-4">
                 {project.status === "interviewing" ? <Link className="text-teal underline underline-offset-4" href={`/contribute/${project.id}`}>Continue the conversation</Link> : null}
                 {project.status !== "withdrawn" ? <Link className="text-teal underline underline-offset-4" href={`/contribute/${project.id}/review`}>Review</Link> : null}
+                {project.status !== "withdrawn" ? <Link className="text-teal underline underline-offset-4" href={`/contribute/${project.id}/book`}>My book</Link> : null}
               </div>
             </li>
           ))}

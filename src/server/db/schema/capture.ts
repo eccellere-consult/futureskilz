@@ -366,3 +366,30 @@ export const kcAudit = mysqlTable(
   },
   (table) => [index("kc_audit_entity_idx").on(table.entity, table.entityId, table.createdAt)],
 );
+
+/**
+ * A book written from one interview project: the manuscript as structured JSON, the print-ready PDFs and the cover art.
+ * One book per project. The author approves it before it is shared or published; the PDFs are kept as base64 text so the book
+ * can be rebuilt and downloaded without a file store (Hostinger has none).
+ */
+export const bookProjects = mysqlTable(
+  "book_projects",
+  {
+    id: idColumn().primaryKey(),
+    projectId: referenceColumn("project_id").notNull().references(() => kcProjects.id, { onDelete: "cascade" }),
+    contributorId: referenceColumn("contributor_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+    status: mysqlEnum("status", ["writing", "ready", "failed", "approved"]).notNull().default("writing"),
+    step: varchar("step", { length: 120 }).notNull().default(""),
+    book: jsonColumn<Record<string, unknown>>("book"),
+    source: varchar("source", { length: 16 }).notNull().default("outline"),
+    pageCount: int("page_count"),
+    interiorPdf: longtext("interior_pdf"),
+    coverPdf: longtext("cover_pdf"),
+    coverArt: longtext("cover_art"),
+    error: text("error"),
+    approvedAt: datetime("approved_at"),
+    createdAt: createdAtColumn(),
+    updatedAt: updatedAtColumn(),
+  },
+  (table) => [uniqueIndex("book_projects_project_idx").on(table.projectId), index("book_projects_contributor_idx").on(table.contributorId, table.updatedAt)],
+);

@@ -45,31 +45,46 @@ const firstSentences = (text: string, n: number) => (text.match(/[^.!?]+[.!?]+/g
 
 export type OutlineInput = { author: string; headline?: string | null; answers: SourceAnswer[]; now?: string };
 
-export function outlineBook(input: OutlineInput): Book {
-  const usable = input.answers.map((item) => ({ ...item, answer: tidy(item.answer) })).filter((item) => wordCount(item.answer) >= 8);
+export type ChapterGroup = { chapter: (typeof CHAPTERS)[number]; items: SourceAnswer[] };
+
+/** Groups the usable answers into three to five chapters by what they are about. */
+/** The book questions asked at the end of the interview: where each belongs in the book, or null when it frames the whole book. */
+const BOOK_KEY_PHASE: Record<string, string | null> = { "o.book_moment": "B", "o.book_mistake": "P", "o.book_method": "G", "o.book_idea": null, "o.book_title": null };
+
+export function groupAnswers(answers: SourceAnswer[]): ChapterGroup[] {
+  const usable = answers
+    .filter((item) => BOOK_KEY_PHASE[item.key] !== null)
+    .map((item) => ({ ...item, phase: BOOK_KEY_PHASE[item.key] ?? item.phase, answer: tidy(item.answer) }))
+    .filter((item) => wordCount(item.answer) >= 8);
   let groups = CHAPTERS.map((chapter) => ({ chapter, items: usable.filter((item) => chapter.phases.includes(item.phase)) })).filter((group) => group.items.length > 0);
   // Fewer than three chapters of material: share what there is across three, in the order it was said.
   if (groups.length < 3 && usable.length >= 3) {
     const size = Math.ceil(usable.length / 3);
     groups = [0, 1, 2].map((index) => ({ chapter: CHAPTERS[[0, 1, 4][index]], items: usable.slice(index * size, (index + 1) * size) })).filter((group) => group.items.length > 0);
   }
-  const chapters: BookChapter[] = groups.slice(0, 5).map((group, index) => ({
+  return groups.slice(0, 5);
+}
+
+export function outlineBook(input: OutlineInput): Book {
+  const usable = input.answers.map((item) => ({ ...item, answer: tidy(item.answer) })).filter((item) => wordCount(item.answer) >= 8);
+  const groups = groupAnswers(input.answers);
+  const chapters: BookChapter[] = groups.map((group, index) => ({
     number: index + 1,
     title: group.chapter.title,
     subtitle: group.chapter.subtitle,
-    sections: group.items.map((item) => ({ heading: item.key.startsWith("p.") || item.key.startsWith("k.") ? undefined : sectionHeading(item), paragraphs: toParagraphs(item.answer) })),
+    sections: group.items.map((item) => ({ heading: item.key.startsWith("o.book") || item.key.startsWith("k.") ? undefined : sectionHeading(item), paragraphs: toParagraphs(item.answer) })),
     takeaways: takeawaysFor(group.items),
     tryThis: group.chapter.tryThis,
   }));
 
   const find = (key: string) => usable.find((item) => item.key === key)?.answer;
   const journey = find("o.journey") ?? usable[0]?.answer ?? "";
-  const titleAnswer = input.answers.find((item) => item.key === "p.title")?.answer.trim();
-  const bigIdea = find("p.big_idea");
+  const titleAnswer = input.answers.find((item) => item.key === "o.book_title")?.answer.trim();
+  const bigIdea = find("o.book_idea");
   const author = input.author;
   const topics = find("a.topics");
   const keywords = [...new Set((topics ?? "").split(/[,;]| and /i).map((word) => word.trim().toLowerCase()).filter((word) => word.length >= 3 && word.length <= 40))].slice(0, 4);
-  const title = titleAnswer && wordCount(titleAnswer) <= 8 ? titleAnswer.replace(/[."]+$/g, "") : `${author.split(" ")[0]}: A Working Life`;
+  const title = titleFrom(titleAnswer) ?? `${author.split(" ")[0]}: A Working Life`;
   const subtitle = "What a lifetime of work taught me, for those who come next";
   const blurb = firstSentences(journey, 4) || `${author} looks back on a working life and shares what it taught.`;
 
@@ -86,7 +101,7 @@ export function outlineBook(input: OutlineInput): Book {
     conclusion: { title: "What to Do on Monday", sections: [{ paragraphs: [`If you take one thing from these pages, let it be this: ${bigIdea ? firstSentences(bigIdea, 1) : "learn from the people around you, and pass it on."}`, "Pick one idea. Try it this week. Then tell someone what happened."] }] },
     aboutAuthor: [input.headline ? `${author} is ${input.headline}.` : `${author} has spent a working life learning, doing and teaching.`, "This book grew out of a series of interviews. It is shared so that what one career learned can help the next."],
     backCover: {
-      hook: firstSentences(find("p.big_idea") ?? journey, 1).slice(0, 200) || `A working life, and what it teaches.`,
+      hook: firstSentences(find("o.book_idea") ?? journey, 1).slice(0, 200) || `A working life, and what it teaches.`,
       bullets: chapters.slice(0, 4).map((chapter) => `${chapter.title}: ${chapter.subtitle ?? ""}`.replace(/:\s*$/, "")).slice(0, 4).concat(["Practical things to try this week", "Told plainly, in the author's own voice"]).slice(0, 4),
       blurb,
       authorBio: `${author}${input.headline ? `, ${input.headline},` : ""} shares what a career has taught, so it can help someone starting theirs.`,
@@ -114,4 +129,13 @@ function takeawaysFor(items: SourceAnswer[]): string[] {
   const pick = lines.slice(0, 3);
   while (pick.length < 2) pick.push("Pay attention to what the people around you do well, and ask them how.");
   return pick;
+}
+
+/** The title out of a spoken answer such as "I would call it The Patient Planner, for people starting out". */
+export function titleFrom(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const quoted = /["“]([^"”]{3,70})["”]/.exec(raw)?.[1];
+  const candidate = (quoted ?? raw.split(/[,.;—]| for | and who /i)[0]).replace(/^\s*(i would call it|i'd call it|i would name it|call it|it would be|maybe|perhaps)\s+/i, "").replace(/["“”]/g, "").trim();
+  const words = wordCount(candidate);
+  return words >= 1 && words <= 8 ? candidate.replace(/\b([a-z])/g, (m) => m.toUpperCase()) : null;
 }

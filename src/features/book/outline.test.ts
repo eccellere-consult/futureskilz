@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { bookSchema, type SourceAnswer } from "./types";
-import { outlineBook, tidy, toParagraphs } from "./outline";
+import { outlineBook, tidy, titleFrom, toParagraphs } from "./outline";
 
 const answer = (key: string, phase: string, text: string, role?: string): SourceAnswer => ({ key, phase, question: `Q ${key}`, answer: text, role });
 const long = (seed: string) => `${seed} We checked the figures every morning, then walked the floor, then spoke to the shift lead. It took years to see why it mattered. Um, you know, the quality kept improving because people felt heard.`;
@@ -12,10 +12,10 @@ const answers: SourceAnswer[] = [
   answer("f.day", "F", long("My days started at six."), "Production Planner"),
   answer("g.steps", "G", long("The order release has five steps.")),
   answer("k.success", "K", long("The best day was when the line ran without a stop.")),
-  answer("p.mistake", "P", long("I once released an order before checking capacity.")),
+  answer("o.book_mistake", "O", long("I once released an order before checking capacity.")),
   answer("l.mentors", "L", long("Mr Iyer taught me to listen first.")),
   answer("o.journey", "O", long("Forty years across three plants.")),
-  answer("p.title", "P", "The Patient Planner"),
+  answer("o.book_title", "O", "I would call it The Patient Planner, for people starting out"),
 ];
 
 describe("tidying spoken words", () => {
@@ -27,6 +27,14 @@ describe("tidying spoken words", () => {
     const paragraphs = toParagraphs(text, 30);
     expect(paragraphs.length).toBeGreaterThan(2);
     for (const p of paragraphs) expect(p.endsWith(".")).toBe(true);
+  });
+});
+
+describe("titles from speech", () => {
+  it("takes the title out of a spoken answer", () => {
+    expect(titleFrom('I would call it "The Patient Planner" for newcomers')).toBe("The Patient Planner");
+    expect(titleFrom("I would call it Making Things Happen, for young managers")).toBe("Making Things Happen");
+    expect(titleFrom("")).toBeNull();
   });
 });
 
