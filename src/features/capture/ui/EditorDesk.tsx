@@ -1,5 +1,6 @@
 "use client";
 
+import { CreateFromInterview } from "@/features/book/ui/BookWorkspace";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -12,6 +13,7 @@ type Project = Awaited<ReturnType<typeof listApprovedProjects>>[number];
 const STATUS: Record<string, string> = { draft: "Draft", in_review: "With an editor", awaiting_contributor: "Waiting for contributor", approved: "Ready to publish", published: "Live", retired: "Retired" };
 
 export function EditorDesk() {
+  const [bookFor, setBookFor] = useState<string | null>(null);
   const staff = useRemote<{ projects: Project[] }>("/api/contribute/staff/projects");
   const lessonList = useRemote<{ lessons: LessonSummary[] }>("/api/contribute/lessons");
   const projects = staff.data?.projects ?? null;
@@ -54,7 +56,11 @@ export function EditorDesk() {
           {projects.map((project) => (
             <li key={project.id} className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
               <div><p className="font-semibold">{project.title}</p><p className="text-xs text-ink-light">{project.contributor} · {project.lessons} lesson{project.lessons === 1 ? "" : "s"} drafted, {project.published} live · updated {shortDate(project.updatedAt)}</p></div>
-              <button className="primary-button min-h-10! px-3! py-2!" disabled={busy} onClick={() => void generate(project)} type="button">{project.lessons ? "Refresh lesson drafts" : "Create lesson drafts"}</button>
+              <div className="flex flex-wrap gap-3">
+                <button className="border border-border px-3 py-2 text-sm" aria-expanded={bookFor === project.id} onClick={() => setBookFor(bookFor === project.id ? null : project.id)} type="button">{bookFor === project.id ? "Hide" : "Training and book"}</button>
+                <button className="primary-button min-h-10! px-3! py-2!" disabled={busy} onClick={() => void generate(project)} type="button">{project.lessons ? "Refresh lesson drafts" : "Create lesson drafts"}</button>
+              </div>
+              {bookFor === project.id ? <div className="basis-full border-t border-border pt-4"><CreateFromInterview projectId={project.id} /></div> : null}
             </li>
           ))}
         </ul>

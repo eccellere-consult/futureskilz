@@ -214,9 +214,8 @@ export function InterviewStudio({ projectId }: { projectId: string }) {
               {complete ? (
                 <div>
                   <p className="font-display text-2xl">Thank you. That is everything on my list.</p>
-                  <p className="mt-2 text-sm text-cream/80">Next you review what I heard. Nothing is published until you confirm it.</p>
+                  <p className="mt-2 text-sm text-cream/80">Next you check what I heard and fix anything that is off. When you approve it, I can turn it into training and a book. Nothing is published until you confirm it.</p>
                   <Link className="primary-button mt-4" href={`/contribute/${projectId}/review`}>Review my knowledge <ArrowRight aria-hidden="true" size={16} /></Link>
-                  <Link className="mt-3 block text-teal underline underline-offset-4" href={`/contribute/${projectId}/book`}>Turn it into a book</Link>
                 </div>
               ) : view.needsPlan ? (
                 <div>

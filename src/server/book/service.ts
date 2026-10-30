@@ -27,6 +27,8 @@ export async function gatherAnswers(projectId: string): Promise<{ answers: Sourc
   let lastQuestion = "";
   for (const row of rows) {
     if (row.speaker === "companion") { lastQuestion = row.text.replace(/\s+/g, " ").slice(0, 300); continue; }
+    // What the author corrected while checking the transcript. It is written into the book as the author's last word on the point.
+    if (row.source === "correction") { answers.push({ key: `correction.${row.seq}`, phase: "O", question: "A correction the author made while checking the interview", answer: row.text }); continue; }
     if (row.source !== "interview" || !row.questionKey) continue;
     const def = getQuestion(row.questionKey);
     answers.push({ key: row.questionKey, phase: def?.phase ?? "O", question: lastQuestion || def?.text || "", answer: row.text });
@@ -49,6 +51,8 @@ export async function startBook(userId: string, projectId: string): Promise<Book
   const project = await requireProject(db, userId, projectId, { staff: true });
   const [existing] = await db.select().from(bookProjects).where(eq(bookProjects.projectId, projectId)).limit(1);
   if (existing?.status === "writing" && Date.now() - existing.updatedAt.getTime() < 10 * 60_000) return toStatus(existing);
+  // The book is made from what the author has checked and approved, the same content the lessons are made from.
+  if (project.status !== "approved" && project.status !== "published") throw new CaptureError(409, "The author has not checked and approved the interview yet. The book is written from the approved version.");
   const { words } = await gatherAnswers(projectId);
   if (words < MIN_WORDS_FOR_BOOK) throw new CaptureError(409, `A book needs more of the interview first: about ${MIN_WORDS_FOR_BOOK} words of answers, and there are ${words} so far.`);
   const id = existing?.id ?? newUuid();
@@ -190,3 +194,39 @@ export async function bookFile(userId: string, projectId: string, kind: BookFile
   if (!data) throw new CaptureError(404, "That file is not ready yet.");
   return { body: Buffer.from(data, "base64"), type: "application/pdf", name: `${stem}-${kind}.pdf` };
 }
+
+const lastEmail = new Map<string, number>();
+
+/** Emails the finished book to its author (never to anyone else), as the interior and cover PDFs. */
+export async function emailBook(userId: string, projectId: string): Promise<{ sentTo: string }> {
+  const db = await database();
+  const project = await requireProject(db, userId, projectId, { staff: true });
+  const [row] = await db.select().from(bookProjects).where(eq(bookProjects.projectId, projectId)).limit(1);
+  if (!row?.book || !row.interiorPdf || !row.coverPdf || (row.status !== "ready" && row.status !== "approved")) throw new CaptureError(409, "The book is not ready yet.");
+  if (Date.now() - (lastEmail.get(row.id) ?? 0) < 5 * 60_000) throw new CaptureError(429, "The book was just emailed. Please check your inbox, or try again in a few minutes.");
+  const [author] = await db.select({ email: users.email, name: users.displayName }).from(users).where(eq(users.id, project.contributorId)).limit(1);
+  if (!author?.email) throw new CaptureError(409, "There is no email address on this account.");
+  const book = row.book as unknown as Book;
+  const stem = book.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "book";
+  const { notifications } = createProviders();
+  lastEmail.set(row.id, Date.now());
+  try {
+    await notifications.send({
+      destination: author.email,
+      templateKey: "book.ready",
+      variables: { name: author.name, title: book.title, pages: String(row.pageCount ?? "") },
+      idempotencyKey: `book:${row.id}:${Date.now()}`,
+      attachments: [
+        { filename: `${stem}-interior.pdf`, content: Buffer.from(row.interiorPdf, "base64"), contentType: "application/pdf" },
+        { filename: `${stem}-cover.pdf`, content: Buffer.from(row.coverPdf, "base64"), contentType: "application/pdf" },
+      ],
+    });
+  } catch (error) {
+    lastEmail.delete(row.id);
+    console.error("[book email]", error instanceof Error ? error.message : error);
+    throw new CaptureError(502, "The email could not be sent. You can still download the PDFs.");
+  }
+  await audit(db, userId, "book.email", "book_project", row.id);
+  return { sentTo: author.email.replace(/^(.).*(@.*)$/, "$1•••$2") };
+}
+
