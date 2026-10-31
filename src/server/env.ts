@@ -38,6 +38,8 @@ const serverEnvironmentSchema = z.object({
   GST_SUPPLIER_STATE: z.string().regex(/^\d{2}$/).optional(),
   GST_SUPPLIER_ADDRESS: z.string().min(1).optional(),
   GST_RATE_BP: z.coerce.number().int().min(0).max(2800).default(1800),
+  /** The fewest words of interview answers a book needs. 100 while trialling; set 2000 or more for the final. */
+  BOOK_MIN_WORDS: z.coerce.number().int().min(50).max(20000).default(100),
   ARYA_VOICE: z.enum(["auto", "browser"]).default("auto"),
 });
 
