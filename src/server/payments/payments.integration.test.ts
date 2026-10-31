@@ -59,6 +59,7 @@ describe.skipIf(!enabled)("payments, end to end", () => {
     const plan = await svc.savePlan(admin, { code, name: "Thirty day pass", amountMinor: 59900, durationDays: 30 });
     planId = plan.id;
     expect(plan.active).toBe(false);
+    await (await shared.database()).update(schema.plans).set({ active: false }); // earlier runs may have left plans on sale
     expect(await svc.paymentsLive()).toBe(false);
     expect((await svc.skillShotAccess(buyer, "assumption-test")).reason).toBe("not-enforced");
     await svc.setPlanActive(admin, planId, true);
