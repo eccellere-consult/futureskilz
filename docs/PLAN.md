@@ -68,7 +68,7 @@ Each phase ends with something a person can use, and each makes the next cheaper
 | **9** | **Learner delivery basics** | 3 | Installable app, scheduled notifications, streaks, certificates, assessment report with radar, design alignment | A learner returns on day 2 and day 7 from a notification |
 | **10** | **Cohorts** (after launch) | 4 | Enrol, pay, attend, submit, certificate | First cohort completes |
 | 11 | WhatsApp channel (notification and re-entry only, per v1.3) | 2 plus approval | Daily nudge and magic-link return on WhatsApp, STOP honoured | Meta approval and opt-in tested |
-| **12** | **SME pipeline** | 4 | Curator-led recorded expert interviews produce minutes, a presentation and Skill Shots | One SME end to end |
+| **12** | **SME pipeline** (live voice) | 4 | Curator-led recorded expert interviews produce minutes, a presentation and Skill Shots | One SME end to end |
 | 13 | Enterprise portal | 4 | A leader sees readiness, gaps and role readiness | One pilot organisation onboarded |
 
 **Indicative calendar for one build track** (weeks from the start of Phase 0; business approvals run beside it): week 1 Phase 0 · weeks 2 to 5 Phase 7 · weeks 6 to 8 Phase 8 · weeks 9 to 11 Phase 9 · weeks 12 to 15 Phase 10 · Phase 11 when Meta approves (2 weeks of work) · weeks 16 to 19 Phase 12 · weeks 20 to 23 Phase 13. With two tracks, Phase 9 runs beside Phase 7 and the whole plan is about 16 weeks.
@@ -175,7 +175,7 @@ Scope confirmed 31 Oct: all axes, including APQC and NASSCOM NOS tags. Seed Manu
 
 ### Phase 12: SME pipeline (about 4 weeks)
 
-- Registry (self-registered or curator-nominated, profile links supplied by the SME, no scraping, consent captured), gap matching (SME expertise against thin parts of the graph and topics learners asked Arya about), a **curator gate before any outreach**, scheduling with an agenda, a recorded interview with separate timestamped recording consent, then minutes, presentation and Skill Shot drafts from one transcript, and the SME's sign-off before anything attributed to them publishes. Text or async first; voice later (decision D9). Builds on Phase 7's transcription and outputs.
+- Registry (self-registered or curator-nominated, profile links supplied by the SME, no scraping, consent captured), gap matching (SME expertise against thin parts of the graph and topics learners asked Arya about), a **curator gate before any outreach**, scheduling with an agenda, a recorded interview with separate timestamped recording consent, then minutes, presentation and Skill Shot drafts from one transcript, and the SME's sign-off before anything attributed to them publishes. Live voice from the start (confirmed 31 Oct), so Phase 7 audio and video transcription and the recording-consent record come first. Builds on Phase 7's transcription and outputs.
 
 ### Phase 13: Enterprise portal (4 weeks)
 
@@ -208,6 +208,11 @@ Rendered video and voice generation agents (HeyGen, Gemini, Veo and Descript too
 - **Design system:** adopt the v1.3 palette (ink and gold, no purple), Lora and Inter, and dark mode, with an accessibility pass (Phase 9).
 - **Cohorts:** pass first, cohorts later (Phase 10 after Phase 9).
 
+- **Creator pay formula:** v1.3's five-part weights (completion 25%, check-in correctness 25%, downstream uplift 30%, learner rating 10%, non-duplication 10%) become the default QVS definition. The business still approves a policy before anything is payable.
+- **SME interviews:** live voice from the start (needs transcription and a separate timestamped recording-consent step from day one; Phase 12 depends on Phase 7's transcription).
+- **Languages:** English first; Hindi (about a fifth of the library) after Phase 9.
+- **Approval:** an editor plus the source's owner (the coach or contributor whose material it is) approve before learners see a Skill Shot or source-based lesson.
+
 **Still open** (each has a proposal):
 
 (D-numbers in later items refer to `docs/v1.3-gap-analysis.md` section 5.)
@@ -219,10 +224,8 @@ These were open on 25 Oct and are still open. Each has a proposal, so work can s
 3. **Skill Shot format and length:** 3-minute video, about 10-minute multi-format, or the new 5 to 10 minute interactive lesson taught by Arya. Proposed: one object with a format and a duration; the interactive lesson with Arya is the standard now, video is a later renderer.
 4. **Database:** Hostinger has MariaDB only. Proposed: stay on MariaDB, keep embeddings in JSON and rank in the app at current scale, revisit at a VPS move.
 5. **Creator pay formula:** weighted pool versus the Qualified Value Score (both are built and can be compared in Admin, then Earnings); who approves it.
-6. **First market and language:** India and English first; when Hindi?
+
 7. **New:** should Arya's studio voice be paid for from day one (cost per learner) or limited to greetings and coach sessions, with the device voice elsewhere?
-8. **New:** who may approve designed Skill Shots: the editor, the coach, or both (today's coach lessons need both)?
-13. **New (v1.3):** the reward formula: v1.3's five-part weights (completion 0.25, check-in 0.25, uplift 0.30, rating 0.10, non-duplication 0.10) as the QVS definition, or ours? Proposed: v1.3's weights become the default QVS definition for the business to approve.
 14. **New (v1.3):** where the O*NET import script, Manufacturing seed and review report live; they are not in this repository and Phase 8 needs them.
 
 ## 8. Technical debt and risks to track
