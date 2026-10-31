@@ -6,3 +6,4 @@ export * from "./workspace";
 export * from "./capture";
 export * from "./credentials";
 export * from "./pathway";
+export * from "./payments";

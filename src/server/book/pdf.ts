@@ -16,13 +16,13 @@ const FONTS = {
   display: ["display", cgSemiboldBase64], displayItalic: ["displayItalic", cgItalicBase64], sans: ["sans", dmsMediumBase64], sansBold: ["sansBold", dmsBoldBase64],
 } as const;
 
-function newDoc(width: number, height: number): PDFKit.PDFDocument {
+export function newDoc(width: number, height: number): PDFKit.PDFDocument {
   const doc = new PDFDocument({ size: [width, height], margin: 0, autoFirstPage: false, font: undefined as never, info: { Producer: "FutureSkilz", Creator: "FutureSkilz" } });
   for (const [name, data] of Object.values(FONTS)) doc.registerFont(name, Buffer.from(data, "base64"));
   return doc;
 }
 
-function collect(doc: PDFKit.PDFDocument): Promise<Buffer> {
+export function collect(doc: PDFKit.PDFDocument): Promise<Buffer> {
   const chunks: Buffer[] = [];
   return new Promise((resolve, reject) => {
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));

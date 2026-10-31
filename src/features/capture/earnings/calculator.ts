@@ -29,6 +29,8 @@ export type LearningEvent = {
   type: "start" | "progress" | "complete" | "material_use" | "check_result" | "return";
   /** Seconds of engagement for `progress` events. */
   seconds: number;
+  /** For `check_result`: the learner's score from 0 to 100. */
+  value?: number | null;
   occurredAt: string;
 };
 
@@ -40,6 +42,12 @@ export type LessonInfo = {
   version: number;
   /** Who is credited for this lesson, in basis points adding up to 10000. */
   attribution: Array<{ contributorId: string; shareBp: number }>;
+  /** Used only by the QVS formula. 0 to 1; missing means neutral (1). */
+  quality?: number;
+  /** 0 to 1: lowered by fraud flags still under review. Missing means 1. */
+  trust?: number;
+  /** Days since the lesson was last published or updated. */
+  ageDays?: number;
 };
 
 export type LessonMetrics = {
@@ -51,6 +59,8 @@ export type LessonMetrics = {
   ratings: number;
   meanRating: number | null;
   usefulnessPoints: number;
+  /** The seven QVS factors (0 to 1), present when the policy uses the QVS formula. */
+  qvs?: { usage: number; depth: number; usefulness: number; quality: number; outcome: number; freshness: number; trust: number; raw: number };
   /** Share of each measure (0 to 1) and the combined score that sizes the allocation. */
   shares: Record<WeightKey, number>;
   score: number;
@@ -161,8 +171,12 @@ export function calculateAllocations(input: {
   events: LearningEvent[];
   ratings: Rating[];
   lessons: LessonInfo[];
+  /** Learners whose activity is confirmed fraud: their events and ratings count for nothing. */
+  excludedLearners?: string[];
 }): AllocationRun {
   const { policy, period } = input;
+  const excluded_ = new Set(input.excludedLearners ?? []);
+  input = { ...input, events: input.events.filter((event) => !excluded_.has(event.learnerRef)), ratings: input.ratings.filter((rating) => !excluded_.has(rating.learnerRef)) };
   const notes: string[] = [];
   const receipts = input.receipts.filter((receipt) => receipt.status === "eligible" && receipt.currency.toUpperCase() === policy.currency && inPeriod(receipt.receivedAt, period.start, period.end));
   const excluded = input.receipts.length - receipts.length;
@@ -235,8 +249,12 @@ export function calculateAllocations(input: {
     for (const key of WEIGHT_KEYS) row.shares[key] = totals[key] > 0 ? valueOf(row, key) / totals[key] : 0;
     row.score = active.reduce((sum, key) => sum + appliedWeights[key] * row.shares[key], 0);
   }
+  if (policy.formula === "qvs") {
+    applyQvs(rows, input.lessons, events, policy);
+    notes.push("Shares were sized by the Qualified Value Score (usage x depth x usefulness x quality x outcome x freshness x trust).");
+  }
 
-  const payoutPool = active.length > 0 ? poolMinor : 0;
+  const payoutPool = (policy.formula === "qvs" ? rows.some((row) => row.score > 0) : active.length > 0) ? poolMinor : 0;
   const allocations = splitWhole(payoutPool, rows.map((row) => Math.round(row.score * 1_000_000)));
   rows.forEach((row, index) => (row.allocationMinor = allocations[index]));
   const unallocatedMinor = poolMinor - allocations.reduce((a, b) => a + b, 0);
@@ -286,6 +304,48 @@ export function calculateAllocations(input: {
     payableAfter,
     notes,
   };
+}
+
+const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
+
+/**
+ * The Qualified Value Score. Each factor is 0 to 1 and the lesson's raw score is their product, so one weak factor pulls the
+ * whole score down and no single measure can carry a lesson. Usage is the share of learners reached; depth blends finishing with
+ * time spent; usefulness is the smoothed rating, applied only with enough ratings and only for learners who finished; outcome is
+ * the pass rate on the check; freshness halves with the policy's half-life; quality and trust come from the checks the lesson
+ * passed and from fraud flags under review. A factor with no evidence is neutral (1) except usage and depth, which need activity.
+ * The row scores are shares of the raw total, so the pool still splits to whole minor units exactly.
+ */
+function applyQvs(rows: LessonMetrics[], lessons: LessonInfo[], events: LearningEvent[], policy: RevenuePolicy): void {
+  const learnersBy = new Map<string, Set<string>>();
+  const checks = new Map<string, number[]>();
+  for (const event of events) {
+    const set = learnersBy.get(event.lessonId) ?? new Set<string>();
+    set.add(event.learnerRef);
+    learnersBy.set(event.lessonId, set);
+    if (event.type === "check_result" && typeof event.value === "number") checks.set(event.lessonId, [...(checks.get(event.lessonId) ?? []), event.value]);
+  }
+  const reached = rows.map((row) => learnersBy.get(row.lessonId)?.size ?? 0);
+  const maxReached = Math.max(1, ...reached);
+  const maxSeconds = Math.max(1, ...rows.map((row) => row.consumptionSeconds));
+  const raws = rows.map((row, index) => {
+    const lesson = lessons.find((item) => item.id === row.lessonId)!;
+    const learners = reached[index];
+    const usage = learners / maxReached;
+    const finish = learners > 0 ? Math.min(1, row.completions / learners) : 0;
+    const depth = 0.6 * finish + 0.4 * (row.consumptionSeconds / maxSeconds);
+    const usefulness = row.ratings >= policy.usefulness.minRatings && row.completions > 0 ? clamp01(0.5 + 0.5 * ((row.usefulnessPoints / row.completions))) : 0.5;
+    const passes = checks.get(row.lessonId) ?? [];
+    const outcome = passes.length >= policy.usefulness.minRatings ? clamp01(passes.filter((value) => value >= 60).length / passes.length) : 0.7;
+    const freshness = lesson.ageDays == null ? 1 : Math.pow(0.5, Math.max(0, lesson.ageDays) / policy.qvs.freshnessHalfLifeDays);
+    const quality = clamp01(lesson.quality ?? 1);
+    const trust = clamp01(lesson.trust ?? 1);
+    const raw = usage * depth * usefulness * quality * outcome * freshness * trust;
+    row.qvs = { usage, depth, usefulness, quality, outcome, freshness, trust, raw };
+    return raw;
+  });
+  const total = raws.reduce((a, b) => a + b, 0);
+  rows.forEach((row, index) => (row.score = total > 0 ? raws[index] / total : 0));
 }
 
 /** Stable JSON for hashing: keys sorted, so the same inputs always give the same fingerprint. */

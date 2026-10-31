@@ -26,6 +26,19 @@ export default async function CoachPage({ params }: PageProps<"/coaches/[id]">) 
           <div className="bg-surface p-4"><dt className="font-mono text-[10px] uppercase text-ink-light">Live lessons</dt><dd className="mt-1 font-serif text-3xl">{profile.lessons.length}</dd></div>
           <div className="bg-surface p-4"><dt className="font-mono text-[10px] uppercase text-ink-light">Learners reached</dt><dd className="mt-1 font-serif text-3xl">{profile.learnersReached}</dd></div>
         </dl>
+        <section aria-label="Reputation" className="mt-6 max-w-2xl border border-border bg-surface p-4">
+          <p className="font-mono text-[10px] uppercase text-ink-light">Reputation</p>
+          {profile.reputation.score === null ? (
+            <p className="mt-1 text-sm text-ink-mid">Not yet rated. There is not enough learner activity behind a score, and a new coach is not a low-scoring one.</p>
+          ) : (
+            <>
+              <p className="mt-1 font-serif text-3xl">{profile.reputation.score}<span className="ml-2 text-sm text-ink-mid capitalize">{profile.reputation.tier}</span></p>
+              <ul className="mt-2 grid gap-1 text-xs text-ink-mid sm:grid-cols-2">{profile.reputation.parts.map((part) => <li key={part.key}>{part.label}: {part.points} of {part.max}<span className="block text-ink-light">{part.note}</span></li>)}</ul>
+              {profile.reputation.note ? <p className="mt-2 text-xs text-ink-light">{profile.reputation.note}</p> : null}
+            </>
+          )}
+          <p className="mt-2 text-xs text-ink-light">Built from learners finishing and rating after they finish, review checks and fraud review. Ratings are at most 30 of the 100 points.</p>
+        </section>
         <p className="mt-3 max-w-2xl text-xs leading-5 text-ink-light">Every lesson here was built from {profile.name}&apos;s own experience, and approved by them before it went live. Quality shows what learners and checks say; it is not a star rating.</p>
         <h2 className="mt-10 font-display text-2xl">Lessons</h2>
         <ul className="mt-4 space-y-4">{profile.lessons.map((listing) => <li key={listing.id}><ListingCard listing={listing} /></li>)}</ul>

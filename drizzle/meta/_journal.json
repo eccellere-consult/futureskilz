@@ -78,6 +78,20 @@
       "when": 1793241178636,
       "tag": "0010_book_projects",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1793412730633,
+      "tag": "0011_fraud_flags_campaigns",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1793413345650,
+      "tag": "0012_payments",
+      "breakpoints": true
     }
   ]
 }

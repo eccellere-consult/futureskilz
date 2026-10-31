@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { SiteHeader } from "@/components/site-header";
+import { AdminCommerce } from "@/features/capture/ui/AdminCommerce";
 import { AdminPayments } from "@/features/capture/ui/AdminPayments";
 import { requireRole } from "@/server/auth/require-member";
 
@@ -13,6 +14,7 @@ export default async function PaymentsPage() {
   return (
     <main className="min-h-screen bg-cream text-ink">
       <SiteHeader step="Admin" />
+      <AdminCommerce />
       <AdminPayments />
     </main>
   );

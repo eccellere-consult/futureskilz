@@ -8,6 +8,7 @@ import { calculateAllocations, canonicalJson, type AllocationRun, type LearningE
 import { draftPolicyTemplate, revenuePolicySchema, type RevenuePolicy } from "@/features/capture/earnings/policy";
 import { users, kcContributors, kcFeedback, kcLearningEvents, kcLessonAttribution, kcLessons, kcProjects, kcReceipts, kcRevenuePolicies, kcStatements } from "@/server/db/schema";
 
+import { fraudInputs } from "./fraud-service";
 import { distinctLearners, usageByLesson } from "./learner-service";
 import { CaptureError, audit, database, iso, rolesOf, type Executor } from "./shared";
 
@@ -85,6 +86,55 @@ export async function listReceipts(userId: string) {
   return rows.map((row) => ({ id: row.id, externalRef: row.externalRef, grossMinor: row.grossMinor, refundMinor: row.refundMinor, feeMinor: row.feeMinor, taxMinor: row.taxMinor, currency: row.currency, status: row.status, receivedAt: iso(row.receivedAt) }));
 }
 
+type Loaded = { policyRow: typeof kcRevenuePolicies.$inferSelect; policy: RevenuePolicy; receipts: Receipt[]; events: LearningEvent[]; ratings: Rating[]; lessons: LessonInfo[]; excludedLearners: string[]; openFlags: number };
+
+/** Everything an allocation run reads, including what fraud review found: confirmed learners are left out, open flags lower trust. */
+async function loadRunInputs(db: Executor, policyId: string, start: Date, end: Date): Promise<Loaded> {
+  const [policyRow] = await db.select().from(kcRevenuePolicies).where(eq(kcRevenuePolicies.id, policyId));
+  if (!policyRow) throw new CaptureError(404, "That policy was not found.");
+  const policy = revenuePolicySchema.parse(policyRow.definition);
+
+  const receiptRows = await db.select().from(kcReceipts).where(and(gte(kcReceipts.receivedAt, start), lt(kcReceipts.receivedAt, end)));
+  // Sample data from /demo never counts in a real policy's run, and a demo policy only ever sees sample data.
+  const demoPolicy = policyRow.version.startsWith("demo");
+  const receipts: Receipt[] = receiptRows.filter((row) => row.externalRef.startsWith("demo-") === demoPolicy).map((row) => ({ id: row.id, grossMinor: row.grossMinor, refundMinor: row.refundMinor, feeMinor: row.feeMinor, taxMinor: row.taxMinor, currency: row.currency, receivedAt: iso(row.receivedAt), status: row.status }));
+  const lessonRows = await db.select().from(kcLessons).where(inArray(kcLessons.status, ["published", "retired"]));
+  const attributionRows = lessonRows.length ? await db.select().from(kcLessonAttribution).where(inArray(kcLessonAttribution.lessonId, lessonRows.map((l) => l.id))) : [];
+  const people = lessonRows.length ? await db.select({ id: users.id, email: users.email }).from(users).where(inArray(users.id, lessonRows.map((l) => l.contributorId))) : [];
+  const isDemoLesson = (contributorId: string) => (people.find((person) => person.id === contributorId)?.email ?? "").endsWith("@demo.futureskilz.test");
+  const fraud = await fraudInputs(db, lessonRows.map((row) => row.id));
+  const lessons: LessonInfo[] = lessonRows.filter((row) => isDemoLesson(row.contributorId) === demoPolicy).map((row) => ({ id: row.id, title: row.title, version: row.version, attribution: attributionRows.filter((a) => a.lessonId === row.id).map((a) => ({ contributorId: a.contributorId, shareBp: a.shareBp })), trust: fraud.trust.get(row.id) ?? 1, ageDays: Math.max(0, (end.getTime() - (row.publishedAt ?? row.updatedAt).getTime()) / 86_400_000) })).filter((lesson) => lesson.attribution.length > 0);
+  const eventRows = lessons.length ? await db.select().from(kcLearningEvents).where(and(inArray(kcLearningEvents.lessonId, lessons.map((l) => l.id)), gte(kcLearningEvents.occurredAt, start), lt(kcLearningEvents.occurredAt, end))) : [];
+  const events: LearningEvent[] = eventRows.map((row) => ({ id: row.id, lessonId: row.lessonId, learnerRef: row.learnerRef, type: row.eventType, seconds: row.seconds, value: row.value, occurredAt: iso(row.occurredAt) }));
+  const feedbackRows = lessons.length ? await db.select().from(kcFeedback).where(and(inArray(kcFeedback.lessonId, lessons.map((l) => l.id)), inArray(kcFeedback.moderation, ["visible", "held"]))) : [];
+  const ratings: Rating[] = feedbackRows.map((row) => ({ lessonId: row.lessonId, learnerRef: row.learnerRef, rating: row.rating, occurredAt: iso(row.updatedAt) }));
+
+  return { policyRow, policy, receipts, events, ratings, lessons, excludedLearners: fraud.excludedLearners, openFlags: fraud.openCount };
+}
+
+export type FormulaComparison = { currency: string; poolMinor: number; openFlags: number; lessons: Array<{ lessonId: string; title: string; weightedMinor: number; qvsMinor: number; qvs?: NonNullable<AllocationRun["lessons"][number]["qvs"]> }>; contributors: Array<{ contributorId: string; weightedMinor: number; qvsMinor: number }> };
+
+/** Runs both formulas on the same data and shows the difference, without saving anything. The business uses this to decide which governs. */
+export async function compareFormulas(userId: string, input: { policyId: string; periodStart: string; periodEnd: string }): Promise<FormulaComparison> {
+  const db = await database();
+  await requireAdmin(db, userId);
+  const start = new Date(input.periodStart);
+  const end = new Date(input.periodEnd);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) throw new CaptureError(400, "Choose a period that ends after it starts.");
+  const loaded = await loadRunInputs(db, input.policyId, start, end);
+  const base = { policyApproved: loaded.policyRow.status === "approved", period: { start: start.toISOString(), end: end.toISOString() }, receipts: loaded.receipts, events: loaded.events, ratings: loaded.ratings, lessons: loaded.lessons, excludedLearners: loaded.excludedLearners };
+  const weighted = calculateAllocations({ ...base, policy: { ...loaded.policy, formula: "weighted_pool" } });
+  const qvs = calculateAllocations({ ...base, policy: { ...loaded.policy, formula: "qvs" } });
+  const ids = [...new Set([...weighted.contributors, ...qvs.contributors].map((c) => c.contributorId))];
+  return {
+    currency: weighted.currency,
+    poolMinor: weighted.inputs.poolMinor,
+    openFlags: loaded.openFlags,
+    lessons: weighted.lessons.map((row) => { const q = qvs.lessons.find((l) => l.lessonId === row.lessonId); return { lessonId: row.lessonId, title: row.title, weightedMinor: row.allocationMinor, qvsMinor: q?.allocationMinor ?? 0, qvs: q?.qvs }; }),
+    contributors: ids.map((contributorId) => ({ contributorId, weightedMinor: weighted.contributors.find((c) => c.contributorId === contributorId)?.totalMinor ?? 0, qvsMinor: qvs.contributors.find((c) => c.contributorId === contributorId)?.totalMinor ?? 0 })),
+  };
+}
+
 export type RunResult = { run: AllocationRun; statements: Array<{ id: string; contributorId: string; status: string; totalMinor: number }>; inputsHash: string };
 
 /**
@@ -99,25 +149,9 @@ export async function runAllocation(userId: string, input: { policyId: string; p
   const start = wholeSecond(input.periodStart);
   const end = wholeSecond(input.periodEnd);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) throw new CaptureError(400, "Choose a period that ends after it starts.");
-  const [policyRow] = await db.select().from(kcRevenuePolicies).where(eq(kcRevenuePolicies.id, input.policyId));
-  if (!policyRow) throw new CaptureError(404, "That policy was not found.");
-  const policy = revenuePolicySchema.parse(policyRow.definition);
-
-  const receiptRows = await db.select().from(kcReceipts).where(and(gte(kcReceipts.receivedAt, start), lt(kcReceipts.receivedAt, end)));
-  // Sample data from /demo never counts in a real policy's run, and a demo policy only ever sees sample data.
-  const demoPolicy = policyRow.version.startsWith("demo");
-  const receipts: Receipt[] = receiptRows.filter((row) => row.externalRef.startsWith("demo-") === demoPolicy).map((row) => ({ id: row.id, grossMinor: row.grossMinor, refundMinor: row.refundMinor, feeMinor: row.feeMinor, taxMinor: row.taxMinor, currency: row.currency, receivedAt: iso(row.receivedAt), status: row.status }));
-  const lessonRows = await db.select().from(kcLessons).where(inArray(kcLessons.status, ["published", "retired"]));
-  const attributionRows = lessonRows.length ? await db.select().from(kcLessonAttribution).where(inArray(kcLessonAttribution.lessonId, lessonRows.map((l) => l.id))) : [];
-  const people = lessonRows.length ? await db.select({ id: users.id, email: users.email }).from(users).where(inArray(users.id, lessonRows.map((l) => l.contributorId))) : [];
-  const isDemoLesson = (contributorId: string) => (people.find((person) => person.id === contributorId)?.email ?? "").endsWith("@demo.futureskilz.test");
-  const lessons: LessonInfo[] = lessonRows.filter((row) => isDemoLesson(row.contributorId) === demoPolicy).map((row) => ({ id: row.id, title: row.title, version: row.version, attribution: attributionRows.filter((a) => a.lessonId === row.id).map((a) => ({ contributorId: a.contributorId, shareBp: a.shareBp })) })).filter((lesson) => lesson.attribution.length > 0);
-  const eventRows = lessons.length ? await db.select().from(kcLearningEvents).where(and(inArray(kcLearningEvents.lessonId, lessons.map((l) => l.id)), gte(kcLearningEvents.occurredAt, start), lt(kcLearningEvents.occurredAt, end))) : [];
-  const events: LearningEvent[] = eventRows.map((row) => ({ id: row.id, lessonId: row.lessonId, learnerRef: row.learnerRef, type: row.eventType, seconds: row.seconds, occurredAt: iso(row.occurredAt) }));
-  const feedbackRows = lessons.length ? await db.select().from(kcFeedback).where(and(inArray(kcFeedback.lessonId, lessons.map((l) => l.id)), inArray(kcFeedback.moderation, ["visible", "held"]))) : [];
-  const ratings: Rating[] = feedbackRows.map((row) => ({ lessonId: row.lessonId, learnerRef: row.learnerRef, rating: row.rating, occurredAt: iso(row.updatedAt) }));
-
-  const run = calculateAllocations({ policy, policyApproved: policyRow.status === "approved", period: { start: start.toISOString(), end: end.toISOString() }, receipts, events, ratings, lessons });
+  const loaded = await loadRunInputs(db, input.policyId, start, end);
+  const { policyRow, policy } = loaded;
+  const run = calculateAllocations({ policy, policyApproved: policyRow.status === "approved", period: { start: start.toISOString(), end: end.toISOString() }, receipts: loaded.receipts, events: loaded.events, ratings: loaded.ratings, lessons: loaded.lessons, excludedLearners: loaded.excludedLearners });
   const inputsHash = createHash("sha256").update(canonicalJson({ run, policy })).digest("hex");
 
   const statements: RunResult["statements"] = [];

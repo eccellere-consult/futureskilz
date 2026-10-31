@@ -19,6 +19,7 @@ const nextConfig = {
   // object: Hostinger wraps next.config and drops function-form configs.
   serverExternalPackages: ["mammoth", "pdf-parse", "pdfjs-dist", "pdfkit", "xlsx"],
   outputFileTracingIncludes: {
+    "/api/payments/invoices/[id]": ["./node_modules/pdfkit/js/**/*"],
     "/api/contribute/projects/[id]/book": ["./node_modules/pdfkit/js/**/*"],
     "/api/self-service/upload": ["./node_modules/pdf-parse/dist/**/*", "./node_modules/pdfjs-dist/**/*"],
   },

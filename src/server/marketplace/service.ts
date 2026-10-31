@@ -13,6 +13,8 @@ import { distinctLearners, usageByLesson } from "@/server/capture/learner-servic
 import { database } from "@/server/capture/shared";
 import { kcContributors, kcFeedback, kcLessons, skillShotDrafts } from "@/server/db/schema";
 
+import type { Reputation } from "@/features/capture/earnings/reputation";
+import { reputationFor } from "@/server/capture/reputation-service";
 import { coachProfileId } from "./profile-id";
 
 const DAY = 86_400_000;
@@ -98,7 +100,7 @@ export async function loadListings(): Promise<Listing[]> {
   return listings;
 }
 
-export type CoachProfile = { name: string; headline: string | null; since: string; lessons: Listing[]; learnersReached: number };
+export type CoachProfile = { name: string; headline: string | null; since: string; lessons: Listing[]; learnersReached: number; reputation: Reputation };
 
 /**
  * A coach's public page: who they are, what they have published, and how many different learners have used it. Only coaches who are
@@ -113,5 +115,5 @@ export async function getCoachProfile(profileId: string): Promise<CoachProfile |
   const lessons = (await loadListings()).filter((listing) => listing.creator.profileId === profileId);
   if (lessons.length === 0) return null;
   const rows = await db.select({ id: kcLessons.id }).from(kcLessons).where(and(eq(kcLessons.contributorId, coach.userId), eq(kcLessons.status, "published")));
-  return { name: coach.publicName, headline: coach.headline, since: coach.createdAt.toISOString(), lessons, learnersReached: await distinctLearners(rows.map((row) => row.id)) };
+  return { name: coach.publicName, headline: coach.headline, since: coach.createdAt.toISOString(), lessons, learnersReached: await distinctLearners(rows.map((row) => row.id)), reputation: await reputationFor(coach.userId, db) };
 }

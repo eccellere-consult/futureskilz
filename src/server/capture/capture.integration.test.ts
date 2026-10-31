@@ -21,6 +21,7 @@ describe.skipIf(!enabled)("expert capture, end to end", () => {
   let contributor = "";
   let editor = "";
   let admin = "";
+  let stranger = "";
   let projectId = "";
 
   // Loaded lazily so a skipped run never touches the database.
@@ -54,6 +55,7 @@ describe.skipIf(!enabled)("expert capture, end to end", () => {
     contributor = await make("Asha Rao", []);
     editor = await make("Edith Editor", ["editor"]);
     admin = await make("Adam Admin", ["admin"]);
+    stranger = await make("Sam Stranger", []);
   });
 
   const answerFor = (view: Awaited<ReturnType<typeof svc.getView>>) => {
@@ -257,8 +259,8 @@ describe.skipIf(!enabled)("expert capture, end to end", () => {
   let lessonId = "";
   let lessonSlug = "";
 
-  it("lets an editor — and only an editor — turn the approved package into lesson drafts that already carry attribution", async () => {
-    await expect(lessons.generateLessons(contributor, projectId)).rejects.toThrow(/Only an editor/);
+  it("lets the author or an editor — and no one else — turn the approved package into lesson drafts that already carry attribution", async () => {
+    await expect(lessons.generateLessons(stranger, projectId)).rejects.toThrow(/Only the author or an editor/);
     const made = await lessons.generateLessons(editor, projectId);
     expect(made.created).toBeGreaterThan(0);
     const again = await lessons.generateLessons(editor, projectId);
@@ -455,6 +457,41 @@ describe.skipIf(!enabled)("expert capture, end to end", () => {
     expect((await lessons.listPublishedLessons()).some((l) => l.slug === lessonSlug)).toBe(false);
     await expect(svc.openInterview(contributor, projectId)).rejects.toThrow(/withdrawn/);
   });
+
+  it("reviews fraud flags (admin only, with a note), compares both formulas and runs campaigns that can be used up", async () => {
+    const fraud = await import("./fraud-service");
+    const campaignsSvc = await import("./campaign-service");
+    const db = await shared.database();
+    const flagId = crypto.randomUUID();
+    await db.insert(schema.fraudFlags).values({ id: flagId, subjectType: "learner", subjectRef: `ref-${flagId.slice(0, 8)}`, rule: "completion_burst", severity: "high", summary: "Eight completions within half an hour." });
+    await expect(fraud.listFlags(editor)).rejects.toThrow(/Only an admin/);
+    expect((await fraud.listFlags(admin)).some((flag) => flag.id === flagId)).toBe(true);
+    await expect(fraud.reviewFlag(admin, flagId, "confirm", "no")).rejects.toThrow(/short note/);
+    expect((await fraud.reviewFlag(admin, flagId, "confirm", "Checked the timestamps; a script.")).status).toBe("confirmed");
+    await expect(fraud.reviewFlag(admin, flagId, "dismiss", "Changed my mind later")).rejects.toThrow(/already reviewed/);
+    expect((await fraud.scanFraud(admin)).created).toBeGreaterThanOrEqual(0);
+
+    const [policy] = (await earnings.listPolicies(admin)).policies;
+    if (policy) {
+      const now = Date.now();
+      const compared = await earnings.compareFormulas(admin, { policyId: policy.id, periodStart: new Date(now - 30 * 86_400_000).toISOString(), periodEnd: new Date(now + 86_400_000).toISOString() });
+      expect(compared.lessons.reduce((s, l) => s + l.weightedMinor, 0)).toBeLessThanOrEqual(compared.poolMinor);
+      expect(compared.lessons.reduce((s, l) => s + l.qvsMinor, 0)).toBeLessThanOrEqual(compared.poolMinor);
+    }
+
+    const code = `TEST${Date.now().toString(36).toUpperCase()}`.slice(0, 12);
+    const start = new Date(Date.now() - 86_400_000).toISOString();
+    const end = new Date(Date.now() + 86_400_000).toISOString();
+    await expect(campaignsSvc.createCampaign(editor, { name: "Nope", kind: "discount", code, percentOffBp: 1000, startsAt: start, endsAt: end })).rejects.toThrow(/Only an admin/);
+    await expect(campaignsSvc.createCampaign(admin, { name: "No code", kind: "discount", percentOffBp: 1000, startsAt: start, endsAt: end })).rejects.toThrow(/needs a code/);
+    const made = await campaignsSvc.createCampaign(admin, { name: "Launch offer", kind: "discount", code, percentOffBp: 1500, startsAt: start, endsAt: end, maxRedemptions: 1 });
+    expect(await campaignsSvc.liveDiscountByCode(code)).toBeNull();
+    await campaignsSvc.setCampaignStatus(admin, made.id, "active");
+    expect(await campaignsSvc.liveDiscountByCode(code.toLowerCase())).toMatchObject({ percentOffBp: 1500 });
+    expect(await campaignsSvc.redeemCampaign(made.id)).toBe(true);
+    expect(await campaignsSvc.redeemCampaign(made.id)).toBe(false);
+    expect(await campaignsSvc.liveDiscountByCode(code)).toBeNull();
+  });
 });
 
 describe.skipIf(!enabled)("the demo", () => {
@@ -541,4 +578,5 @@ describe.skipIf(!enabled)("accounts with passwords", () => {
     await expect(admin.setUserRoles(adminId, adminId, ["contributor"])).rejects.toThrow(/own admin role/);
     expect(await admin.setUserRoles(adminId, created.id, ["editor"])).toEqual(expect.arrayContaining(["learner", "editor"]));
   });
+
 });
