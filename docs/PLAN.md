@@ -66,14 +66,14 @@ Each phase ends with something a person can use, and each makes the next cheaper
 | **7** | **Content intake: any source to a Skill Shot** | 4 | A coach or editor creates content from a PDF, Word, PowerPoint, pasted text, article link, recording or video, with rights checks | A document with no interview becomes a reviewed Skill Shot; a copied passage is blocked |
 | **8** | **Skill Graph v2: six axes and seeding** | 3 | Every skill and Skill Shot is findable by function, industry, seniority, level and journey stage; new nodes need a human | Curator-approved seed for one industry |
 | **9** | **Learner delivery basics** | 3 | Installable app, scheduled notifications, streaks, certificates, assessment report with radar, design alignment | A learner returns on day 2 and day 7 from a notification |
-| **10** | **Cohorts** (decide first) | 4 | Enrol, pay, attend, submit, certificate | First cohort completes |
+| **10** | **Cohorts** (after launch) | 4 | Enrol, pay, attend, submit, certificate | First cohort completes |
 | 11 | WhatsApp channel (notification and re-entry only, per v1.3) | 2 plus approval | Daily nudge and magic-link return on WhatsApp, STOP honoured | Meta approval and opt-in tested |
 | **12** | **SME pipeline** | 4 | Curator-led recorded expert interviews produce minutes, a presentation and Skill Shots | One SME end to end |
 | 13 | Enterprise portal | 4 | A leader sees readiness, gaps and role readiness | One pilot organisation onboarded |
 
-**Indicative calendar for one build track** (weeks from the start of Phase 0; business approvals run beside it): week 1 Phase 0 · weeks 2 to 5 Phase 7 · weeks 6 to 8 Phase 8 · weeks 9 to 11 Phase 9 · weeks 12 to 15 Phase 10 if confirmed · Phase 11 when Meta approves (2 weeks of work) · weeks 16 to 19 Phase 12 · weeks 20 to 23 Phase 13. With two tracks, Phase 9 runs beside Phase 7 and the whole plan is about 16 weeks.
+**Indicative calendar for one build track** (weeks from the start of Phase 0; business approvals run beside it): week 1 Phase 0 · weeks 2 to 5 Phase 7 · weeks 6 to 8 Phase 8 · weeks 9 to 11 Phase 9 · weeks 12 to 15 Phase 10 · Phase 11 when Meta approves (2 weeks of work) · weeks 16 to 19 Phase 12 · weeks 20 to 23 Phase 13. With two tracks, Phase 9 runs beside Phase 7 and the whole plan is about 16 weeks.
 
-Order notes: 7 before 8 because intake needs the safety gate more than the extra axes, and 8 before 12 and 13 because both filter on the axes. 9 can run beside 7 if there are two tracks. 10 waits on a decision (section 7, item 12).
+Order notes: 7 before 8 because intake needs the safety gate more than the extra axes, and 8 before 12 and 13 because both filter on the axes. 9 can run beside 7 if there are two tracks. 10 follows 9 (cohorts are not part of the launch offer).
 
 ### Phase 0: Prove it on production (about 1 week)
 
@@ -134,6 +134,8 @@ Built: plans (time-boxed passes, admin-priced), Razorpay checkout and signed web
 
 ### Phase 7: Content intake, any source to a reviewed Skill Shot (about 4 weeks). Next after Phase 0
 
+Scope confirmed 31 Oct: every source below is in the first release.
+
 Goal: stop depending on the interview as the only way in. One pipeline, several intake doors, one safety gate, the same review and publish steps that exist.
 
 1. **Create from a document (1 week).** A new project type, "from a source", beside the interview. Upload or paste (PDF, Word, text, Markdown, CSV, Excel as today, plus pasted text); the coach or editor states what it is, who owns it, and attests the right to teach from it. Facts are extracted with source quotes (existing extraction), reviewed by the owner, then lessons and Skill Shots are designed (existing agents). No interview needed.
@@ -144,7 +146,9 @@ Goal: stop depending on the interview as the only way in. One pipeline, several 
 
 Done when: a coach uploads a PDF with no interview, reviews the extracted points, and an editor publishes a Skill Shot from it; a pasted copy of a book page is blocked; a recorded meeting yields minutes and a Skill Shot draft.
 
-### Phase 8: Skill Graph v2, six axes and seeding (about 3 weeks)
+### Phase 8: Skill Graph v2, all axes and seeding (about 3 weeks, then one industry at a time)
+
+Scope confirmed 31 Oct: all axes, including APQC and NASSCOM NOS tags. Seed Manufacturing first, then Retail and Consumer Products, Logistics and Supply Chain, and IT Services, GCCs and Professional Services (each about a week of seeding and curator review once the seniority heuristic is fixed).
 
 - Add function (13 plus catch-all), industry (16 tiered plus catch-all), seniority (6 plus catch-all) and journey stage (7) as tables with relevance weights, plus secondary pillar (never double-counted), aliases, co-occurrence and the optional APQC reference. Keep the 7 families as a grouping (decision D3).
 - Seed: the 56 DELTA names as pillar nodes (proprietary; names only as seed concepts), then an O*NET and ESCO import for one industry, **with a human approving every new node**. The import script and the Manufacturing output are not in the repository and must be supplied; fix the seniority heuristic before a second industry.
@@ -160,9 +164,9 @@ Done when: a coach uploads a PDF with no interview, reviews the extracted points
 - Journey stages (seven) as a first-class choice at sign-up, driving the first recommendations.
 - Analytics and error tracking: GA4 events for the funnel, an error tracker, an LLM and email cost view.
 
-### Phase 10: Cohorts (about 4 weeks; decide first)
+### Phase 10: Cohorts (about 4 weeks; after Phase 9, confirmed 31 Oct)
 
-- Cohort page, enrol and pay (payments exist), live sessions with a meeting link, assignments, discussion, weekly nudges, certificate. Only if the owner confirms cohorts are part of the offer (section 7, item 12); the pass model may be enough for launch.
+- Cohort page, enrol and pay (payments exist), live sessions with a meeting link, assignments, discussion, weekly nudges, certificate. Launch is the pass; cohorts follow Phase 9.
 
 ### Phase 11: WhatsApp channel (2 weeks plus Meta approval)
 
@@ -194,6 +198,18 @@ Rendered video and voice generation agents (HeyGen, Gemini, Veo and Descript too
 
 ## 7. Decisions needed from the owner
 
+**Confirmed by the owner on 31 Oct 2026** (these are settled; the plan below follows them):
+
+- **Scope: all sources and all dimensions are consolidated into the platform.** Intake covers documents and pasted text, PowerPoint and images, audio and video files, and web and YouTube links (Phase 7). Every skill and Skill Shot is tagged on pillar and level, function and industry, seniority and journey stage, and process and standards tags (APQC, NASSCOM NOS) (Phase 8).
+- **Third-party video and articles:** the contributor supplies the transcript or file and attests the rights; the system re-scripts and teaches in its own words and never republishes. Automatic fetching is not built for third parties.
+- **First industries** to seed and fill with content: Manufacturing and Industrial, Retail and Consumer Products, Logistics and Supply Chain, and IT Services, GCCs and Professional Services. Manufacturing goes first (it has the trial import); the others follow in that order once the seniority heuristic is fixed.
+- **Channel:** web app primary; WhatsApp only notifies and links back (Phase 11, about 2 weeks plus Meta approval).
+- **Skill Shot format:** interactive lessons taught by Arya are the standard; rendered video and a video host are added later as a second renderer.
+- **Design system:** adopt the v1.3 palette (ink and gold, no purple), Lora and Inter, and dark mode, with an accessibility pass (Phase 9).
+- **Cohorts:** pass first, cohorts later (Phase 10 after Phase 9).
+
+**Still open** (each has a proposal):
+
 (D-numbers in later items refer to `docs/v1.3-gap-analysis.md` section 5.)
 
 These were open on 25 Oct and are still open. Each has a proposal, so work can start on the proposals.
@@ -206,10 +222,6 @@ These were open on 25 Oct and are still open. Each has a proposal, so work can s
 6. **First market and language:** India and English first; when Hindi?
 7. **New:** should Arya's studio voice be paid for from day one (cost per learner) or limited to greetings and coach sessions, with the device voice elsewhere?
 8. **New:** who may approve designed Skill Shots: the editor, the coach, or both (today's coach lessons need both)?
-9. **New (v1.3):** WhatsApp as a notification and re-entry channel only, with the web app primary? Proposed: yes, as v1.3 says.
-10. **New (v1.3):** the design system: ink and gold only, no purple, Lora and Inter, dark mode, or keep the current teal, purple, Cormorant and DM Sans? Proposed: adopt v1.3's palette and fonts; keep Arya's stage dark but not purple.
-11. **New (v1.3):** how to treat YouTube and other third-party video: contributor-supplied transcript with a rights attestation first, automatic fetching only for your own channel or with agreement. Proposed: as stated.
-12. **New (v1.3):** are cohorts (live sessions, assignments, certificates) part of the offer at launch, or is the pass enough? Proposed: pass first, cohorts after Phase 9.
 13. **New (v1.3):** the reward formula: v1.3's five-part weights (completion 0.25, check-in 0.25, uplift 0.30, rating 0.10, non-duplication 0.10) as the QVS definition, or ours? Proposed: v1.3's weights become the default QVS definition for the business to approve.
 14. **New (v1.3):** where the O*NET import script, Manufacturing seed and review report live; they are not in this repository and Phase 8 needs them.
 
