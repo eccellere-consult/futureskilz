@@ -353,16 +353,30 @@ export async function listApprovedProjects(userId: string) {
   const db = await database();
   const roles = await rolesOf(db, userId);
   if (!roles.has("editor") && !roles.has("admin")) throw new CaptureError(403, "Only an editor can see approved interviews.");
-  const projects = await db.select().from(kcProjects).where(inArray(kcProjects.status, ["approved", "published"])).orderBy(desc(kcProjects.updatedAt));
+  // Approved and published ones are ready to work on; finished interviews still waiting on the coach are shown too, so nothing is invisible.
+  const projects = await db.select().from(kcProjects).where(inArray(kcProjects.status, ["approved", "published", "in_review"])).orderBy(desc(kcProjects.updatedAt));
   const lessonRows = projects.length ? await db.select({ projectId: kcLessons.projectId, status: kcLessons.status }).from(kcLessons).where(inArray(kcLessons.projectId, projects.map((p) => p.id))) : [];
   const names = projects.length ? await db.select().from(kcContributors).where(inArray(kcContributors.userId, projects.map((p) => p.contributorId))) : [];
-  return projects.map((project) => ({
-    id: project.id,
-    title: project.title,
-    status: project.status,
-    contributor: names.find((n) => n.userId === project.contributorId)?.publicName ?? "Contributor",
-    lessons: lessonRows.filter((row) => row.projectId === project.id).length,
-    published: lessonRows.filter((row) => row.projectId === project.id && row.status === "published").length,
-    updatedAt: iso(project.updatedAt),
-  }));
+  const out = [];
+  for (const project of projects) {
+    let changedSinceApproval = false;
+    if (project.status !== "in_review") {
+      const [approved] = await db.select({ fingerprint: kcDocuments.factFingerprint }).from(kcDocuments).where(and(eq(kcDocuments.projectId, project.id), eq(kcDocuments.kind, "skill_md"), eq(kcDocuments.status, "approved"))).orderBy(desc(kcDocuments.version)).limit(1);
+      changedSinceApproval = !!approved && approved.fingerprint !== fingerprintOf(await loadFacts(db, project.id));
+    }
+    out.push({
+      id: project.id,
+      title: project.title,
+      status: project.status,
+      contributor: names.find((n) => n.userId === project.contributorId)?.publicName ?? "Contributor",
+      lessons: lessonRows.filter((row) => row.projectId === project.id).length,
+      published: lessonRows.filter((row) => row.projectId === project.id && row.status === "published").length,
+      /** The coach changed statements after approving: lessons cannot be built until they approve again. */
+      changedSinceApproval,
+      /** The interview is finished but the coach has not approved it yet. */
+      awaitingCoach: project.status === "in_review",
+      updatedAt: iso(project.updatedAt),
+    });
+  }
+  return out;
 }

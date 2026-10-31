@@ -43,5 +43,6 @@ export type Book = z.infer<typeof bookSchema>;
 /** One answer from the interview, with the question that drew it out. The raw material for a book. */
 export type SourceAnswer = { key: string; phase: string; question: string; answer: string; role?: string };
 
-export const MIN_WORDS_FOR_BOOK = 400;
+/** Trial setting. The server reads BOOK_MIN_WORDS (default 100); raise it to 2000 or more for the final. */
+export const DEFAULT_MIN_WORDS_FOR_BOOK = 100;
 export const wordCount = (value: string): number => (value.trim() ? value.trim().split(/\s+/).length : 0);

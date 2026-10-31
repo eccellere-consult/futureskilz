@@ -243,6 +243,9 @@ describe.skipIf(!enabled)("expert capture, end to end", () => {
     // Rejected or unconfirmed text never reaches the approved document.
     expect(approvedDoc.content).not.toContain("Rajesh");
     expect(approvedDoc.content).not.toContain("Mentions SAP");
+    // The approved interview reaches the editor and the admin the moment it is approved.
+    expect((await lessons.listApprovedProjects(editor)).map((p) => p.id)).toContain(projectId);
+    expect((await lessons.listApprovedProjects(admin)).map((p) => p.id)).toContain(projectId);
   });
 
   it("flags a change made after approval", async () => {

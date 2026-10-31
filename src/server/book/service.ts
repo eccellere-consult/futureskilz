@@ -3,7 +3,7 @@ import "server-only";
 import { and, asc, eq } from "drizzle-orm";
 
 import { getQuestion } from "@/features/capture/question-bank";
-import { MIN_WORDS_FOR_BOOK, bookSchema, wordCount, type Book, type SourceAnswer } from "@/features/book/types";
+import { bookSchema, wordCount, type Book, type SourceAnswer } from "@/features/book/types";
 import { DatabaseAgentRunRecorder } from "@/server/agents/database-recorder";
 import { createBookWriterAgent, createChapterWriterAgent } from "@/server/agents/book-writer";
 import { AgentRunner } from "@/server/agents/runner";
@@ -54,7 +54,8 @@ export async function startBook(userId: string, projectId: string): Promise<Book
   // The book is made from what the author has checked and approved, the same content the lessons are made from.
   if (project.status !== "approved" && project.status !== "published") throw new CaptureError(409, "The author has not checked and approved the interview yet. The book is written from the approved version.");
   const { words } = await gatherAnswers(projectId);
-  if (words < MIN_WORDS_FOR_BOOK) throw new CaptureError(409, `A book needs more of the interview first: about ${MIN_WORDS_FOR_BOOK} words of answers, and there are ${words} so far.`);
+  const minWords = getServerEnvironment().BOOK_MIN_WORDS;
+  if (words < minWords) throw new CaptureError(409, `A book needs more of the interview first: at least ${minWords} words of answers, and there are ${words} so far.`);
   const id = existing?.id ?? newUuid();
   const values = { status: "writing" as const, step: "Reading the interview", error: null, approvedAt: null };
   if (existing) await db.update(bookProjects).set(values).where(eq(bookProjects.id, id));

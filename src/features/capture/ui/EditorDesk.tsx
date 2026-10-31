@@ -50,15 +50,17 @@ export function EditorDesk() {
       {notice ? <p className="mt-3 border-l-2 border-teal bg-teal/5 px-4 py-2 text-sm" role="status">{notice}</p> : null}
 
       <section className="mt-8" aria-label="Approved interviews">
-        <h2 className="font-display text-2xl">Approved interviews</h2>
-        {projects.length === 0 ? <p className="mt-2 text-sm text-ink-light">None yet. Interviews appear here once the contributor approves them.</p> : null}
+        <h2 className="font-display text-2xl">Interviews from coaches</h2>
+        {projects.length === 0 ? <p className="mt-2 text-sm text-ink-light">None yet. An interview appears here when the coach finishes it, and becomes ready for training and a book when they approve it.</p> : null}
         <ul className="mt-3 divide-y divide-border border border-border bg-surface">
           {projects.map((project) => (
             <li key={project.id} className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
-              <div><p className="font-semibold">{project.title}</p><p className="text-xs text-ink-light">{project.contributor} · {project.lessons} lesson{project.lessons === 1 ? "" : "s"} drafted, {project.published} live · updated {shortDate(project.updatedAt)}</p></div>
+              <div><p className="font-semibold">{project.title}</p><p className="text-xs text-ink-light">{project.contributor} · {project.lessons} lesson{project.lessons === 1 ? "" : "s"} drafted, {project.published} live · updated {shortDate(project.updatedAt)}</p>
+                {project.awaitingCoach ? <p className="mt-1 text-xs text-gold">Waiting for the coach to check and approve. Nothing can be built until they do.</p> : null}
+                {project.changedSinceApproval ? <p className="mt-1 text-xs text-crimson">The coach changed statements after approving. Ask them to approve again before building lessons or a book.</p> : null}</div>
               <div className="flex flex-wrap gap-3">
-                <button className="border border-border px-3 py-2 text-sm" aria-expanded={bookFor === project.id} onClick={() => setBookFor(bookFor === project.id ? null : project.id)} type="button">{bookFor === project.id ? "Hide" : "Training and book"}</button>
-                <button className="primary-button min-h-10! px-3! py-2!" disabled={busy} onClick={() => void generate(project)} type="button">{project.lessons ? "Refresh lesson drafts" : "Create lesson drafts"}</button>
+                {project.awaitingCoach ? <span className="text-xs text-ink-light">Not approved yet</span> : <><button className="border border-border px-3 py-2 text-sm" aria-expanded={bookFor === project.id} onClick={() => setBookFor(bookFor === project.id ? null : project.id)} type="button">{bookFor === project.id ? "Hide" : "Training and book"}</button>
+                <button className="primary-button min-h-10! px-3! py-2!" disabled={busy} onClick={() => void generate(project)} type="button">{project.lessons ? "Refresh lesson drafts" : "Create lesson drafts"}</button></>}
               </div>
               {bookFor === project.id ? <div className="basis-full border-t border-border pt-4"><CreateFromInterview projectId={project.id} /></div> : null}
             </li>
