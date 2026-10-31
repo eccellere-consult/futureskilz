@@ -6,7 +6,7 @@ describe("role menus", () => {
   it("gives a plain learner only the learner menu, with a roadmap, the role explorer, a passport, the marketplace, a learning path and training material", () => {
     expect(personasFor([])).toEqual(["learner"]);
     expect(personasFor(undefined)).toEqual(["learner"]);
-    expect(PERSONA_MENUS.learner.items.map((item) => item.label)).toEqual(["My roadmap", "Explore roles", "Skill Passport", "Marketplace", "Learning path", "Training material"]);
+    expect(PERSONA_MENUS.learner.items.map((item) => item.label)).toEqual(["My roadmap", "Explore roles", "Skill Passport", "Marketplace", "Learning path", "Training material", "Plans and billing"]);
   });
 
   it("gives each other kind of person what they work with, and nothing from the other menus", () => {

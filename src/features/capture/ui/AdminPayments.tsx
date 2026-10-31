@@ -10,11 +10,6 @@ type Receipt = { id: string; externalRef: string; grossMinor: number; refundMino
 
 const STATUS: Record<string, string> = { illustrative: "Preview only", draft: "Draft", final: "Final, to pay", disputed: "Disputed", paid: "Paid", void: "Void" };
 
-const CONNECTIONS: Array<[string, string, string]> = [
-  ["Razorpay (UPI, cards, EMI, GST invoices)", "Not connected", "Learner payments are not taken yet. Receipts are entered by hand under Earnings and policy until this is connected."],
-  ["Payout provider for coaches", "Not connected", "Statements are marked paid here after you have paid the coach outside the system."],
-];
-
 export function AdminPayments() {
   const statements = useRemote<{ statements: Statement[] }>("/api/contribute/admin/statements");
   const receipts = useRemote<{ receipts: Receipt[] }>("/api/contribute/admin/receipts");
@@ -36,15 +31,8 @@ export function AdminPayments() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8 lg:py-12">
-      <p className="font-mono text-[10px] uppercase text-gold">Admin</p>
-      <h1 className="mt-1 font-display text-4xl font-semibold sm:text-5xl">Payments</h1>
+      <h2 className="mt-1 font-display text-3xl font-semibold">Statements and receipts</h2>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-mid">What coaches are owed, what has been paid, and the money coming in. A statement can only become payable once its revenue-share policy is approved under <Link className="text-teal underline underline-offset-4" href="/contribute/admin">Earnings and policy</Link>.</p>
-
-      <section aria-label="Connections" className="mt-6 grid gap-px border border-border bg-border md:grid-cols-2">
-        {CONNECTIONS.map(([name, state, note]) => (
-          <div key={name} className="bg-surface p-5"><p className="font-semibold">{name}</p><p className="mt-1 inline-block bg-gold-pale px-2 py-0.5 font-mono text-[10px] uppercase">{state}</p><p className="mt-2 text-xs leading-5 text-ink-mid">{note}</p></div>
-        ))}
-      </section>
 
       {error ? <p className="mt-4 text-sm text-crimson" role="alert">{error}</p> : null}
 

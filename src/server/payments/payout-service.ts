@@ -18,7 +18,7 @@ async function requireAdmin(executor: Executor, userId: string): Promise<void> {
  */
 export type PayoutRow = { id: string; statementId: string; coach: string; email: string; amountMinor: number; currency: string; status: "queued" | "paid" | "failed"; reference: string | null; paidAt: string | null; createdAt: string };
 
-const csvCell = (value: string | number): string => {
+export const csvCell = (value: string | number): string => {
   const text = String(value);
   // A spreadsheet runs a cell that starts with these as a formula: a coach's name must not be able to do that.
   const safe = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;

@@ -19,6 +19,7 @@ export const PERSONA_MENUS: Record<Persona, PersonaMenu> = {
       { label: "Marketplace", href: "/marketplace", hint: "Find more to learn, by skill, role or industry" },
       { label: "Learning path", href: "/lessons", hint: "Lessons in order, from people who have done the work" },
       { label: "Training material", href: "/training", hint: "Skill Shots, training kits and practice" },
+      { label: "Plans and billing", href: "/pricing", hint: "Your pass, what is free, and your invoices" },
     ],
   },
   coach: {
@@ -77,7 +78,7 @@ export function personaOfPath(pathname: string): Persona | null {
   if (pathname === "/admin" || pathname.startsWith("/admin/") || pathname.startsWith("/contribute/admin")) return "admin";
   if (pathname.startsWith("/contribute/editor") || pathname.startsWith("/contribute/skill-shots") || pathname.startsWith("/contribute/lessons")) return "editor";
   if (pathname.startsWith("/contribute")) return "coach";
-  if (["/learn", "/journey", "/explore", "/passport", "/marketplace", "/coaches", "/lessons", "/training", "/profile", "/assessment", "/skill-shots", "/problem-solving"].some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return "learner";
+  if (["/learn", "/journey", "/explore", "/passport", "/marketplace", "/coaches", "/lessons", "/training", "/profile", "/assessment", "/skill-shots", "/problem-solving", "/pricing"].some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return "learner";
   return null;
 }
 

@@ -58,8 +58,8 @@ Each phase ends with something a person can use, and each makes the next cheaper
 | 2 | Arya as coach and adaptive assessment | 2 to 3 | A learner talks to Arya, is assessed conversationally, and gets feedback on practice | Scoring within the agreed accuracy of human raters |
 | 3 | Skill Passport and Career Explorer | 1 to 2 | A learner shares evidence-backed proof of skills and explores other roles | Passport shows measured evidence, self-report and inference separately |
 | 4 | Marketplace discovery | 2 to 3 | A learner finds content by skill, role and industry; coaches have public profiles | A learner reaches relevant content in three steps |
-| 5 | Reputation, Qualified Value Score, fraud review | 2 | Coaches earn on a richer, governed formula; admins review flags | Formula approved by the business |
-| 6 | Payments and subscriptions | 3 plus approvals | Learners pay; coaches are paid | A real payment end to end in test and live |
+| 5 | Reputation, Qualified Value Score, fraud review (built) | 2 | Coaches earn on a richer, governed formula; admins review flags | Formula approved by the business |
+| 6 | Payments and subscriptions (built, not live) | 3 plus approvals | Learners pay; coaches are paid | A real payment end to end in test and live |
 | 7 | WhatsApp channel | 3 plus approval | Daily Skill Shot, check-ins and assessment on WhatsApp | Meta approval and opt-in tested |
 | 8 | Enterprise portal | 4 | A leader sees readiness, gaps and role readiness | One pilot organisation onboarded |
 
@@ -106,12 +106,16 @@ Done when: a learner picks "AI Product Manager" (or another seeded role), sees g
 - Listings, search, browse by skill, role and industry, recommendations driven by gaps, public coach profiles, quality score, and governance modes A/B/C chosen by risk.
 - Learners' paths stay primary; the marketplace is how they find more.
 
-### Phase 5: Reputation, Qualified Value Score and fraud review (2 weeks)
+### Phase 5: Reputation, Qualified Value Score and fraud review (2 weeks) — BUILT
+
+Built: the Qualified Value Score as a second formula chosen per policy, with a compare screen; fraud flags and an admin review queue; coach reputation on coach pages; campaigns and promotions. Still the business's decision: which formula governs, and approving a policy. Fraud rules are simple and explainable; they have not been tuned on real traffic.
 
 - Add the Qualified Value Score as a second, configurable formula beside the current weighted pool, behind the business's decision on which governs.
 - Fraud flags and a review queue (today only caps and dedupe), coach reputation, and a campaigns and promotions area for admins.
 
-### Phase 6: Payments and subscriptions (3 weeks plus approvals)
+### Phase 6: Payments and subscriptions (3 weeks plus approvals) — BUILT, NOT LIVE
+
+Built: plans (time-boxed passes, admin-priced), Razorpay checkout and signed webhooks, a test mode, GST invoices (CGST and SGST, or IGST) as PDFs, free-tier gating (first two Skill Shots per pillar), receipts feeding the ledger, refunds that end a pass, discount codes, and manual coach payouts with a bank file. Nothing sells or locks until `PAYMENTS_MODE=razorpay`, the keys are set, and a plan is on sale. Not built: auto-renewing subscriptions (UPI AutoPay or Razorpay Subscriptions) and a payout API (Razorpay X). Needs: Razorpay account and KYC, your accountant's check of the GST invoice, and an approved revenue-share policy.
 
 - Razorpay (UPI, cards, EMI, GST invoices), free-tier gating (first two Skill Shots per pillar free), real receipts feeding the ledger, a payout provider for coaches.
 - The statement screens and policy engine are ready; what is missing is the provider and the approved policy.
@@ -156,7 +160,8 @@ These were open on 25 Oct and are still open. Each has a proposal, so work can s
 ## 8. Technical debt and risks to track
 
 - Original upload files are not retained; only text, location and checksum.
-- Fraud controls are limited to caps and dedupe; no review queue.
+- Fraud rules are first-pass and untuned; real traffic will show false positives and gaps.
+- Free-tier gating is at page level. The five original Skill Shots ship their content in the browser, so it is a paywall for honest use, not copy protection.
 - No formal accessibility audit, load test, real-phone test of Arya, or AI scoring validation yet.
 - The 3D engine is a lazy download of about 700 KB; confirm it stays within a mobile data budget.
 - Hostinger: one Node slot, no staging, no shell. Every schema change must stay additive, and the quality gate is the only pre-production check. A real staging copy is worth setting up before payments.
