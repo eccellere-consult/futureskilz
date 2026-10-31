@@ -27,7 +27,9 @@ async function sourceTexts(executor: Executor, projectId: string, factIds: strin
 export async function generateLessons(actorId: string, projectId: string): Promise<{ created: number; updated: number; unchanged: number; skipped: Array<{ topic: string; reason: string }> }> {
   const db = await database();
   const roles = await rolesOf(db, actorId);
-  if (!roles.has("editor") && !roles.has("admin")) throw new CaptureError(403, "Only an editor can create lessons.");
+  const [own] = await db.select({ owner: kcProjects.contributorId }).from(kcProjects).where(eq(kcProjects.id, projectId)).limit(1);
+  // The author may ask for lessons from their own approved interview; they still approve each lesson, and an editor does too.
+  if (!roles.has("editor") && !roles.has("admin") && own?.owner !== actorId) throw new CaptureError(403, "Only the author or an editor can create lessons.");
   return db.transaction(async (tx) => {
     const [project] = await tx.select().from(kcProjects).where(eq(kcProjects.id, projectId)).for("update");
     if (!project) throw new CaptureError(404, "That interview was not found.");

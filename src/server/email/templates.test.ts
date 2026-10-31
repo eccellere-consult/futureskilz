@@ -31,3 +31,14 @@ describe("sign-in email", () => {
     expect(() => renderEmail("marketing.blast", {})).toThrow("Unknown email template");
   });
 });
+
+describe("book email", () => {
+  it("names the book and says it was written with AI help", async () => {
+    const { renderEmail } = await import("./templates");
+    const email = renderEmail("book.ready", { name: "Ravi", title: "The Patient Planner <b>", pages: "112" });
+    expect(email.subject).toBe("Your book: The Patient Planner <b>");
+    expect(email.text).toMatch(/112 pages/);
+    expect(email.text).toMatch(/AI/);
+    expect(email.html).not.toContain("<b>");
+  });
+});

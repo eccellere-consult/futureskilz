@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, CheckCircle2, Download, Loader2 } from "lucide-react";
+import { BookOpen, CheckCircle2, Download, Loader2, Mail } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
@@ -15,7 +15,11 @@ const FILES = [
   { kind: "manuscript", label: "Manuscript (text)", note: "To edit in any word processor, with the KDP details." },
 ] as const;
 
-export function BookWorkspace({ projectId }: { projectId: string }) {
+/**
+ * The book, as a panel that sits right where the interview is: at the end of the interview for the author, and on the review
+ * screen and the editor desk for editors and admins. It is not a separate section to find.
+ */
+export function BookPanel({ projectId }: { projectId: string }) {
   const base = `/api/contribute/projects/${projectId}/book`;
   const { data, error, setError, reload } = useRemote<Payload>(base);
   const [busy, setBusy] = useState(false);
@@ -50,10 +54,9 @@ export function BookWorkspace({ projectId }: { projectId: string }) {
   const words = text ? [...text.introduction.sections, ...text.chapters.flatMap((c) => c.sections), ...text.conclusion.sections].reduce((n, s) => n + s.paragraphs.join(" ").split(/\s+/).length, 0) : 0;
 
   return (
-    <div className="mx-auto max-w-3xl px-5 py-10">
-      <p className="text-sm text-ink-light"><Link className="underline underline-offset-4" href={`/contribute/${projectId}/review`}>Back to my interview</Link></p>
-      <h1 className="mt-3 font-display text-3xl">Turn my interview into a book</h1>
-      <p className="mt-2 text-ink-mid">Arya shapes what you said into a short book of three to five chapters, in your own voice, with a cover and a back cover. You read it, change what you like, and approve it. The same chapters can then become training videos.</p>
+    <div>
+      <h2 className="font-display text-xl">The book</h2>
+      <p className="mt-2 text-ink-mid">Arya shapes the approved interview into a short book of three to five chapters, in your own voice, with a cover and a back cover. You read it, change what you like, and approve it. The same chapters can then become training videos.</p>
       {error ? <p role="alert" className="mt-4 border border-crimson/40 p-3 text-sm text-crimson">{error}</p> : null}
       {notice ? <p role="status" className="mt-4 border border-teal p-3 text-sm text-teal">{notice}</p> : null}
 
@@ -115,6 +118,7 @@ export function BookWorkspace({ projectId }: { projectId: string }) {
                 <li key={file.kind}><a className="inline-flex items-center gap-2 text-teal underline underline-offset-4" href={`${base}/file?kind=${file.kind}`}><Download aria-hidden="true" size={15} />{file.label}</a> <span className="text-ink-light">{file.note}</span></li>
               ))}
             </ul>
+            <button type="button" className="mt-3 inline-flex items-center gap-2 border border-border px-3 py-2 text-sm" disabled={busy} onClick={() => run(async () => { const sent = await post<{ sentTo: string }>(`${base}/email`); setNotice(`Sent to ${sent.sentTo} as two PDFs.`); })}><Mail aria-hidden="true" size={15} />Email the PDFs to the author</button>
             <p className="mt-3 text-xs text-ink-light">Publishing on KDP: upload the interior and the full cover, and say that the book was made with AI help when KDP asks. The description, keywords and categories are at the end of the manuscript file.</p>
           </section>
 
@@ -144,10 +148,49 @@ export function BookWorkspace({ projectId }: { projectId: string }) {
               </>
             )}
             <button type="button" className="mt-3 block text-sm text-teal underline underline-offset-4" disabled={busy} onClick={() => run(() => post(base), "Writing a fresh version.")}>Write it again from my interview</button>
-            {book.status === "approved" ? <button type="button" className="mt-2 block text-sm text-teal underline underline-offset-4" disabled={busy} onClick={() => run(() => post(`${base}/training`), "Training drafts are being made. Find them in the Skill Shot studio.")}>Editors: make training drafts from the chapters</button> : null}
           </section>
         </>
       ) : null}
+    </div>
+  );
+}
+
+/** The same panel as its own page, for links that already point at it. */
+export function BookWorkspace({ projectId }: { projectId: string }) {
+  return <div className="mx-auto max-w-3xl px-5 py-10"><CreateFromInterview projectId={projectId} /></div>;
+}
+
+type LessonResult = { created: number; updated: number; unchanged: number; skipped: Array<{ topic: string; reason: string }> };
+
+/**
+ * What the approved interview becomes, on demand: training lessons that go to the learning workflow, and a book. Both are made
+ * from the same checked content. Shown to the author, editors and admins once the author has approved the interview.
+ */
+export function CreateFromInterview({ projectId }: { projectId: string }) {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<LessonResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const makeTraining = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      setResult(await post<LessonResult>(`/api/contribute/projects/${projectId}/lessons`));
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : messageOf(caught));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="space-y-6">
+      <section aria-label="Training" className="border border-border bg-surface p-5">
+        <h2 className="font-display text-xl">Training content</h2>
+        <p className="mt-1 text-sm text-ink-mid">Arya turns the approved interview into lessons. Each lesson is approved by the author and an editor, then joins the learning workflow for learners.</p>
+        {error ? <p role="alert" className="mt-3 text-sm text-crimson">{error}</p> : null}
+        {result ? <p role="status" className="mt-3 text-sm text-teal">{result.created + result.updated} lesson draft{result.created + result.updated === 1 ? "" : "s"} ready{result.unchanged ? `, ${result.unchanged} unchanged` : ""}. They are waiting for approval in <Link className="underline underline-offset-4" href="/contribute/dashboard">the dashboard</Link>.</p> : null}
+        <button type="button" className="primary-button mt-3" disabled={busy} onClick={() => void makeTraining()}>{busy ? "Creating…" : result ? "Refresh the lessons" : "Create training content"}</button>
+      </section>
+      <section aria-label="Book" className="border border-border bg-surface p-5"><BookPanel projectId={projectId} /></section>
     </div>
   );
 }

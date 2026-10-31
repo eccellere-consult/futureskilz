@@ -21,7 +21,7 @@ export const bookInputSchema = z.object({
 export type BookInput = z.infer<typeof bookInputSchema>;
 export type BookOutput = { book: Book; source: "ai" | "outline"; notes: string[] };
 
-const RULES = `Craft rules:\n- ${CRAFT_RULES.join("\n- ")}\n\nBook structure:\n- ${BOOK_STRUCTURE.join("\n- ")}\n\nFact rule: ${FACT_RULE}\nWrite in first person as the author, in plain, warm, confident English (India). No flattery, no clichés, no filler. Reply with ONE JSON object only.`;
+const RULES = `Craft rules:\n- ${CRAFT_RULES.join("\n- ")}\n\nBook structure:\n- ${BOOK_STRUCTURE.join("\n- ")}\n\nFact rule: ${FACT_RULE}\nWhere an answer is marked as a correction the author made while checking the interview, it takes precedence over any earlier answer that says otherwise.\nWrite in first person as the author, in plain, warm, confident English (India). No flattery, no clichés, no filler. Reply with ONE JSON object only.`;
 
 const FRAME_SYSTEM = `You are an editor who shapes an experienced professional's interview into a short business book, in the manner of the best business writers. ${RULES}
 Return {"title","subtitle","tagline","audience","bigIdea","dedication","introduction":{"title","sections":[{"heading?","paragraphs":[]}]},"conclusion":{"title","sections":[...]},"aboutAuthor":[],"backCover":{"hook","bullets":[3 or 4],"blurb","authorBio","quote?"},"kdp":{"description","keywords":[5 to 7],"categories":[1 to 3],"language":"English"},"chapterTitles":[{"title","subtitle"}]}.

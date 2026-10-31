@@ -1,5 +1,6 @@
 "use client";
 
+import { CreateFromInterview } from "@/features/book/ui/BookWorkspace";
 import { AlertTriangle, CheckCircle2, ChevronDown, Download, FileText, Quote, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
@@ -94,6 +95,12 @@ export function ReviewWorkspace({ projectId }: { projectId: string }) {
         <p className="mt-4 flex gap-2 border-l-2 border-gold bg-gold-pale px-4 py-2 text-sm" role="status">
           <AlertTriangle aria-hidden="true" className="mt-0.5 shrink-0" size={16} /> You changed statements after approving. Approve again when you are happy; lessons are only built from an approved version.
         </p>
+      ) : null}
+
+      {!withdrawn ? (
+        <section aria-label="Create from this interview" className="mt-8">
+          {approved && !data.changedSinceApproval ? <CreateFromInterview projectId={projectId} /> : <p className="border border-border bg-surface p-4 text-sm text-ink-mid">When you have checked everything below and approved it, Arya can turn it into training lessons and a book, whenever you ask.</p>}
+        </section>
       ) : null}
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
