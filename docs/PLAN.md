@@ -11,6 +11,8 @@ About **60% of the Master Build scope is built** (40% on 26 Oct). Phases 1 to 6 
 **What is missing, in order of importance** (full list in `docs/v1.3-gap-analysis.md`):
 
 1. **Content can only be created from an Arya interview.** A PDF, Word file, PowerPoint, recording, YouTube link or article cannot become a Skill Shot on its own; uploads only support an interview. This is Phase 7.
+2. **The Skill Graph has one axis, not six** (function, industry, seniority, level, journey stage, plus pillar). Discovery by role or industry and the enterprise portal depend on it. Phase 8.
+3. **Learner delivery basics v1.3 treats as Release 1 are missing:** PWA and install, streaks, certificates, scheduled notifications, cohorts, MSME hub, blog. Phases 9 and 10.
 4. **Nine documents or decisions conflict** (channel, Skill Shot format, skills model, design system and others): `docs/v1.3-gap-analysis.md` section 5 gives a recommendation for each.
 
 **Recommended next pick: Phase 0, then Phase 7.** Business tracks (Razorpay, Meta WhatsApp, GST review, DPDP) run in parallel (section 6).
@@ -92,6 +94,7 @@ Goal: one learner, one target role, one journey that mixes a coach's lesson and 
 2. **Skill mapping:** map each approved fact and lesson to graph skills and levels (rules first, AI-assisted, the coach confirms).
 3. **Target role, gap engine, journey engine v2:** goal to target profile to prioritised gaps (gap size, criticality, prerequisites, time, deadline) to a sequenced journey. Prioritise by goal relevance, proficiency gap, urgency, prerequisite value, evidence confidence and available time, as the product standard requires.
 4. **One Skill Shot standard:** bring generated coach lessons and the five older Skill Shots into the blueprint form (case, concept, method, challenge, transfer task, source map), with the rubric as the publication gate and attribution kept.
+5. **Instructional Design Agent:** from an approved knowledge package, draft a Skill Shot blueprint with the rubric as a blocker; the coach and an editor review it before it is live. Reuse the existing editor and coach approval steps for designed Skill Shots.
 6. **Evidence from designed Skill Shots:** record the check-in and challenge results on the learner's account (today only the device), so progression, the Passport and the coach's dashboard all use them.
 7. **Content wave 1:** 12 Skill Shots (5 pillars, 3 priority roles), each reviewed by a person.
 
@@ -210,15 +213,10 @@ Rendered video and voice generation agents (HeyGen, Gemini, Veo and Descript too
 - **Languages:** English first; Hindi (about a fifth of the library) after Phase 9.
 - **Approval:** an editor plus the source's owner (the coach or contributor whose material it is) approve before learners see a Skill Shot or source-based lesson.
 
-**Still open** (each has a proposal):
-
-These remain open; each has a proposal, so work can start on the proposals. (D-numbers refer to `docs/v1.3-gap-analysis.md` section 5.)
+**Still open.** These remain open; each has a proposal, so work can start on the proposals. (D-numbers refer to `docs/v1.3-gap-analysis.md` section 5.)
 
 1. **Which document governs where they differ** (`docs/context/README.md`). Proposed: Master Build for product and data; Blueprint for channels, payments and content production.
-2. **Skills model:** the 7 intelligence families, the 5 THINK/CREATE/LEAD/ADAPT/AI+TECH pillars, or a mapping. Proposed: the families are the Skill Graph; the pillars are a learner-friendly view over it.
-3. **Skill Shot format and length:** 3-minute video, about 10-minute multi-format, or the new 5 to 10 minute interactive lesson taught by Arya. Proposed: one object with a format and a duration; the interactive lesson with Arya is the standard now, video is a later renderer.
 4. **Database:** Hostinger has MariaDB only. Proposed: stay on MariaDB, keep embeddings in JSON and rank in the app at current scale, revisit at a VPS move.
-5. **Creator pay formula:** weighted pool versus the Qualified Value Score (both are built and can be compared in Admin, then Earnings); who approves it.
 
 7. **New:** should Arya's studio voice be paid for from day one (cost per learner) or limited to greetings and coach sessions, with the device voice elsewhere?
 14. **New (v1.3):** where the O*NET import script, Manufacturing seed and review report live; they are not in this repository and Phase 8 needs them.
