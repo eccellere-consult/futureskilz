@@ -11,8 +11,6 @@ About **60% of the Master Build scope is built** (40% on 26 Oct). Phases 1 to 6 
 **What is missing, in order of importance** (full list in `docs/v1.3-gap-analysis.md`):
 
 1. **Content can only be created from an Arya interview.** A PDF, Word file, PowerPoint, recording, YouTube link or article cannot become a Skill Shot on its own; uploads only support an interview. This is Phase 7.
-2. **The Skill Graph has one axis, not six** (function, industry, seniority, level, journey stage, plus pillar). Discovery by role or industry and the enterprise portal depend on it. Phase 8.
-3. **Learner delivery basics v1.3 treats as Release 1 are missing:** PWA and install, streaks, certificates, scheduled notifications, cohorts, MSME hub, blog. Phases 9 and 10.
 4. **Nine documents or decisions conflict** (channel, Skill Shot format, skills model, design system and others): `docs/v1.3-gap-analysis.md` section 5 gives a recommendation for each.
 
 **Recommended next pick: Phase 0, then Phase 7.** Business tracks (Razorpay, Meta WhatsApp, GST review, DPDP) run in parallel (section 6).
@@ -94,7 +92,6 @@ Goal: one learner, one target role, one journey that mixes a coach's lesson and 
 2. **Skill mapping:** map each approved fact and lesson to graph skills and levels (rules first, AI-assisted, the coach confirms).
 3. **Target role, gap engine, journey engine v2:** goal to target profile to prioritised gaps (gap size, criticality, prerequisites, time, deadline) to a sequenced journey. Prioritise by goal relevance, proficiency gap, urgency, prerequisite value, evidence confidence and available time, as the product standard requires.
 4. **One Skill Shot standard:** bring generated coach lessons and the five older Skill Shots into the blueprint form (case, concept, method, challenge, transfer task, source map), with the rubric as the publication gate and attribution kept.
-5. **Instructional Design Agent:** from an approved knowledge package, draft a Skill Shot blueprint with the rubric as a blocker; the coach and an editor review it before it is live. Reuse the existing editor and coach approval steps for designed Skill Shots.
 6. **Evidence from designed Skill Shots:** record the check-in and challenge results on the learner's account (today only the device), so progression, the Passport and the coach's dashboard all use them.
 7. **Content wave 1:** 12 Skill Shots (5 pillars, 3 priority roles), each reviewed by a person.
 
@@ -207,7 +204,7 @@ Rendered video and voice generation agents (HeyGen, Gemini, Veo and Descript too
 - **Skill Shot format:** interactive lessons taught by Arya are the standard; rendered video and a video host are added later as a second renderer.
 - **Design system:** adopt the v1.3 palette (ink and gold, no purple), Lora and Inter, and dark mode, with an accessibility pass (Phase 9).
 - **Cohorts:** pass first, cohorts later (Phase 10 after Phase 9).
-
+- **Skills model and format:** the five pillars are the public view over the Skill Graph with all axes added; interactive Skill Shots are the standard.
 - **Creator pay formula:** v1.3's five-part weights (completion 25%, check-in correctness 25%, downstream uplift 30%, learner rating 10%, non-duplication 10%) become the default QVS definition. The business still approves a policy before anything is payable.
 - **SME interviews:** live voice from the start (needs transcription and a separate timestamped recording-consent step from day one; Phase 12 depends on Phase 7's transcription).
 - **Languages:** English first; Hindi (about a fifth of the library) after Phase 9.
@@ -215,9 +212,7 @@ Rendered video and voice generation agents (HeyGen, Gemini, Veo and Descript too
 
 **Still open** (each has a proposal):
 
-(D-numbers in later items refer to `docs/v1.3-gap-analysis.md` section 5.)
-
-These were open on 25 Oct and are still open. Each has a proposal, so work can start on the proposals.
+These remain open; each has a proposal, so work can start on the proposals. (D-numbers refer to `docs/v1.3-gap-analysis.md` section 5.)
 
 1. **Which document governs where they differ** (`docs/context/README.md`). Proposed: Master Build for product and data; Blueprint for channels, payments and content production.
 2. **Skills model:** the 7 intelligence families, the 5 THINK/CREATE/LEAD/ADAPT/AI+TECH pillars, or a mapping. Proposed: the families are the Skill Graph; the pillars are a learner-friendly view over it.
