@@ -393,3 +393,51 @@ export const bookProjects = mysqlTable(
   },
   (table) => [uniqueIndex("book_projects_project_idx").on(table.projectId), index("book_projects_contributor_idx").on(table.contributorId, table.updatedAt)],
 );
+
+/**
+ * Something the fraud rules noticed, for a person to review. A flag changes nothing until an admin confirms it: an open flag only
+ * lowers a lesson's trust a little, and a confirmed learner flag removes that learner's activity from allocations.
+ * One flag per subject, rule and window, so a rescan does not pile up duplicates.
+ */
+export const fraudFlags = mysqlTable(
+  "fraud_flags",
+  {
+    id: idColumn().primaryKey(),
+    subjectType: mysqlEnum("subject_type", ["learner", "lesson", "receipt"]).notNull(),
+    subjectRef: varchar("subject_ref", { length: 80 }).notNull(),
+    rule: varchar("rule", { length: 40 }).notNull(),
+    severity: mysqlEnum("severity", ["low", "medium", "high"]).notNull(),
+    windowKey: varchar("window_key", { length: 40 }).notNull().default("all"),
+    summary: varchar("summary", { length: 240 }).notNull(),
+    details: jsonColumn<Record<string, unknown>>("details"),
+    status: mysqlEnum("status", ["open", "confirmed", "dismissed"]).notNull().default("open"),
+    reviewedBy: referenceColumn("reviewed_by"),
+    reviewedAt: datetime("reviewed_at"),
+    note: text("note"),
+    createdAt: createdAtColumn(),
+  },
+  (table) => [uniqueIndex("fraud_flags_subject_idx").on(table.subjectType, table.subjectRef, table.rule, table.windowKey), index("fraud_flags_status_idx").on(table.status, table.createdAt)],
+);
+
+/** Promotions an admin runs: discount codes, extra free access and featured placement. Redemption is counted, never inferred. */
+export const campaigns = mysqlTable(
+  "campaigns",
+  {
+    id: idColumn().primaryKey(),
+    name: varchar("name", { length: 120 }).notNull(),
+    kind: mysqlEnum("kind", ["discount", "free_access", "featured"]).notNull(),
+    code: varchar("code", { length: 40 }),
+    percentOffBp: int("percent_off_bp").notNull().default(0),
+    extraFreePerPillar: int("extra_free_per_pillar").notNull().default(0),
+    startsAt: datetime("starts_at").notNull(),
+    endsAt: datetime("ends_at").notNull(),
+    maxRedemptions: int("max_redemptions"),
+    redemptions: int("redemptions").notNull().default(0),
+    status: mysqlEnum("status", ["draft", "active", "paused", "ended"]).notNull().default("draft"),
+    notes: text("notes"),
+    createdBy: referenceColumn("created_by"),
+    createdAt: createdAtColumn(),
+    updatedAt: updatedAtColumn(),
+  },
+  (table) => [uniqueIndex("campaigns_code_idx").on(table.code), index("campaigns_status_idx").on(table.status, table.endsAt)],
+);

@@ -45,6 +45,13 @@ export const revenuePolicySchema = z
       frequency: z.enum(["monthly", "quarterly"]),
       disputeWindowDays: z.number().int().min(0).max(365),
     }),
+    /**
+     * Which formula sizes each lesson's share of the pool. "weighted_pool" adds four measures by weight; "qvs" is the Qualified
+     * Value Score: a product of usage, depth, usefulness, quality, outcome, freshness and trust, so a lesson must be good on every
+     * measure to earn well. The business decides which governs; both run on the same data, so they can be compared first.
+     */
+    formula: z.enum(["weighted_pool", "qvs"]).default("weighted_pool"),
+    qvs: z.object({ freshnessHalfLifeDays: z.number().int().min(30).max(1825).default(365) }).default({ freshnessHalfLifeDays: 365 }),
     multiContributor: z.literal("by_lesson_attribution"),
     notes: z.string().max(2000).optional(),
   })
@@ -69,6 +76,8 @@ export function draftPolicyTemplate(): RevenuePolicy {
     usefulness: { minRatings: 5, priorWeight: 3, priorMean: 3 },
     antiGaming: { maxCountedEventsPerLearnerLessonDay: 3 },
     payout: { minPayoutMinor: 0, holdDays: 30, frequency: "monthly", disputeWindowDays: 30 },
+    formula: "weighted_pool",
+    qvs: { freshnessHalfLifeDays: 365 },
     multiContributor: "by_lesson_attribution",
     notes: "Template only. The contributor pool share is zero until the business sets it. Weights are illustrative.",
   };

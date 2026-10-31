@@ -10,6 +10,7 @@ import type { PolicyRecord } from "@/server/capture/earnings-service";
 import { formatMoney, messageOf, post, shortDate, useRemote } from "./api";
 
 type Receipt = { id: string; externalRef: string; grossMinor: number; refundMinor: number; feeMinor: number; taxMinor: number; currency: string; status: string; receivedAt: string };
+type FormulaComparison = { currency: string; poolMinor: number; openFlags: number; lessons: Array<{ lessonId: string; title: string; weightedMinor: number; qvsMinor: number }>; contributors: Array<{ contributorId: string; weightedMinor: number; qvsMinor: number }> };
 type RunResult = { run: AllocationRun; statements: Array<{ id: string; contributorId: string; status: string; totalMinor: number }>; inputsHash: string };
 
 const minor = (value: string): number => Math.round(Number.parseFloat(value || "0") * 100);
@@ -33,6 +34,7 @@ export function AdminEarnings() {
   const [chosen, setPeriod] = useState(() => ({ policyId: "", start: new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10), end: new Date(Date.now() + 86_400_000).toISOString().slice(0, 10) }));
   const period = { ...chosen, policyId: chosen.policyId || policies?.[0]?.id || "" };
   const [result, setResult] = useState<RunResult | null>(null);
+  const [comparison, setComparison] = useState<FormulaComparison | null>(null);
 
   const run = async (work: () => Promise<unknown>, done?: string) => {
     setBusy(true);
@@ -98,6 +100,11 @@ export function AdminEarnings() {
               <select className="field-input py-1.5! text-sm" onChange={(event) => set("receiptBasis", event.target.value as RevenuePolicy["receiptBasis"])} value={form.receiptBasis}>
                 <option value="gross">Gross receipts</option><option value="net_of_refunds">After refunds</option><option value="net_of_refunds_fees_tax">After refunds, fees and tax</option>
               </select></label>
+            <label className="col-span-2 block text-xs"><span className="font-mono text-[10px] uppercase text-ink-light">Which formula governs</span>
+              <select className="field-input py-1.5! text-sm" onChange={(event) => set("formula", event.target.value as RevenuePolicy["formula"])} value={form.formula}>
+                <option value="weighted_pool">Weighted pool (four measures, added by weight)</option><option value="qvs">Qualified Value Score (usage x depth x usefulness x quality x outcome x freshness x trust)</option>
+              </select></label>
+            {form.formula === "qvs" ? num("Freshness half-life (days)", form.qvs.freshnessHalfLifeDays, (v) => set("qvs", { freshnessHalfLifeDays: Math.max(30, Math.round(v)) })) : null}
             {num("Share of receipts to the contributor pool", form.contributorPoolBp / 100, (v) => set("contributorPoolBp", bp(String(v))), "%")}
             {num("Minimum payout", form.payout.minPayoutMinor / 100, (v) => set("payout", { ...form.payout, minPayoutMinor: minor(String(v)) }), form.currency)}
           </div>
@@ -148,6 +155,14 @@ export function AdminEarnings() {
             <label className="block text-xs"><span className="font-mono text-[10px] uppercase text-ink-light">Up to (not including)</span><input className="field-input py-1.5! text-sm" onChange={(event) => setPeriod({ ...period, end: event.target.value })} type="date" value={period.end} /></label>
           </div>
           <button className="primary-button mt-3" disabled={busy || !period.policyId} onClick={() => void run(async () => setResult(await post<RunResult>("/api/contribute/admin/allocations", { policyId: period.policyId, periodStart: `${period.start}T00:00:00Z`, periodEnd: `${period.end}T00:00:00Z` })))} type="button">Calculate</button>
+          <button className="ml-3 text-sm underline underline-offset-4" disabled={busy || !period.policyId} onClick={() => void run(async () => setComparison(await post<FormulaComparison>("/api/contribute/admin/allocations/compare", { policyId: period.policyId, periodStart: `${period.start}T00:00:00Z`, periodEnd: `${period.end}T00:00:00Z` })))} type="button">Compare the two formulas</button>
+          {comparison ? (
+            <div className="mt-3 text-xs">
+              <p className="font-mono text-[10px] uppercase text-ink-light">Same data, both formulas (nothing saved){comparison.openFlags ? ` · ${comparison.openFlags} fraud flags still open` : ""}</p>
+              <table className="mt-1 w-full text-left"><thead><tr><th className="py-1">Lesson</th><th>Weighted pool</th><th>QVS</th></tr></thead><tbody>{comparison.lessons.map((l) => <tr key={l.lessonId} className="border-t border-border"><td className="py-1">{l.title}</td><td>{formatMoney(l.weightedMinor, comparison.currency)}</td><td>{formatMoney(l.qvsMinor, comparison.currency)}</td></tr>)}</tbody></table>
+              <p className="mt-1 text-ink-light">Pool {formatMoney(comparison.poolMinor, comparison.currency)}. The governing formula is the one in the approved policy.</p>
+            </div>
+          ) : null}
         </div>
       </section>
 

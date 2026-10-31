@@ -253,6 +253,20 @@ export const additiveTables = [
       "CREATE INDEX `book_projects_contributor_idx` ON `book_projects` (`contributor_id`,`updated_at`);",
     ],
   },
+  {
+    table: "campaigns",
+    statements: [
+      "CREATE TABLE `campaigns` (\n\t`id` varchar(36) NOT NULL,\n\t`name` varchar(120) NOT NULL,\n\t`kind` enum('discount','free_access','featured') NOT NULL,\n\t`code` varchar(40),\n\t`percent_off_bp` int NOT NULL DEFAULT 0,\n\t`extra_free_per_pillar` int NOT NULL DEFAULT 0,\n\t`starts_at` datetime NOT NULL,\n\t`ends_at` datetime NOT NULL,\n\t`max_redemptions` int,\n\t`redemptions` int NOT NULL DEFAULT 0,\n\t`status` enum('draft','active','paused','ended') NOT NULL DEFAULT 'draft',\n\t`notes` text,\n\t`created_by` varchar(36),\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `campaigns_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `campaigns_code_idx` UNIQUE(`code`)\n);",
+      "CREATE INDEX `campaigns_status_idx` ON `campaigns` (`status`,`ends_at`);",
+    ],
+  },
+  {
+    table: "fraud_flags",
+    statements: [
+      "CREATE TABLE `fraud_flags` (\n\t`id` varchar(36) NOT NULL,\n\t`subject_type` enum('learner','lesson','receipt') NOT NULL,\n\t`subject_ref` varchar(80) NOT NULL,\n\t`rule` varchar(40) NOT NULL,\n\t`severity` enum('low','medium','high') NOT NULL,\n\t`window_key` varchar(40) NOT NULL DEFAULT 'all',\n\t`summary` varchar(240) NOT NULL,\n\t`details` json,\n\t`status` enum('open','confirmed','dismissed') NOT NULL DEFAULT 'open',\n\t`reviewed_by` varchar(36),\n\t`reviewed_at` datetime,\n\t`note` text,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `fraud_flags_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `fraud_flags_subject_idx` UNIQUE(`subject_type`,`subject_ref`,`rule`,`window_key`)\n);",
+      "CREATE INDEX `fraud_flags_status_idx` ON `fraud_flags` (`status`,`created_at`);",
+    ],
+  },
 ] as const;
 
 export type SchemaPlan = "migrate" | "add-columns";
