@@ -267,6 +267,53 @@ export const additiveTables = [
       "CREATE INDEX `fraud_flags_status_idx` ON `fraud_flags` (`status`,`created_at`);",
     ],
   },
+  {
+    table: "entitlements",
+    statements: [
+      "CREATE TABLE `entitlements` (\n\t`id` varchar(36) NOT NULL,\n\t`user_id` varchar(36) NOT NULL,\n\t`order_id` varchar(36) NOT NULL,\n\t`plan_id` varchar(36) NOT NULL,\n\t`starts_at` datetime NOT NULL,\n\t`ends_at` datetime NOT NULL,\n\t`status` enum('active','revoked') NOT NULL DEFAULT 'active',\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `entitlements_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `entitlements_order_idx` UNIQUE(`order_id`)\n);",
+      "ALTER TABLE `entitlements` ADD CONSTRAINT `entitlements_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;",
+      "ALTER TABLE `entitlements` ADD CONSTRAINT `entitlements_order_id_orders_id_fk` FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON DELETE restrict ON UPDATE no action;",
+      "ALTER TABLE `entitlements` ADD CONSTRAINT `entitlements_plan_id_plans_id_fk` FOREIGN KEY (`plan_id`) REFERENCES `plans`(`id`) ON DELETE restrict ON UPDATE no action;",
+      "CREATE INDEX `entitlements_user_idx` ON `entitlements` (`user_id`,`ends_at`);",
+    ],
+  },
+  {
+    table: "invoices",
+    statements: [
+      "CREATE TABLE `invoices` (\n\t`id` varchar(36) NOT NULL,\n\t`order_id` varchar(36) NOT NULL,\n\t`number` varchar(16) NOT NULL,\n\t`financial_year` varchar(5) NOT NULL,\n\t`issued_at` datetime NOT NULL,\n\t`customer_name` varchar(160) NOT NULL,\n\t`customer_email` varchar(254) NOT NULL,\n\t`customer_state` varchar(2) NOT NULL,\n\t`customer_gstin` varchar(15),\n\t`description` varchar(240) NOT NULL,\n\t`rate_bp` int NOT NULL,\n\t`taxable_minor` bigint NOT NULL,\n\t`cgst_minor` bigint NOT NULL DEFAULT 0,\n\t`sgst_minor` bigint NOT NULL DEFAULT 0,\n\t`igst_minor` bigint NOT NULL DEFAULT 0,\n\t`total_minor` bigint NOT NULL,\n\t`currency` varchar(3) NOT NULL,\n\t`supplier` json NOT NULL,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `invoices_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `invoices_order_idx` UNIQUE(`order_id`),\n\tCONSTRAINT `invoices_number_idx` UNIQUE(`number`)\n);",
+      "ALTER TABLE `invoices` ADD CONSTRAINT `invoices_order_id_orders_id_fk` FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON DELETE restrict ON UPDATE no action;",
+    ],
+  },
+  {
+    table: "orders",
+    statements: [
+      "CREATE TABLE `orders` (\n\t`id` varchar(36) NOT NULL,\n\t`user_id` varchar(36) NOT NULL,\n\t`plan_id` varchar(36) NOT NULL,\n\t`campaign_id` varchar(36),\n\t`list_minor` bigint NOT NULL,\n\t`discount_minor` bigint NOT NULL DEFAULT 0,\n\t`amount_minor` bigint NOT NULL,\n\t`refunded_minor` bigint NOT NULL DEFAULT 0,\n\t`currency` varchar(3) NOT NULL,\n\t`status` enum('created','paid','failed','refunded') NOT NULL DEFAULT 'created',\n\t`provider` varchar(16) NOT NULL,\n\t`provider_order_id` varchar(80) NOT NULL,\n\t`provider_payment_id` varchar(80),\n\t`customer_state` varchar(2) NOT NULL,\n\t`customer_gstin` varchar(15),\n\t`paid_at` datetime,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `orders_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `orders_provider_order_idx` UNIQUE(`provider`,`provider_order_id`)\n);",
+      "ALTER TABLE `orders` ADD CONSTRAINT `orders_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE restrict ON UPDATE no action;",
+      "ALTER TABLE `orders` ADD CONSTRAINT `orders_plan_id_plans_id_fk` FOREIGN KEY (`plan_id`) REFERENCES `plans`(`id`) ON DELETE restrict ON UPDATE no action;",
+      "CREATE INDEX `orders_user_idx` ON `orders` (`user_id`,`created_at`);",
+    ],
+  },
+  {
+    table: "payment_events",
+    statements: [
+      "CREATE TABLE `payment_events` (\n\t`id` varchar(36) NOT NULL,\n\t`provider` varchar(16) NOT NULL,\n\t`event_id` varchar(120) NOT NULL,\n\t`type` varchar(60) NOT NULL,\n\t`outcome` varchar(120) NOT NULL DEFAULT '',\n\t`received_at` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `payment_events_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `payment_events_event_idx` UNIQUE(`provider`,`event_id`)\n);",
+    ],
+  },
+  {
+    table: "payouts",
+    statements: [
+      "CREATE TABLE `payouts` (\n\t`id` varchar(36) NOT NULL,\n\t`statement_id` varchar(36) NOT NULL,\n\t`contributor_id` varchar(36) NOT NULL,\n\t`amount_minor` bigint NOT NULL,\n\t`currency` varchar(3) NOT NULL,\n\t`status` enum('queued','paid','failed') NOT NULL DEFAULT 'queued',\n\t`provider` varchar(16) NOT NULL DEFAULT 'manual',\n\t`reference` varchar(120),\n\t`note` text,\n\t`created_by` varchar(36),\n\t`paid_at` datetime,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `payouts_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `payouts_statement_idx` UNIQUE(`statement_id`)\n);",
+      "ALTER TABLE `payouts` ADD CONSTRAINT `payouts_statement_id_kc_statements_id_fk` FOREIGN KEY (`statement_id`) REFERENCES `kc_statements`(`id`) ON DELETE restrict ON UPDATE no action;",
+      "ALTER TABLE `payouts` ADD CONSTRAINT `payouts_contributor_id_users_id_fk` FOREIGN KEY (`contributor_id`) REFERENCES `users`(`id`) ON DELETE restrict ON UPDATE no action;",
+      "CREATE INDEX `payouts_status_idx` ON `payouts` (`status`,`created_at`);",
+    ],
+  },
+  {
+    table: "plans",
+    statements: [
+      "CREATE TABLE `plans` (\n\t`id` varchar(36) NOT NULL,\n\t`code` varchar(40) NOT NULL,\n\t`name` varchar(120) NOT NULL,\n\t`description` varchar(400) NOT NULL DEFAULT '',\n\t`amount_minor` bigint NOT NULL,\n\t`currency` varchar(3) NOT NULL DEFAULT 'INR',\n\t`duration_days` int NOT NULL,\n\t`active` boolean NOT NULL DEFAULT false,\n\t`sort_order` int NOT NULL DEFAULT 0,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `plans_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `plans_code_idx` UNIQUE(`code`)\n);",
+    ],
+  },
 ] as const;
 
 export type SchemaPlan = "migrate" | "add-columns";
