@@ -5,7 +5,7 @@ import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { evaluateLessonGates, type Gate } from "@/features/capture/gates";
 import { buildKnowledgePackage, publishableText } from "@/features/capture/knowledge-package";
 import { allowedActions, transition, type Actor, type LessonAction, type LessonStatus } from "@/features/capture/lesson-workflow";
-import { blueprintLessons, buildLearningPaths, checkLesson, type LearningPath, type LessonSpec } from "@/features/capture/lessons";
+import { LESSON_TOPICS, blueprintLessons, buildLearningPaths, checkLesson, type LearningPath, type LessonSpec } from "@/features/capture/lessons";
 import { cleanSkillMap, suggestSkills, type LessonSkillMap } from "@/features/pathway/skill-map";
 import { kcContributors, kcDocuments, kcLessonAttribution, kcLessons, kcProjects } from "@/server/db/schema";
 
@@ -24,7 +24,7 @@ async function sourceTexts(executor: Executor, projectId: string, factIds: strin
 }
 
 /** Editors and admins turn an approved package into lesson drafts. The contributor's confirmed words are the only source. */
-export async function generateLessons(actorId: string, projectId: string): Promise<{ created: number; updated: number; unchanged: number; skipped: Array<{ topic: string; reason: string }> }> {
+export async function generateLessons(actorId: string, projectId: string): Promise<{ created: number; updated: number; unchanged: number; skipped: Array<{ topic: string; reason: string }>; note?: string }> {
   const db = await database();
   const roles = await rolesOf(db, actorId);
   const [own] = await db.select({ owner: kcProjects.contributorId }).from(kcProjects).where(eq(kcProjects.id, projectId)).limit(1);
@@ -98,7 +98,11 @@ export async function generateLessons(actorId: string, projectId: string): Promi
       await audit(tx, actorId, "lesson.create", "lesson", id, { version });
       created += 1;
     }
-    return { created, updated, unchanged, skipped };
+    // Say why, in plain words, when nothing could be made, instead of a silent "0 drafted".
+    const note = created + updated + unchanged === 0 && skipped.length === 0
+      ? `Nothing could be drafted yet. There is no length limit: lessons are made from confirmed statements about ${LESSON_TOPICS}. This interview has ${pkg.stats.confirmed} confirmed statement${pkg.stats.confirmed === 1 ? "" : "s"}, and none of them answer those questions. Ask the coach to continue the interview on those topics and approve again.`
+      : undefined;
+    return { created, updated, unchanged, skipped, note };
   });
 }
 

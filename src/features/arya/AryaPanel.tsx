@@ -1,5 +1,6 @@
 "use client";
 
+import { VoiceSourcePicker } from "./VoiceSourcePicker";
 import { Square, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
@@ -49,6 +50,7 @@ export function AryaPanel({ script, autoKey, language = "en", className = "", st
           {voice.enabled ? <Volume2 aria-hidden="true" size={15} /> : <VolumeX aria-hidden="true" size={15} />} Arya speaks on her own: {voice.enabled ? "on" : "off"}
         </button>
       </div>
+      <VoiceSourcePicker className="mt-3 text-cream/85" />
     </div>
   );
 }

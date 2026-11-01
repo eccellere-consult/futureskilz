@@ -27,6 +27,11 @@ export const ARYA_SPEAK_ENDPOINT = '/api/arya/speech';
 
 const CLOSED: MouthShape = { open: 0, wide: 0, round: 0 };
 const MUTE_KEY = 'arya_muted';
+const SOURCE_KEY = 'arya_voice_source';
+
+/** Where Arya's voice comes from. "auto" is the site's default studio voice, falling back to the device; "device" never calls an AI service. */
+export type VoiceSource = 'auto' | 'device' | 'openai' | 'xai';
+const SOURCES: VoiceSource[] = ['auto', 'device', 'openai', 'xai'];
 const MAX_CACHED_CLIPS = 24;
 
 // A valid, empty WAV — played inside the tap gesture purely to unlock audio.
@@ -66,6 +71,25 @@ class AryaVoice {
     } catch {
       // storage can be blocked — default to audible
     }
+  }
+
+  /** The listener's chosen voice source. A device voice costs nothing and uses no AI service. */
+  getSource(): VoiceSource {
+    try {
+      const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(SOURCE_KEY) : null;
+      return SOURCES.includes(stored as VoiceSource) ? (stored as VoiceSource) : 'auto';
+    } catch {
+      return 'auto';
+    }
+  }
+
+  setSource(source: VoiceSource): void {
+    try {
+      localStorage.setItem(SOURCE_KEY, source);
+    } catch {
+      // not worth surfacing
+    }
+    this.stop();
   }
 
   get speaking(): boolean {
@@ -231,18 +255,21 @@ class AryaVoice {
 
   /** Blob URL of the server-synthesised clip, or null if the server voice is unavailable. */
   private async fetchClip(text: string): Promise<string | null> {
-    const cached = this.clips.get(text);
+    const source = this.getSource();
+    if (source === 'device') return null; // the listener chose their own device voice: no AI service is called
+    const cacheKey = `${source}:${text}`;
+    const cached = this.clips.get(cacheKey);
     if (cached) return cached;
     try {
       const res = await fetch(ARYA_SPEAK_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ text }),
+        body: JSON.stringify(source === 'auto' ? { text } : { text, provider: source }),
       });
       if (!res.ok) return null;
       const url = URL.createObjectURL(await res.blob());
-      this.clips.set(text, url);
+      this.clips.set(cacheKey, url);
       if (this.clips.size > MAX_CACHED_CLIPS) {
         const oldest = this.clips.keys().next().value as string;
         URL.revokeObjectURL(this.clips.get(oldest)!);

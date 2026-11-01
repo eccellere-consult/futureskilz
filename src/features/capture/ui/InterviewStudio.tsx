@@ -1,5 +1,6 @@
 "use client";
 
+import { VoiceSourcePicker } from "@/features/arya/VoiceSourcePicker";
 import { ArrowRight, CheckCircle2, Download, FileUp, Mic, MicOff, Pause, Repeat2, SkipForward, Volume2, VolumeX } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -327,6 +328,10 @@ export function InterviewStudio({ projectId }: { projectId: string }) {
               </button>
             ) : null}
             <button className="text-teal underline underline-offset-4" onClick={() => setShowTranscript((open) => !open)} type="button">{showTranscript ? "Hide" : "Show"} captions and transcript</button>
+            <details className="basis-full">
+              <summary className="cursor-pointer text-teal underline underline-offset-4">Choose Arya&apos;s voice</summary>
+              <VoiceSourcePicker className="mt-2 text-ink" />
+            </details>
           </section>
 
           {summary ? (
