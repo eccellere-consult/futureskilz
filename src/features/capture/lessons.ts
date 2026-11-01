@@ -394,8 +394,72 @@ export function blueprintLessons(pkg: KnowledgePackage, ctx: Ctx): { lessons: Le
     });
   }
 
+  // The closing questions every interview asks (a named method, a setback, a defining moment, the one big idea). They make short
+  // interviews teachable too: a coach who only answered these still gets lessons, and the book and the lessons say the same things.
+  const method = pick(items, "o.book_method")[0];
+  if (method) {
+    const stepList = sentencesOf(method.text).filter(Boolean);
+    const named = /(?:call(?:ed)?|name(?:d)?)\s+(?:it\s+)?(?:the\s+)?["“]?([A-Z][A-Za-z0-9' -]{2,40})/.exec(method.text)?.[1]?.trim();
+    add({
+      title: `How to: ${named ?? "a method from experience"}`,
+      stage: "process",
+      proficiency: "working",
+      objective: `Apply ${named ?? "this method"} to a task in your own work, naming each step and what you would check at the end.`,
+      roleId: method.roleId,
+      concept: [method],
+      steps: stepList.length > 1 ? stepList : [],
+      example: pick(items, "o.book_moment")[0] ?? null,
+      caution: pick(items, "o.book_mistake")[0] ?? null,
+      guidance: null,
+      demonstration: null,
+      prerequisites: [],
+      nextStep: "practise the method on a real task",
+    });
+  }
+  const stories: Array<[string, string]> = [["o.book_mistake", "Case: a setback and what it taught"], ["o.book_moment", "Case: a defining moment from the career"]];
+  for (const [key, title] of stories) {
+    const story = pick(items, key)[0];
+    if (!story) continue;
+    add({
+      title,
+      stage: "advanced",
+      proficiency: "expert",
+      objective: "Justify the decisions made in a real case and decide what you would do the same or differently.",
+      roleId: story.roleId,
+      concept: [story],
+      steps: [],
+      example: null,
+      caution: null,
+      guidance: null,
+      demonstration: null,
+      prerequisites: [],
+      nextStep: "apply the lesson to a case from your own work",
+    });
+  }
+  const bigIdea = pick(items, "o.book_idea")[0];
+  if (bigIdea) {
+    add({
+      title: "The one idea to remember",
+      stage: "context",
+      proficiency: "foundational",
+      objective: "Explain the central idea in your own words and name one place you could use it this week.",
+      roleId: bigIdea.roleId,
+      concept: [bigIdea],
+      steps: [],
+      example: null,
+      caution: null,
+      guidance: null,
+      demonstration: null,
+      prerequisites: [],
+      nextStep: "a method or case from the contributor's career",
+    });
+  }
+
   return { lessons, skipped };
 }
+
+/** What lessons can be made from, in plain words: shown to an editor when an interview yields none. */
+export const LESSON_TOPICS = "how a process is done step by step, how the industry works, how work flows across the business, what the role is for, its measures, its tools, what experts notice, a success or challenge story, or the closing questions on a method, a setback, a defining moment or the one big idea";
 
 export type LessonIssue = { id: string; message: string };
 

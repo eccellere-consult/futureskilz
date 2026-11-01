@@ -28,8 +28,8 @@ export function EditorDesk() {
     setError(null);
     setNotice(null);
     try {
-      const result = await post<{ created: number; updated: number; unchanged: number; skipped: Array<{ topic: string; reason: string }> }>(`/api/contribute/projects/${project.id}/lessons`);
-      setNotice(`${project.title}: ${result.created} new, ${result.updated} refreshed, ${result.unchanged} unchanged.${result.skipped.length ? ` Not enough confirmed material for: ${result.skipped.map((s) => `${s.topic} (${s.reason})`).join("; ")}` : ""}`);
+      const result = await post<{ created: number; updated: number; unchanged: number; skipped: Array<{ topic: string; reason: string }>; note?: string }>(`/api/contribute/projects/${project.id}/lessons`);
+      setNotice(`${project.title}: ${result.created} new, ${result.updated} refreshed, ${result.unchanged} unchanged.${result.note ? ` ${result.note}` : ""}${result.skipped.length ? ` Not enough confirmed material for: ${result.skipped.map((s) => `${s.topic} (${s.reason})`).join("; ")}` : ""}`);
       staff.reload();
       lessonList.reload();
     } catch (caught) {

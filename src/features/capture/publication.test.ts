@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { fact, role, seg } from "./fixtures";
 import { evaluateLessonGates, evaluatePackageGates, blockingFailures, REQUIRED_CONSENTS, type ConsentState } from "./gates";
-import { buildKnowledgePackage, publishableText, sectionOf } from "./knowledge-package";
+import { buildKnowledgePackage, publishableText, sectionOf, type KnowledgePackage } from "./knowledge-package";
 import { blueprintLessons, buildLearningPaths, checkLesson, recommendEntries } from "./lessons";
 import { renderSkillMd, skillName, type SkillMeta } from "./skill-md";
 import { buildTimeline } from "./timeline";
@@ -194,5 +194,28 @@ describe("lessons", () => {
     const rec = recommendEntries(readiness, [readiness.entries[0].slug]);
     expect(rec.skippable).toHaveLength(1);
     expect(rec.next?.slug).not.toBe(readiness.entries[0].slug);
+  });
+});
+
+describe("lessons from the closing questions", () => {
+  const item = (questionKey: string, text: string, n: number) => ({ factId: `f${n}-aaaaaa`, title: questionKey, text, kind: "direct_statement" as const, reviewStatus: "confirmed" as const, confidence: "high" as const, roleId: null, processId: null, refs: [`S${n}`], details: { questionKey }, anonymized: false });
+  const pkgOf = (items: ReturnType<typeof item>[]): KnowledgePackage => ({ mode: "publish", sections: [{ id: "A" as never, number: 1, title: "Answers", items }], sourceMap: [], withheld: [], stats: { included: items.length, confirmed: items.length, unconfirmed: 0, machineExtracted: 0 } });
+  const ctx = { contributor: "Asha Rao", roles: [], now: "2026-11-01T00:00:00Z" };
+
+  it("makes lessons from a short interview that only answered the closing questions", () => {
+    const pkg = pkgOf([
+      item("o.book_method", "I call it the Three Quote Rule. Get three quotes. Compare total cost, not price. Negotiate once, in writing.", 1),
+      item("o.book_mistake", "I once accepted the first quote under time pressure and paid a fifth more for a year.", 2),
+      item("o.book_moment", "On my first day in purchasing, a supplier called to say our line would stop on Friday.", 3),
+      item("o.book_idea", "Good purchasing protects the line, not the price.", 4),
+    ]);
+    const { lessons } = blueprintLessons(pkg, ctx);
+    expect(lessons.map((l) => l.title)).toEqual(expect.arrayContaining(["How to: Three Quote Rule", "Case: a setback and what it taught", "Case: a defining moment from the career", "The one idea to remember"]));
+    const how = lessons.find((l) => l.title.startsWith("How to"))!;
+    expect(how.narration.join(" ")).toContain("Compare total cost");
+  });
+
+  it("makes no lesson, and no error, when nothing matches a lesson topic", () => {
+    expect(blueprintLessons(pkgOf([item("a.teach", "I want newcomers to learn patience.", 1)]), ctx).lessons).toEqual([]);
   });
 });
