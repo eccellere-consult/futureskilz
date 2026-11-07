@@ -35,6 +35,8 @@ export function SourceStudio({ existingProjectId }: { existingProjectId: string 
   const [error, setError] = useState<string | null>(null);
   const [added, setAdded] = useState<Added[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
+  const folderInput = useRef<HTMLInputElement>(null);
+  const [progress, setProgress] = useState<string | null>(null);
 
   async function start() {
     if (!aiOk) return setError("Please tick the box to let AI read your material.");
@@ -50,6 +52,9 @@ export function SourceStudio({ existingProjectId }: { existingProjectId: string 
     }
   }
 
+  const SUPPORTED = [".pdf", ".docx", ".txt", ".md", ".csv", ".xlsx", ".xls"];
+  const MAX_FILES = 100;
+
   async function add() {
     if (!projectId) return;
     if (!ownership) return setError("Say whether this material is yours, shared with permission, or belongs to someone else.");
@@ -60,15 +65,33 @@ export function SourceStudio({ existingProjectId }: { existingProjectId: string 
       let result: Result;
       let name: string;
       if (mode === "file") {
-        const file = fileInput.current?.files?.[0];
-        if (!file) throw new Error("Choose a file first.");
-        const form = new FormData();
-        form.set("file", file);
-        form.set("ownership", ownership);
-        form.set("attested", "true");
-        result = await api<Result>(`/api/contribute/projects/${projectId}/uploads`, { method: "POST", body: form });
-        name = file.name;
+        const chosen = [...(fileInput.current?.files ?? []), ...(folderInput.current?.files ?? [])];
+        const supported = chosen.filter((file) => SUPPORTED.some((ext) => file.name.toLowerCase().endsWith(ext)));
+        const skipped = chosen.length - supported.length;
+        if (!supported.length) throw new Error(chosen.length ? "None of those files are a type I can read (PDF, Word, text, CSV or Excel)." : "Choose one or more files, or a folder, first.");
+        const batch = supported.slice(0, MAX_FILES);
+        const notes: string[] = [];
+        if (skipped) notes.push(`${skipped} file${skipped === 1 ? "" : "s"} of another type ${skipped === 1 ? "was" : "were"} left out.`);
+        if (supported.length > batch.length) notes.push(`Only the first ${MAX_FILES} files were added; add the rest in another round.`);
+        for (const [index, file] of batch.entries()) {
+          setProgress(`Reading file ${index + 1} of ${batch.length}: ${file.name}`);
+          const label = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+          try {
+            const form = new FormData();
+            form.set("file", file);
+            form.set("ownership", ownership);
+            form.set("attested", "true");
+            const one = await api<Result>(`/api/contribute/projects/${projectId}/uploads`, { method: "POST", body: form });
+            setAdded((list) => [...list, { name: label, result: one }]);
+          } catch (caught) {
+            setAdded((list) => [...list, { name: label, result: { id: "", status: "failed", note: messageOf(caught), summary: null, factsAdded: 0, duplicate: false } }]);
+          }
+        }
         if (fileInput.current) fileInput.current.value = "";
+        if (folderInput.current) folderInput.current.value = "";
+        setProgress(null);
+        if (notes.length) setError(notes.join(" "));
+        return;
       } else {
         result = await post<Result>(`/api/contribute/projects/${projectId}/paste`, { title: pasteTitle, text: pasted, url, ownership, attested: true });
         name = pasteTitle || "Pasted text";
@@ -81,6 +104,7 @@ export function SourceStudio({ existingProjectId }: { existingProjectId: string 
       setError(messageOf(caught));
     } finally {
       setBusy(false);
+      setProgress(null);
     }
   }
 
@@ -110,10 +134,16 @@ export function SourceStudio({ existingProjectId }: { existingProjectId: string 
             ))}
           </div>
           {mode === "file" ? (
-            <label className="mt-3 block text-xs">
-              <span className="font-mono text-[10px] uppercase text-ink-light">PDF, Word, text, CSV or Excel, up to 5 MB</span>
-              <input accept=".pdf,.docx,.txt,.md,.csv,.xlsx,.xls" className="mt-1 block w-full text-sm" ref={fileInput} type="file" />
-            </label>
+            <div className="mt-3 grid gap-3 text-xs">
+              <label className="block">
+                <span className="font-mono text-[10px] uppercase text-ink-light">Files: PDF, Word, text, CSV or Excel, up to 25 MB each. Pick as many as you like.</span>
+                <input accept=".pdf,.docx,.txt,.md,.csv,.xlsx,.xls" className="mt-1 block w-full text-sm" multiple ref={fileInput} type="file" />
+              </label>
+              <label className="block">
+                <span className="font-mono text-[10px] uppercase text-ink-light">Or a whole folder (every readable file inside it, including sub-folders, up to 100 at a time)</span>
+                <input className="mt-1 block w-full text-sm" ref={folderInput} type="file" {...({ webkitdirectory: "", directory: "", multiple: true } as object)} />
+              </label>
+            </div>
           ) : (
             <div className="mt-3 grid gap-3">
               <label className="block text-xs">
@@ -141,10 +171,11 @@ export function SourceStudio({ existingProjectId }: { existingProjectId: string 
             <input checked={attested} className="mt-1" onChange={(event) => setAttested(event.target.checked)} type="checkbox" />
             <span><ShieldCheck aria-hidden="true" className="mr-1 inline" size={14} />{ATTESTATION_TEXT}</span>
           </label>
-          <button className="primary-button mt-4" disabled={busy} onClick={() => void add()} type="button">{busy ? "Reading…" : "Read this"}</button>
+          <button className="primary-button mt-4" disabled={busy} onClick={() => void add()} type="button">{busy ? "Reading…" : mode === "file" ? "Read these files" : "Read this"}</button>
         </section>
       )}
 
+      {progress ? <p className="mt-3 text-sm" role="status">{progress}</p> : null}
       {error ? <p className="mt-3 text-sm text-crimson" role="alert">{error}</p> : null}
       {added.length ? (
         <ul aria-label="Added so far" className="mt-4 grid gap-2">

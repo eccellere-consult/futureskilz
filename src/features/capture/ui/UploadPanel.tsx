@@ -47,7 +47,7 @@ export function UploadPanel({ projectId, roles, onDone }: { projectId: string; r
       <p className="mt-1 text-xs leading-5 text-ink-mid">A CV, process note, slide deck, spreadsheet or template. I read the text, keep the page or sheet it came from, and suggest facts for you to confirm. I treat it as information to read, never as instructions.</p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <label className="block text-xs">
-          <span className="font-mono text-[10px] uppercase text-ink-light">File (PDF, Word, text, CSV or Excel, up to 5 MB)</span>
+          <span className="font-mono text-[10px] uppercase text-ink-light">File (PDF, Word, text, CSV or Excel, up to 25 MB)</span>
           <input accept=".pdf,.docx,.txt,.md,.csv,.xlsx,.xls" className="mt-1 block w-full text-sm" ref={input} type="file" />
         </label>
         <label className="block text-xs">

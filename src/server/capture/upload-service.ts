@@ -14,7 +14,7 @@ import { kcFactRevisions, kcFactSources, kcFacts, kcRoles, kcSegments, kcUploads
 
 import { readWithAi } from "./extract-ai";
 import { CaptureError, audit, database, loadRoles, newUuid, nextSeq, requireProject, toSegment } from "./shared";
-import { MAX_UPLOAD_BYTES, SUPPORTED_EXTENSIONS, readUpload } from "./upload-text";
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, SUPPORTED_EXTENSIONS, readUpload } from "./upload-text";
 
 
 const MAX_AI_BATCHES = 6;
@@ -46,7 +46,7 @@ export async function addUpload(userId: string, projectId: string, file: { name:
     if (!meta.attested) throw new CaptureError(400, "Please tick the box confirming you may use this material before it is read.");
   }
   if (file.bytes.byteLength === 0) throw new CaptureError(400, "That file is empty.");
-  if (file.bytes.byteLength > MAX_UPLOAD_BYTES) throw new CaptureError(413, "That file is larger than 5 MB.");
+  if (file.bytes.byteLength > MAX_UPLOAD_BYTES) throw new CaptureError(413, `That file is larger than ${MAX_UPLOAD_MB} MB. Split it, or paste its text.`);
   const filename = file.name.replace(/[\\/\u0000-\u001f]/g, "_").slice(0, 255) || "upload";
   const checksum = createHash("sha256").update(file.bytes).digest("hex");
 
