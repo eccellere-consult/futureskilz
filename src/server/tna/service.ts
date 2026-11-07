@@ -2,12 +2,14 @@ import "server-only";
 
 import { and, desc, eq, isNull } from "drizzle-orm";
 
+import { assistInputSchema, scaffoldAssist, type AssistResult } from "@/features/tna/assist";
 import { toSkillShotBriefs } from "@/features/tna/briefs";
 import { checkTree, type TreeCheck } from "@/features/tna/check";
 import { addNode, flattenDraft, indentNode, mergeNodes, moveNode, outdentNode, removeNode, type Change } from "@/features/tna/tree";
 import { knownSkills, needSchema, programBriefSchema, type Need, type ProgramBrief, type TopicNode } from "@/features/tna/types";
 import { DatabaseAgentRunRecorder } from "@/server/agents/database-recorder";
 import { AgentRunner } from "@/server/agents/runner";
+import { createBriefAssistAgent } from "@/server/agents/training-brief-assist";
 import { createTrainingNeedsAgent } from "@/server/agents/training-needs";
 import { CaptureError, audit, database, newUuid, rolesOf } from "@/server/capture/shared";
 import { createDatabase } from "@/server/db/client";
@@ -93,6 +95,21 @@ async function saveNodes(programId: string, nodes: TopicNode[]): Promise<void> {
     }
     await tx.update(tnaPrograms).set({ status: "draft" }).where(and(eq(tnaPrograms.id, programId), eq(tnaPrograms.status, "approved")));
   });
+}
+
+/** Suggests the empty boxes of a new plan and asks the few questions that would change them. One short AI call; nothing is saved. */
+export async function assistBrief(userId: string, input: unknown): Promise<AssistResult> {
+  await access(userId);
+  const parsed = assistInputSchema.safeParse(input);
+  if (!parsed.success) throw new CaptureError(400, parsed.error.issues[0]?.message ?? "Please check the details.");
+  const { ai } = createProviders();
+  const runner = new AgentRunner(new DatabaseAgentRunRecorder(createDatabase(), ai));
+  try {
+    return await runner.run(createBriefAssistAgent(ai), parsed.data, { userId });
+  } catch (error) {
+    console.error("[tna assist]", error instanceof Error ? error.message : error);
+    return { ...scaffoldAssist(parsed.data), notes: ["The AI is not available right now, so these are plain questions instead. You can try again."] };
+  }
 }
 
 export async function listPrograms(userId: string): Promise<ProgramSummary[]> {
