@@ -13,7 +13,7 @@ import { objectPath, presignUrl, signHeaders } from "./s3-sign";
  */
 export type R2Config = { accountId: string; bucket: string; accessKeyId: string; secretAccessKey: string };
 
-export function r2Config(env: NodeJS.ProcessEnv = process.env): R2Config | null {
+export function r2Config(env: Record<string, string | undefined> = process.env): R2Config | null {
   const accountId = env.R2_ACCOUNT_ID?.trim();
   const bucket = env.R2_BUCKET?.trim();
   const accessKeyId = env.R2_ACCESS_KEY_ID?.trim();

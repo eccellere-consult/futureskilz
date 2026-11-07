@@ -4,7 +4,7 @@ vi.mock("server-only", () => ({}));
 
 import { keyBelongsTo, presignedPut, r2Config, storageKeyFor } from "./r2";
 
-const env = { R2_ACCOUNT_ID: "acct123", R2_BUCKET: "futureskilz-sources", R2_ACCESS_KEY_ID: "AKID", R2_SECRET_ACCESS_KEY: "secret" } as NodeJS.ProcessEnv;
+const env = { R2_ACCOUNT_ID: "acct123", R2_BUCKET: "futureskilz-sources", R2_ACCESS_KEY_ID: "AKID", R2_SECRET_ACCESS_KEY: "secret" };
 
 describe("file store settings and keys", () => {
   it("is off unless all four settings are present", () => {
