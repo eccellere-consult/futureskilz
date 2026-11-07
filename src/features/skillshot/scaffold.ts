@@ -16,6 +16,8 @@ export type SkillShotBrief = {
   slug?: string;
   /** Set when the draft is built from a coach's published lesson: the coach's own words are the source and the coach approves the result. */
   sourceLessonId?: string;
+  /** Set when the draft is built from a contributor's approved knowledge package: the contributor can see it, an editor reviews it. */
+  sourceProjectId?: string;
 };
 
 export const slugOf = (text: string): string => text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "skill-shot";

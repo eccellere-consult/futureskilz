@@ -83,9 +83,9 @@ export function createInstructionalDesignAgent(ai: AiProvider): AgentDefinition<
       };
       if (ai.name === "deterministic") return scaffold();
 
-      const fromLesson = Boolean(brief.sourceLessonId);
+      const fromLesson = Boolean(brief.sourceLessonId || brief.sourceProjectId);
       const user = JSON.stringify({
-        brief: { ...brief, sourceNotes: undefined, sourceLessonId: undefined },
+        brief: { ...brief, sourceNotes: undefined, sourceLessonId: undefined, sourceProjectId: undefined },
         authorNotes: brief.sourceNotes || "(none: write a clearly illustrative case)",
         ...(fromLesson ? { contributorWords: "The notes are a coach's own words from an approved lesson. Keep their key sentences in the narration where you can, in their meaning and order. Add the plain-language structure, the decision and the check, but add NO fact, number, name or experience that is not in the notes. Set the source kind to expert-interview and label the source with the credit line." } : {}),
       });
