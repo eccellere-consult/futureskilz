@@ -320,6 +320,22 @@ export const additiveTables = [
       "CREATE TABLE `plans` (\n\t`id` varchar(36) NOT NULL,\n\t`code` varchar(40) NOT NULL,\n\t`name` varchar(120) NOT NULL,\n\t`description` varchar(400) NOT NULL DEFAULT '',\n\t`amount_minor` bigint NOT NULL,\n\t`currency` varchar(3) NOT NULL DEFAULT 'INR',\n\t`duration_days` int NOT NULL,\n\t`active` boolean NOT NULL DEFAULT false,\n\t`sort_order` int NOT NULL DEFAULT 0,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `plans_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `plans_code_idx` UNIQUE(`code`)\n);",
     ],
   },
+  {
+    table: "tna_programs",
+    statements: [
+      "CREATE TABLE `tna_programs` (\n\t`id` varchar(36) NOT NULL,\n\t`owner_id` varchar(36) NOT NULL,\n\t`title` varchar(200) NOT NULL,\n\t`topic` varchar(300) NOT NULL,\n\t`audience` json NOT NULL,\n\t`goal` text,\n\t`constraints` json,\n\t`needs` json,\n\t`status` enum('draft','reviewing','approved') NOT NULL DEFAULT 'draft',\n\t`source` varchar(16) NOT NULL DEFAULT 'scaffold',\n\t`notes` json,\n\t`working` varchar(16),\n\t`working_since` datetime,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `tna_programs_id` PRIMARY KEY(`id`)\n);",
+      "ALTER TABLE `tna_programs` ADD CONSTRAINT `tna_programs_owner_id_users_id_fk` FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;",
+      "CREATE INDEX `tna_programs_owner_idx` ON `tna_programs` (`owner_id`,`updated_at`);",
+    ],
+  },
+  {
+    table: "tna_topics",
+    statements: [
+      "CREATE TABLE `tna_topics` (\n\t`id` varchar(36) NOT NULL,\n\t`program_id` varchar(36) NOT NULL,\n\t`parent_id` varchar(36),\n\t`position` int NOT NULL DEFAULT 0,\n\t`title` varchar(200) NOT NULL,\n\t`summary` text,\n\t`target_level` double,\n\t`skill_slugs` json,\n\t`need_ids` json,\n\t`prerequisites` json,\n\t`material_hint` text,\n\t`evidence_signal` text,\n\t`minutes` int,\n\t`status` enum('proposed','approved','rejected') NOT NULL DEFAULT 'proposed',\n\t`origin` enum('ai','person') NOT NULL DEFAULT 'ai',\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `tna_topics_id` PRIMARY KEY(`id`)\n);",
+      "ALTER TABLE `tna_topics` ADD CONSTRAINT `tna_topics_program_id_tna_programs_id_fk` FOREIGN KEY (`program_id`) REFERENCES `tna_programs`(`id`) ON DELETE cascade ON UPDATE no action;",
+      "CREATE INDEX `tna_topics_program_idx` ON `tna_topics` (`program_id`,`parent_id`,`position`);",
+    ],
+  },
 ] as const;
 
 export type SchemaPlan = "migrate" | "add-columns";
