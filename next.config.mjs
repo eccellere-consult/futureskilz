@@ -22,6 +22,11 @@ const nextConfig = {
     "/api/payments/invoices/[id]": ["./node_modules/pdfkit/js/**/*"],
     "/api/contribute/projects/[id]/book": ["./node_modules/pdfkit/js/**/*"],
     "/api/self-service/upload": ["./node_modules/pdf-parse/dist/**/*", "./node_modules/pdfjs-dist/**/*"],
+    // Every route that reaches the document reader needs the PDF reader's files, or it fails to load in production.
+    "/api/contribute/projects": ["./node_modules/pdf-parse/dist/**/*", "./node_modules/pdfjs-dist/**/*"],
+    "/api/contribute/projects/[id]/uploads": ["./node_modules/pdf-parse/dist/**/*", "./node_modules/pdfjs-dist/**/*"],
+    "/api/contribute/projects/[id]/paste": ["./node_modules/pdf-parse/dist/**/*", "./node_modules/pdfjs-dist/**/*"],
+    "/api/demo/seed": ["./node_modules/pdf-parse/dist/**/*", "./node_modules/pdfjs-dist/**/*"],
   },
 };
 
