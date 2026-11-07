@@ -7,3 +7,4 @@ export * from "./capture";
 export * from "./credentials";
 export * from "./pathway";
 export * from "./payments";
+export * from "./training";
