@@ -1,7 +1,5 @@
 import "server-only";
 
-import mammoth from "mammoth";
-import { PDFParse } from "pdf-parse";
 import * as XLSX from "xlsx";
 
 /**
@@ -40,6 +38,8 @@ export async function readUpload(filename: string, bytes: Buffer): Promise<Uploa
   const name = filename.toLowerCase();
   try {
     if (name.endsWith(".pdf")) {
+      // Loaded only when a PDF arrives: if the PDF reader cannot start on the server, other files and pasted text still work.
+      const { PDFParse } = await import("pdf-parse");
       const parser = new PDFParse({ data: bytes });
       try {
         const result = await parser.getText();
@@ -53,6 +53,7 @@ export async function readUpload(filename: string, bytes: Buffer): Promise<Uploa
       }
     }
     if (name.endsWith(".docx")) {
+      const mammoth = (await import("mammoth")).default;
       const text = (await mammoth.extractRawText({ buffer: bytes })).value;
       const pieces = chunk(text, "document");
       return pieces.length ? { status: "extracted", pieces } : { status: "failed", pieces: [], note: "The document has no readable text." };
