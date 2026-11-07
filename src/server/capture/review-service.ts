@@ -15,7 +15,7 @@ import type { CareerRole, Fact, Segment } from "@/features/capture/types";
 import { kcContributors, kcDocuments, kcFactRevisions, kcFactSources, kcFacts, kcLessons, kcProjects, kcSegments, kcUploads } from "@/server/db/schema";
 
 import { currentConsents } from "./interview-service";
-import { CaptureError, audit, database, iso, loadFacts, loadRoles, loadSegmentsById, newUuid, nextSeq, readState, requireProject, type Executor } from "./shared";
+import { CaptureError, audit, database, iso, loadFacts, loadRoles, loadSegmentsById, newUuid, nextSeq, readState, requireProject, rolesOf, type Executor } from "./shared";
 
 export function fingerprintOf(facts: Fact[]): string {
   const material = facts
@@ -313,8 +313,10 @@ export type ApprovalResult = { approved: true; gates: Gate[] } | { approved: fal
 export async function approvePackage(userId: string, projectId: string): Promise<ApprovalResult> {
   const db = await database();
   return db.transaction(async (tx) => {
-    const project = await requireProject(tx, userId, projectId, { forUpdate: true });
+    const project = await requireProject(tx, userId, projectId, { forUpdate: true, staff: true });
     if (project.status === "withdrawn") throw new CaptureError(409, "This interview was withdrawn.");
+    const roles = await rolesOf(tx, userId);
+    const staff = roles.has("editor") || roles.has("admin");
     const built = await buildDocuments({ executor: tx, userId, projectId, mode: "publish", status: "approved" });
     const gates = evaluatePackageGates({
       consents: built.consents,
@@ -326,10 +328,12 @@ export async function approvePackage(userId: string, projectId: string): Promise
       mode: "publish",
       segmentsExist: new Set(built.segments.map((segment) => segment.id)),
     });
-    if (blockingFailures(gates).length > 0) return { approved: false, gates };
+    const failing = blockingFailures(gates);
+    // An editor or admin decides for themselves: the checks are advice to them, not a lock. The override is written to the audit log.
+    if (failing.length > 0 && !staff) return { approved: false, gates };
     await saveDocuments(tx, userId, projectId, "publish", "approved", built, userId);
     await tx.update(kcProjects).set({ status: "approved" }).where(eq(kcProjects.id, projectId));
-    await audit(tx, userId, "package.approve", "project", projectId, { fingerprint: built.fingerprint, items: built.pkg.stats.included });
+    await audit(tx, userId, "package.approve", "project", projectId, { fingerprint: built.fingerprint, items: built.pkg.stats.included, ...(failing.length ? { overriddenChecks: failing.map((gate) => gate.id) } : {}) });
     return { approved: true, gates };
   });
 }
