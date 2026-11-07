@@ -28,6 +28,7 @@ export const PERSONA_MENUS: Record<Persona, PersonaMenu> = {
     home: "/contribute/dashboard",
     items: [
       { label: "Interview", href: "/contribute", hint: "Talk with Arya and review what she heard" },
+      { label: "Plan a training", href: "/contribute/training-needs", hint: "From a big topic to learner needs and a topic tree" },
       { label: "My lessons", href: "/contribute/dashboard", hint: "Your lessons, how they are used, and statements" },
       { label: "Earnings calculator", href: "/contribute/earnings", hint: "Estimate what your lessons could earn" },
     ],
@@ -38,6 +39,7 @@ export const PERSONA_MENUS: Record<Persona, PersonaMenu> = {
     home: "/contribute/editor",
     items: [
       { label: "Content to approve", href: "/contribute/editor", hint: "Lessons waiting for your review" },
+      { label: "Plan a training", href: "/contribute/training-needs", hint: "From a big topic to learner needs and a topic tree" },
       { label: "Skill Shot studio", href: "/contribute/skill-shots", hint: "Design, check and publish Skill Shots" },
       { label: "Published lessons", href: "/lessons", hint: "What learners see today" },
     ],
@@ -77,6 +79,8 @@ export const homeFor = (roles: readonly string[] | undefined): string => PERSONA
 export function personaOfPath(pathname: string): Persona | null {
   if (pathname === "/admin" || pathname.startsWith("/admin/") || pathname.startsWith("/contribute/admin")) return "admin";
   if (pathname.startsWith("/contribute/editor") || pathname.startsWith("/contribute/skill-shots") || pathname.startsWith("/contribute/lessons")) return "editor";
+  // Shared by coaches and editors: stay on whichever menu the person already has open.
+  if (pathname === "/contribute/training-needs" || pathname.startsWith("/contribute/training-needs/")) return null;
   if (pathname.startsWith("/contribute")) return "coach";
   if (["/learn", "/journey", "/explore", "/passport", "/marketplace", "/coaches", "/lessons", "/training", "/profile", "/assessment", "/skill-shots", "/problem-solving", "/pricing"].some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return "learner";
   return null;
