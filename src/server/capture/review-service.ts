@@ -71,6 +71,7 @@ export async function getReview(userId: string, projectId: string): Promise<Revi
     uploads: uploads.map((upload) => ({ filename: upload.filename, extractionStatus: upload.extractionStatus === "unsupported" || upload.extractionStatus === "duplicate" ? "extracted" : upload.extractionStatus, ownership: upload.ownership })),
     timeline,
     contributorApproved: !!approved,
+    kind: project.kind === "source" ? "source" : "interview",
     mode: "publish",
     segmentsExist: new Set(segments.map((segment) => segment.id)),
   });
@@ -321,6 +322,7 @@ export async function approvePackage(userId: string, projectId: string): Promise
       uploads: built.uploads.map((upload) => ({ filename: upload.filename, extractionStatus: upload.extractionStatus === "unsupported" || upload.extractionStatus === "duplicate" ? "extracted" : upload.extractionStatus, ownership: upload.ownership })),
       timeline: built.timeline,
       contributorApproved: true,
+      kind: project.kind === "source" ? "source" : "interview",
       mode: "publish",
       segmentsExist: new Set(built.segments.map((segment) => segment.id)),
     });

@@ -31,12 +31,19 @@ export type PackageGateInput = {
   contributorApproved: boolean;
   mode: PackageMode;
   segmentsExist: Set<string>;
+  /** A "source" project has no recorded conversation, so recording and transcription consent do not apply. */
+  kind?: "interview" | "source";
 };
+
+/** The purposes a project must have consented to: a source project is not recorded or transcribed. */
+export function requiredConsentsFor(kind: "interview" | "source" = "interview"): readonly ConsentPurpose[] {
+  return kind === "source" ? REQUIRED_CONSENTS.filter((purpose) => purpose !== "recording" && purpose !== "transcription") : REQUIRED_CONSENTS;
+}
 
 export function evaluatePackageGates(input: PackageGateInput): Gate[] {
   const gates: Gate[] = [];
   const live = input.facts.filter((fact) => fact.reviewStatus !== "rejected");
-  const missingConsents = REQUIRED_CONSENTS.filter((purpose) => !input.consents[purpose]);
+  const missingConsents = requiredConsentsFor(input.kind).filter((purpose) => !input.consents[purpose]);
   gates.push({
     id: "consent",
     label: "Consent recorded for every purpose",

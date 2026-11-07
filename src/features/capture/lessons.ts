@@ -1,3 +1,4 @@
+import { isTooCopied, screenHarmfulAdvice, verbatimOverlap } from "./rights";
 import { sentencesOf, unsupportedNumbers } from "./signals";
 import type { KnowledgePackage, PackageItem } from "./knowledge-package";
 import type { CareerRole } from "./types";
@@ -464,8 +465,16 @@ export const LESSON_TOPICS = "how a process is done step by step, how the indust
 export type LessonIssue = { id: string; message: string };
 
 /** Mechanical checks a lesson must pass before an editor reviews it (skill, Step 10). */
-export function checkLesson(spec: LessonSpec, sourceTexts: string[]): LessonIssue[] {
+export function checkLesson(spec: LessonSpec, sourceTexts: string[], protectedTexts: string[] = []): LessonIssue[] {
   const issues: LessonIssue[] = [];
+  const narrationText = spec.narration.join(" ");
+  if (protectedTexts.length) {
+    const overlap = verbatimOverlap(narrationText, protectedTexts);
+    if (isTooCopied(overlap)) issues.push({ id: "verbatim", message: `The narration copies ${overlap.longestRun} words in a row from a document that is not yours ("${(overlap.hits[0]?.passage ?? "").slice(0, 80)}..."). Rewrite it in your own words. This is an automatic check, not legal advice.` });
+  }
+  for (const hit of screenHarmfulAdvice(`${narrationText} ${spec.scenes.flatMap((s) => s.onScreen).join(" ")}`)) {
+    issues.push({ id: `safety_${hit.id}`, message: `The lesson ${hit.message} ("${hit.excerpt}"). Rewrite it before approval.` });
+  }
   const verb = spec.objective.trim().split(/\s+/)[0]?.toLowerCase().replace(/[^a-z]/g, "") ?? "";
   if (!OBSERVABLE_VERBS.includes(verb)) issues.push({ id: "objective", message: "The objective should start with an observable verb such as apply, explain or identify." });
   if (/\band\b.*\band\b.*\band\b/i.test(spec.objective) && spec.objective.length > 220) issues.push({ id: "objective_focus", message: "The objective tries to do too much. Aim for one central objective." });

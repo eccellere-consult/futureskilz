@@ -64,14 +64,17 @@ export async function readUpload(filename: string, bytes: Buffer): Promise<Uploa
     if (name.endsWith(".csv") || name.endsWith(".xlsx") || name.endsWith(".xls")) {
       const workbook = XLSX.read(bytes, { type: "buffer", cellFormula: false, cellHTML: false });
       const pieces: UploadPiece[] = [];
+      const skipped: string[] = [];
+      if (workbook.SheetNames.length > 8) skipped.push(`${workbook.SheetNames.length - 8} sheet(s) after the first 8`);
       for (const sheetName of workbook.SheetNames.slice(0, 8)) {
         const rows = XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[sheetName], { header: 1, blankrows: false, defval: "" }) as unknown[][];
+        if (rows.length > 400) skipped.push(`${rows.length - 400} row(s) of sheet "${sheetName}" after row 400`);
         for (let start = 0; start < rows.length && start < 400; start += 40) {
           const slice = rows.slice(start, start + 40);
           pieces.push(...chunk(slice.map((row) => row.map((cell) => String(cell ?? "")).join(" | ")).join("\n"), `sheet "${sheetName}", rows ${start + 1}-${start + slice.length}`));
         }
       }
-      return pieces.length ? { status: "extracted", pieces } : { status: "failed", pieces: [], note: "The spreadsheet has no readable cells." };
+      return pieces.length ? { status: "extracted", pieces, note: skipped.length ? `Not read: ${skipped.join("; ")}.` : undefined } : { status: "failed", pieces: [], note: "The spreadsheet has no readable cells." };
     }
     return { status: "unsupported", pieces: [], note: "This file type is stored for the record but not read yet. Supported: PDF, Word (.docx), text, CSV and Excel." };
   } catch (error) {

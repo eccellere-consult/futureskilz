@@ -7,7 +7,7 @@ import { buildKnowledgePackage, publishableText } from "@/features/capture/knowl
 import { allowedActions, transition, type Actor, type LessonAction, type LessonStatus } from "@/features/capture/lesson-workflow";
 import { LESSON_TOPICS, blueprintLessons, buildLearningPaths, checkLesson, type LearningPath, type LessonSpec } from "@/features/capture/lessons";
 import { cleanSkillMap, suggestSkills, type LessonSkillMap } from "@/features/pathway/skill-map";
-import { kcContributors, kcDocuments, kcLessonAttribution, kcLessons, kcProjects } from "@/server/db/schema";
+import { kcContributors, kcDocuments, kcLessonAttribution, kcLessons, kcProjects, kcSegments, kcUploads } from "@/server/db/schema";
 
 import { currentConsents } from "./interview-service";
 import { fingerprintOf } from "./review-service";
@@ -21,6 +21,16 @@ const specOf = (row: LessonRow): SpecWithBase => row.spec as unknown as SpecWith
 async function sourceTexts(executor: Executor, projectId: string, factIds: string[]): Promise<string[]> {
   const facts = await loadFacts(executor, projectId);
   return facts.filter((fact) => factIds.includes(fact.id)).map((fact) => publishableText(fact) ?? "");
+}
+
+/** Text of documents the author does not own (permission, third party, unknown): lessons must not copy it. */
+async function protectedTexts(executor: Executor, projectId: string): Promise<string[]> {
+  const rows = await executor
+    .select({ text: kcSegments.text })
+    .from(kcSegments)
+    .innerJoin(kcUploads, eq(kcSegments.uploadId, kcUploads.id))
+    .where(and(eq(kcSegments.projectId, projectId), ne(kcUploads.ownership, "mine")));
+  return rows.map((row) => row.text);
 }
 
 /** Editors and admins turn an approved package into lesson drafts. The contributor's confirmed words are the only source. */
@@ -48,11 +58,12 @@ export async function generateLessons(actorId: string, projectId: string): Promi
     const { lessons, skipped } = blueprintLessons(pkg, { contributor: contributor?.publicName ?? "The contributor", roles: careerRoles, now: new Date().toISOString() });
     const allText = pkg.sections.flatMap((section) => section.items).map((item) => item.text);
 
+    const protectedSources = await protectedTexts(tx, projectId);
     let created = 0;
     let updated = 0;
     let unchanged = 0;
     for (const lesson of lessons) {
-      const issues = checkLesson(lesson, allText);
+      const issues = checkLesson(lesson, allText, protectedSources);
       const baseSlug = lesson.slug;
       const rows = await tx.select().from(kcLessons).where(eq(kcLessons.projectId, projectId));
       const existing = rows.filter((row) => specOf(row).baseSlug === baseSlug || row.slug === baseSlug).sort((a, b) => b.version - a.version)[0];
@@ -201,7 +212,7 @@ async function gatesFor(executor: Executor, row: LessonRow): Promise<Gate[]> {
     packageApproved: !!approved && approved.factFingerprint === fingerprintOf(facts),
     consents,
     usesSyntheticVoice: false,
-    issues: checkLesson(spec, texts),
+    issues: checkLesson(spec, texts, await protectedTexts(executor, row.projectId)),
     hasCaptions: spec.scenes.length > 0 && spec.scenes.every((scene) => !!spec.narration[scene.narrationIndex]),
     editorApproved: !!row.editorApprovedAt,
     contributorApproved: !!row.contributorApprovedAt,
@@ -223,7 +234,7 @@ export async function lessonAction(userId: string, lessonId: string, action: Les
 
     const patch: Partial<typeof kcLessons.$inferInsert> = { status: result.to };
     if (action === "editor_approve") {
-      const issues = checkLesson(specOf(row), await sourceTexts(tx, row.projectId, row.factIds));
+      const issues = checkLesson(specOf(row), await sourceTexts(tx, row.projectId, row.factIds), await protectedTexts(tx, row.projectId));
       if (issues.length) throw new CaptureError(422, `Fix these first: ${issues.map((issue) => issue.message).join(" ")}`);
       patch.editorApprovedAt = new Date();
       patch.editorApprovedBy = userId;
@@ -270,7 +281,7 @@ export async function editLesson(userId: string, lessonId: string, edit: LessonE
       if (edit.narration.length !== spec.narration.length) throw new CaptureError(400, "Keep the same number of narration paragraphs; each belongs to a scene.");
       spec.narration = edit.narration.map((paragraph) => paragraph.trim().slice(0, 1200));
     }
-    const issues = checkLesson(spec, await sourceTexts(tx, row.projectId, row.factIds));
+    const issues = checkLesson(spec, await sourceTexts(tx, row.projectId, row.factIds), await protectedTexts(tx, row.projectId));
     await tx.update(kcLessons).set({ spec: spec as unknown as Record<string, unknown>, title: spec.title, issues, status: "draft", editorApprovedAt: null, editorApprovedBy: null, contributorApprovedAt: null }).where(eq(kcLessons.id, lessonId));
     await audit(tx, userId, "lesson.edit", "lesson", lessonId);
   });

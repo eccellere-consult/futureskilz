@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { CONSENT_LABELS, type ConsentPurpose, type ConsentState } from "@/features/capture/gates";
 import { body, handle, json, text } from "@/server/capture/http";
 import { createProject, listProjects } from "@/server/capture/interview-service";
+import { createSourceProject } from "@/server/capture/source-service";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +14,10 @@ export const POST = (request: NextRequest) =>
   handle(
     request,
     async (user) => {
-      const input = await body<{ title?: string; language?: string; publicName?: string; consents?: Record<string, unknown> }>(request);
+      const input = await body<{ kind?: string; title?: string; language?: string; publicName?: string; consents?: Record<string, unknown> }>(request);
       const consents: ConsentState = {};
       for (const purpose of Object.keys(CONSENT_LABELS) as ConsentPurpose[]) if (typeof input.consents?.[purpose] === "boolean") consents[purpose] = input.consents[purpose] as boolean;
+      if (input.kind === "source") return json(await createSourceProject(user.id, { title: text(input.title, 200), language: text(input.language, 16) || "en", publicName: text(input.publicName, 160), consents }), 201);
       const result = await createProject(user.id, { title: text(input.title, 200), language: text(input.language, 16) || "en", publicName: text(input.publicName, 160), consents });
       return json(result, 201);
     },

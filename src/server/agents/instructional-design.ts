@@ -23,7 +23,7 @@ export const briefSchema = z.object({
   proficiency: z.enum(["foundational", "working", "advanced"]),
   role: z.string().trim().max(160).optional(),
   industry: z.string().trim().max(120).optional(),
-  sourceNotes: z.string().trim().max(8000).default(""),
+  sourceNotes: z.string().trim().max(24500).default(""),
   contributor: z.string().trim().min(2).max(200),
   sourceKind: z.enum(["expert-interview", "document", "illustrative", "method", "design"]),
   slug: z.string().regex(/^[a-z0-9-]{3,80}$/).optional(),

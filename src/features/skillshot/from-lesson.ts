@@ -1,3 +1,4 @@
+import { fitMarked } from "../capture/budget";
 import type { LessonSpec } from "../capture/lessons";
 import { confirmedSkills, suggestSkills, type LessonSkillMap } from "../pathway/skill-map";
 import type { SkillShotBrief } from "./scaffold";
@@ -34,7 +35,7 @@ export function lessonBrief(spec: Lesson, lessonId: string): SkillShotBrief {
     industry: spec.industry || undefined,
     sourceKind: "expert-interview",
     contributor: spec.attribution,
-    sourceNotes: parts.join("\n").slice(0, 8000),
+    sourceNotes: fitMarked(parts.join("\n"), 24000),
     sourceLessonId: lessonId,
   };
 }

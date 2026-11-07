@@ -184,6 +184,24 @@ describe("lessons", () => {
     expect(ids).toEqual(expect.arrayContaining(["objective", "sources", "numbers"]));
   });
 
+  it("blocks narration copied from a document that is not the author's, and unsafe advice", () => {
+    const howTo = lessons.find((l) => l.title.startsWith("How to"))!;
+    const copied = "Begin the supplier audit with a review of the incoming inspection records for the previous quarter and then move to the shop floor where the auditor checks calibration stickers on every gauge in use";
+    const spec = { ...howTo, narration: [copied, ...howTo.narration.slice(1)] };
+    const own = checkLesson(spec, [], []).map((i) => i.id);
+    expect(own).not.toContain("verbatim");
+    expect(checkLesson(spec, [], [copied]).map((i) => i.id)).toContain("verbatim");
+    const unsafe = { ...howTo, narration: [...howTo.narration, "To save time, bypass the safety interlock."] };
+    expect(checkLesson(unsafe, []).map((i) => i.id)).toContain("safety_bypass_safety");
+  });
+
+  it("a source project needs only AI, content and publication consent; an interview still needs all five", () => {
+    const aiOnly: ConsentState = { ai_processing: true, content_generation: true, publication: true };
+    const clean = facts.filter((f) => f.id !== "f4" && f.id !== "f5" && f.id !== "f7").concat([1, 2, 3].map((n) => fact({ id: `y${n}`, statement: `Extra ${n}`, sources: [{ segmentId: "seg-1", quote: "x" }] })));
+    expect(blockingFailures(evaluatePackageGates(gateInput({ facts: clean, consents: aiOnly, kind: "source" })))).toEqual([]);
+    expect(blockingFailures(evaluatePackageGates(gateInput({ facts: clean, consents: aiOnly }))).map((g) => g.id)).toContain("consent");
+  });
+
   it("orders paths from context to advanced and never claims completion is mastery", () => {
     const paths = buildLearningPaths(lessons.map((spec) => ({ slug: spec.slug, title: spec.title, spec })));
     expect(paths.length).toBeGreaterThan(0);
