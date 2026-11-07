@@ -1,6 +1,7 @@
 "use client";
 
 import { CreateFromInterview } from "@/features/book/ui/BookWorkspace";
+import { SkillShotsFromReview } from "./SkillShotsFromReview";
 import { AlertTriangle, CheckCircle2, ChevronDown, Download, FileText, Quote, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
@@ -99,7 +100,7 @@ export function ReviewWorkspace({ projectId }: { projectId: string }) {
 
       {!withdrawn ? (
         <section aria-label="Create from this interview" className="mt-8">
-          {approved && !data.changedSinceApproval ? <CreateFromInterview projectId={projectId} /> : <p className="border border-border bg-surface p-4 text-sm text-ink-mid">When you have checked everything below and approved it, Arya can turn it into training lessons and a book, whenever you ask.</p>}
+          {approved && !data.changedSinceApproval ? <div className="space-y-6"><CreateFromInterview projectId={projectId} /><SkillShotsFromReview projectId={projectId} /></div> : <p className="border border-border bg-surface p-4 text-sm text-ink-mid">When you have checked everything below and approved it, Arya can turn it into training lessons and a book, whenever you ask.</p>}
         </section>
       ) : null}
 

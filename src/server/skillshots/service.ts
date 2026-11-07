@@ -14,9 +14,11 @@ import type { Blueprint } from "@/features/skillshot/types";
 import { DatabaseAgentRunRecorder } from "@/server/agents/database-recorder";
 import { briefSchema, createInstructionalDesignAgent } from "@/server/agents/instructional-design";
 import { AgentRunner } from "@/server/agents/runner";
-import { CaptureError, audit, database, newUuid, rolesOf } from "@/server/capture/shared";
+import { CaptureError, audit, database, newUuid, requireProject, rolesOf } from "@/server/capture/shared";
 import { createDatabase } from "@/server/db/client";
-import { bookProjects, kcLessons, skillShotDrafts } from "@/server/db/schema";
+import { bookProjects, kcDocuments, kcLessons, kcProjects, skillShotDrafts, users } from "@/server/db/schema";
+import { pieceBrief, planPieces } from "@/features/skillshot/from-package";
+import type { KnowledgePackage } from "@/features/capture/knowledge-package";
 import { chapterBrief } from "@/features/book/training";
 import type { Book } from "@/features/book/types";
 import { createProviders } from "@/server/providers";
@@ -44,7 +46,7 @@ const summarise = (row: Row): DraftSummary => {
   const review = row.review as unknown as Review;
   return { id: row.id, slug: row.slug, title: row.title, status: row.status, source: row.source, passes: Boolean(review?.passes), blockers: review?.blockers?.length ?? 0, updatedAt: row.updatedAt.toISOString() };
 };
-type Brief = { sourceLessonId?: string; contributorApprovedAt?: string | null; sourceKind?: "illustrative" | "method" | "design" | "expert-interview" | "document"; sourceNotes?: string };
+type Brief = { sourceLessonId?: string; sourceProjectId?: string; contributorApprovedAt?: string | null; sourceKind?: "illustrative" | "method" | "design" | "expert-interview" | "document"; sourceNotes?: string };
 
 /** The review path for a draft: from its topic, where its facts came from, whether it makes claims about real parties, and how sure the checks are. */
 function governanceOf(row: Row): Governance {
@@ -92,7 +94,7 @@ export async function designSkillShot(userId: string, rawBrief: unknown): Promis
   const parsed = briefSchema.safeParse(rawBrief);
   if (!parsed.success) throw new CaptureError(400, `Check the brief: ${parsed.error.issues[0]?.message ?? "something is missing"}.`);
   // sourceLessonId is set only by designFromLesson, which checks the lesson; a brief typed in by hand cannot claim one.
-  const brief = { ...parsed.data, sourceLessonId: undefined };
+  const brief = { ...parsed.data, sourceLessonId: undefined, sourceProjectId: undefined };
   const queued = await insertDesigning(userId, brief, await freeSlug(briefSlug(brief)), "The design agent is working on this draft.");
   const db = await database();
   await audit(db, userId, "skillshot.design", "skill_shot_draft", queued.id);
@@ -163,6 +165,49 @@ export async function designFromBook(userId: string, projectId: string): Promise
   return { queued: queue.length, alreadyStarted: book.chapters.length - queue.length };
 }
 
+/** What a contributor's approved material would become, and what is left out and why. Nothing is created. */
+async function loadApprovedPackage(userId: string, projectId: string) {
+  const db = await database();
+  const project = await requireProject(db, userId, projectId, { staff: true });
+  const approved = (await db.select().from(kcDocuments).where(and(eq(kcDocuments.projectId, projectId), eq(kcDocuments.kind, "knowledge_package"))).orderBy(desc(kcDocuments.version))).find((row) => row.status === "approved" || row.status === "published");
+  if (!approved) throw new CaptureError(409, "Approve the knowledge package first. Skill Shots are made only from what you have confirmed.");
+  const [owner] = await db.select({ name: users.displayName }).from(users).where(eq(users.id, project.contributorId)).limit(1);
+  const tag = projectId.replace(/-/g, "").slice(0, 8);
+  const plan = planPieces(approved.content as unknown as KnowledgePackage, project.title, tag);
+  return { project, plan, contributor: owner?.name ?? "The contributor", tag };
+}
+
+export async function previewFromProject(userId: string, projectId: string) {
+  const { plan } = await loadApprovedPackage(userId, projectId);
+  const db = await database();
+  const existing = await db.select({ slug: skillShotDrafts.slug, id: skillShotDrafts.id, status: skillShotDrafts.status }).from(skillShotDrafts);
+  return {
+    pieces: plan.pieces.map((piece) => {
+      const draft = existing.find((row) => row.slug === piece.key);
+      return { key: piece.key, title: piece.title, statements: piece.items.length, draftId: draft?.id ?? null, draftStatus: draft?.status ?? null };
+    }),
+    leftOut: plan.leftOut,
+  };
+}
+
+/** The contributor (or an editor) turns the confirmed material into Skill Shot drafts. An editor still reviews each before a learner sees it. */
+export async function designFromProject(userId: string, projectId: string, keys?: string[]): Promise<{ queued: number; alreadyStarted: number }> {
+  const { plan, contributor } = await loadApprovedPackage(userId, projectId);
+  const db = await database();
+  const chosen = plan.pieces.filter((piece) => !keys || keys.includes(piece.key));
+  if (!chosen.length) throw new CaptureError(409, "There is nothing in the approved package to make a Skill Shot from yet. Confirm more knowledge first.");
+  const existing = await db.select({ slug: skillShotDrafts.slug }).from(skillShotDrafts);
+  const queue: Queued[] = [];
+  for (const piece of chosen) {
+    if (existing.some((row) => row.slug === piece.key)) continue;
+    const brief = briefSchema.parse(pieceBrief(piece, { contributor, projectId }));
+    queue.push(await insertDesigning(userId, brief, piece.key, "Waiting in the queue for the design agent."));
+  }
+  await audit(db, userId, "skillshot.fromProject", "kc_project", projectId, { queued: queue.length });
+  void runQueue(userId, queue);
+  return { queued: queue.length, alreadyStarted: chosen.length - queue.length };
+}
+
 async function runQueue(userId: string, queue: Array<{ id: string; slug: string; brief: z.infer<typeof briefSchema> }>): Promise<void> {
   const db = await database();
   for (let i = 0; i < queue.length; i += 1) {
@@ -211,6 +256,11 @@ async function isStaff(userId: string): Promise<boolean> {
 
 /** The coach whose lesson a draft was built from: the only non-staff person who may see it, to approve their own words. */
 async function isSourceContributor(row: Row, userId: string): Promise<boolean> {
+  const projectId = briefOf(row).sourceProjectId;
+  if (projectId) {
+    const [project] = await (await database()).select({ contributorId: kcProjects.contributorId }).from(kcProjects).where(eq(kcProjects.id, projectId)).limit(1);
+    return project?.contributorId === userId;
+  }
   const lessonId = briefOf(row).sourceLessonId;
   if (!lessonId) return false;
   const [lesson] = await (await database()).select({ contributorId: kcLessons.contributorId }).from(kcLessons).where(eq(kcLessons.id, lessonId)).limit(1);
