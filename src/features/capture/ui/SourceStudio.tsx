@@ -7,7 +7,8 @@ import { useRef, useState } from "react";
 import { ATTESTATION_TEXT } from "../rights";
 
 import { api, messageOf, post } from "./api";
-import { uploadToStore } from "./direct-upload";
+import { uploadReadPdf, uploadToStore } from "./direct-upload";
+import { MAX_BROWSER_PDF_BYTES, readPdfPages } from "./read-pdf";
 
 type Result = { id: string; status: string; note: string | null; summary: string | null; factsAdded: number; duplicate: boolean };
 type Added = { name: string; result: Result };
@@ -80,7 +81,22 @@ export function SourceStudio({ existingProjectId }: { existingProjectId: string 
           try {
             const prefix = `File ${index + 1} of ${batch.length}: ${file.name}`;
             setProgress(`Sending ${prefix}`);
-            let one: Result | null = await uploadToStore(projectId, file, { ownership, onProgress: (percent) => setProgress(percent < 100 ? `Sending ${prefix} (${percent}%)` : `Reading ${prefix}`) });
+            const onProgress = (percent: number) => setProgress(percent < 100 ? `Sending ${prefix} (${percent}%)` : `Reading ${prefix}`);
+            let one: Result | null = null;
+            if (file.name.toLowerCase().endsWith(".pdf") && file.size <= MAX_BROWSER_PDF_BYTES) {
+              // PDFs are read in this browser tab, which always works, and only their text is sent.
+              let read: Awaited<ReturnType<typeof readPdfPages>> | null = null;
+              try {
+                read = await readPdfPages(file, (page, of) => setProgress(`Reading ${prefix}, page ${page} of ${of}`));
+              } catch {
+                read = null; // this browser could not open it: the server tries instead, below
+              }
+              if (read) {
+                if (!read.pages.some((page) => page.text)) throw new Error("This PDF has no text in it: its pages are pictures (a scan, or slides saved as images). Paste the text, or save the slides as a Word file, and add that instead.");
+                one = await uploadReadPdf(projectId, file, read, { ownership, onProgress });
+              }
+            }
+            if (!one) one = await uploadToStore(projectId, file, { ownership, onProgress });
             if (!one) {
               // The file store is not set up on this site: the ordinary upload takes files up to 25 MB.
               if (file.size > 25 * 1024 * 1024) throw new Error("This file is over 25 MB, and the secure file store is not switched on yet.");

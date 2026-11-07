@@ -10,7 +10,7 @@ import type { ReviewFact, ReviewView } from "@/server/capture/review-service";
 import { CONSENT_LABELS, type ConsentPurpose, type Gate } from "../gates";
 import { SECTIONS } from "../knowledge-package";
 
-import { ApiError, messageOf, patch, post, put, shortDate, useRemote } from "./api";
+import { ApiError, api, messageOf, patch, post, put, shortDate, useRemote } from "./api";
 
 const KIND_LABEL: Record<string, string> = {
   direct_statement: "Your words",
@@ -226,7 +226,10 @@ export function ReviewWorkspace({ projectId }: { projectId: string }) {
               {data.uploads.map((upload) => (
                 <li key={upload.id}>
                   <p className="font-semibold">{upload.filename}</p>
-                  <p className="text-ink-light">{upload.extractionStatus}{upload.note ? ` · ${upload.note}` : ""}</p>
+                  <p className={upload.extractionStatus === "extracted" ? "text-ink-light" : "text-crimson"}>{upload.extractionStatus === "extracted" ? "Read" : upload.extractionStatus === "pending" ? "Stored, not read yet" : "Could not be read"}{upload.note ? ` · ${upload.note}` : ""}</p>
+                  {upload.extractionStatus !== "extracted" ? (
+                    <button className="mt-1 border border-border px-2 py-1" disabled={busy} onClick={() => void run(() => api(`/api/contribute/projects/${projectId}/uploads`, { method: "DELETE", body: JSON.stringify({ uploadId: upload.id }) }), "Removed. Add it again as a Word file or as pasted text if you still need it.")} type="button">Remove this file</button>
+                  ) : null}
                   {upload.summary ? <p className="text-ink-mid">{upload.summary}</p> : null}
                   <label className="mt-1 block">Rights:{" "}
                     <select className="border border-border bg-cream px-1 py-0.5" disabled={busy} onChange={(event) => void run(() => patch(`/api/contribute/projects/${projectId}/uploads`, { uploadId: upload.id, ownership: event.target.value }))} value={upload.ownership}>

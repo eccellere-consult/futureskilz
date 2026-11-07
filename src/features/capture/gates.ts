@@ -58,7 +58,7 @@ export function evaluatePackageGates(input: PackageGateInput): Gate[] {
     label: "Source material processed",
     passed: unprocessed.length === 0,
     blocking: true,
-    detail: unprocessed.length ? `Not yet readable: ${unprocessed.map((upload) => upload.filename).join(", ")}.` : "Every upload was read, or none were added.",
+    detail: unprocessed.length ? `Not yet readable: ${unprocessed.map((upload) => upload.filename).join(", ")}. Under Your documents, remove the file, then add it again as a Word file or as pasted text.` : "Every upload was read, or none were added.",
   });
 
   const unsourced = live.filter((fact) => fact.kind !== "editorial" && fact.sources.every((source) => !input.segmentsExist.has(source.segmentId)));
@@ -94,7 +94,7 @@ export function evaluatePackageGates(input: PackageGateInput): Gate[] {
     label: "Rights to uploaded material confirmed",
     passed: badUploads.length === 0,
     blocking: true,
-    detail: badUploads.length ? `Confirm you own or may share: ${badUploads.map((upload) => upload.filename).join(", ")}.` : "Ownership or permission is declared for every upload.",
+    detail: badUploads.length ? `Confirm you own or may share: ${badUploads.map((upload) => upload.filename).join(", ")}. Under Your documents, set Rights to Mine or I have permission, or remove the file.` : "Ownership or permission is declared for every upload.",
   });
 
   const pending = live.filter((fact) => fact.reviewStatus === "proposed" || fact.reviewStatus === "needs_confirmation");
@@ -113,7 +113,7 @@ export function evaluatePackageGates(input: PackageGateInput): Gate[] {
     label: "Enough confirmed knowledge to teach from",
     passed: confirmed.length >= 5,
     blocking: input.mode === "publish",
-    detail: confirmed.length >= 5 ? `${confirmed.length} confirmed statements.` : `Only ${confirmed.length} confirmed so far; at least five are needed.`,
+    detail: confirmed.length >= 5 ? `${confirmed.length} confirmed statements.` : `Only ${confirmed.length} confirmed so far; at least five are needed. Confirm the statements listed on this page, or add more material.`,
   });
 
   gates.push({
