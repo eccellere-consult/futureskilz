@@ -5,7 +5,7 @@
 import type { NextRequest } from "next/server";
 
 import { body, failure, handle, json, text } from "@/server/capture/http";
-import { addUpload, setUploadOwnership, uploadHelp, type UploadMeta } from "@/server/capture/upload-service";
+import { addUpload, removeUnreadUpload, setUploadOwnership, uploadHelp, type UploadMeta } from "@/server/capture/upload-service";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -28,7 +28,20 @@ export const POST = (request: NextRequest, { params }: RouteContext<"/api/contri
     { write: true },
   );
 
-export const PATCH = (request: NextRequest, { params }: RouteContext<"/api/contribute/projects/[id]/uploads">) =>
+/** DELETE removes a file that could not be read, so it stops blocking publication. Body: { uploadId }. */
+export const DELETE = (request: NextRequest, { params }: RouteContext<"/api/contribute/projects/[id]/uploads">) =>
+  handle(
+    request,
+    async (user) => {
+      const input = await body(request);
+      if (typeof input.uploadId !== "string") return failure(400, "Choose the file to remove.");
+      await removeUnreadUpload(user.id, (await params).id, input.uploadId);
+      return json({ removed: true });
+    },
+    { write: true },
+  );
+
+export const PATCH =(request: NextRequest, { params }: RouteContext<"/api/contribute/projects/[id]/uploads">) =>
   handle(
     request,
     async (user) => {
