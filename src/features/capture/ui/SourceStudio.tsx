@@ -7,6 +7,7 @@ import { useRef, useState } from "react";
 import { ATTESTATION_TEXT } from "../rights";
 
 import { api, messageOf, post } from "./api";
+import { uploadToStore } from "./direct-upload";
 
 type Result = { id: string; status: string; note: string | null; summary: string | null; factsAdded: number; duplicate: boolean };
 type Added = { name: string; result: Result };
@@ -77,11 +78,18 @@ export function SourceStudio({ existingProjectId }: { existingProjectId: string 
           setProgress(`Reading file ${index + 1} of ${batch.length}: ${file.name}`);
           const label = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
           try {
-            const form = new FormData();
-            form.set("file", file);
-            form.set("ownership", ownership);
-            form.set("attested", "true");
-            const one = await api<Result>(`/api/contribute/projects/${projectId}/uploads`, { method: "POST", body: form });
+            const prefix = `File ${index + 1} of ${batch.length}: ${file.name}`;
+            setProgress(`Sending ${prefix}`);
+            let one: Result | null = await uploadToStore(projectId, file, { ownership, onProgress: (percent) => setProgress(percent < 100 ? `Sending ${prefix} (${percent}%)` : `Reading ${prefix}`) });
+            if (!one) {
+              // The file store is not set up on this site: the ordinary upload takes files up to 25 MB.
+              if (file.size > 25 * 1024 * 1024) throw new Error("This file is over 25 MB, and the secure file store is not switched on yet.");
+              const form = new FormData();
+              form.set("file", file);
+              form.set("ownership", ownership);
+              form.set("attested", "true");
+              one = await api<Result>(`/api/contribute/projects/${projectId}/uploads`, { method: "POST", body: form });
+            }
             setAdded((list) => [...list, { name: label, result: one }]);
           } catch (caught) {
             setAdded((list) => [...list, { name: label, result: { id: "", status: "failed", note: messageOf(caught), summary: null, factsAdded: 0, duplicate: false } }]);
@@ -136,7 +144,7 @@ export function SourceStudio({ existingProjectId }: { existingProjectId: string 
           {mode === "file" ? (
             <div className="mt-3 grid gap-3 text-xs">
               <label className="block">
-                <span className="font-mono text-[10px] uppercase text-ink-light">Files: PDF, Word, text, CSV or Excel, up to 25 MB each. Pick as many as you like.</span>
+                <span className="font-mono text-[10px] uppercase text-ink-light">Files: PDF, Word, text, CSV or Excel. Pick as many as you like. Files over 25 MB need the secure file store.</span>
                 <input accept=".pdf,.docx,.txt,.md,.csv,.xlsx,.xls" className="mt-1 block w-full text-sm" multiple ref={fileInput} type="file" />
               </label>
               <label className="block">

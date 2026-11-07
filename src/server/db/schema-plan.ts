@@ -18,6 +18,8 @@ export const additiveColumns = [
   { table: "kc_uploads", column: "source_url", definition: "varchar(500)" },
   { table: "kc_uploads", column: "attested_at", definition: "datetime" },
   { table: "kc_uploads", column: "attestation_version", definition: "varchar(24)" },
+  // 0015_file_store
+  { table: "kc_uploads", column: "storage_key", definition: "varchar(512)" },
 ] as const;
 
 /**

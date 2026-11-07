@@ -14,8 +14,8 @@ describe("chooseSchemaPlan", () => {
 });
 
 describe("additiveColumns", () => {
-  it("matches every column the 0001 and 0013 migrations add", () => {
-    const sql = ["0001_accounts_and_saved_progress.sql", "0013_source_intake.sql"].map((file) => readFileSync(path.join(process.cwd(), "drizzle", file), "utf8")).join("\n");
+  it("matches every column the 0001, 0013 and 0015 migrations add", () => {
+    const sql = ["0001_accounts_and_saved_progress.sql", "0013_source_intake.sql", "0015_file_store.sql"].map((file) => readFileSync(path.join(process.cwd(), "drizzle", file), "utf8")).join("\n");
     const fromMigration = [...sql.matchAll(/ALTER TABLE `(\w+)` ADD `(\w+)` ([^;]+);/g)].map(([, table, column, definition]) => ({
       table,
       column,
