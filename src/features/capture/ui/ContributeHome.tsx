@@ -14,7 +14,7 @@ import { CONSENT_LABELS, type ConsentPurpose } from "../gates";
 
 import { api, messageOf, post, shortDate } from "./api";
 
-type ProjectRow = { id: string; title: string; status: string; stage: string; updatedAt: string; facts: number; confirmed: number };
+type ProjectRow = { id: string; title: string; kind?: string; status: string; stage: string; updatedAt: string; facts: number; confirmed: number };
 
 const STATUS: Record<string, string> = {
   interviewing: "In conversation",
@@ -130,12 +130,13 @@ export function ContributeHome() {
                     <p className="text-xs text-ink-light">{STATUS[project.status] ?? project.status} · {project.confirmed} of {project.facts} statements confirmed · updated {shortDate(project.updatedAt)}</p>
                   </div>
                   <div className="flex gap-3 text-sm">
-                    {project.status === "interviewing" ? <Link className="primary-button min-h-10! px-3! py-2!" href={`/contribute/${project.id}`}>Continue <ArrowRight aria-hidden="true" size={14} /></Link> : null}
+                    {project.status === "interviewing" ? <Link className="primary-button min-h-10! px-3! py-2!" href={project.kind === "source" ? `/contribute/from-source?project=${project.id}` : `/contribute/${project.id}`}>Continue <ArrowRight aria-hidden="true" size={14} /></Link> : null}
                     {project.status !== "withdrawn" ? <Link className="inline-flex min-h-10 items-center text-teal underline underline-offset-4" href={`/contribute/${project.id}/review`}>Review</Link> : null}
                   </div>
                 </li>
               ))}
             </ul>
+            <p className="mt-4 text-sm text-ink-mid">Already have a document or notes? <Link className="text-teal underline underline-offset-4" href="/contribute/from-source">Start from a document or text</Link>, no interview needed.</p>
             <Link className="mt-4 inline-block text-sm text-teal underline underline-offset-4" href="/contribute/dashboard">Open my dashboard: lessons, usage and earnings</Link>
           </section>
 

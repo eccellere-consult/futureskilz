@@ -1,3 +1,4 @@
+import { fitMarked } from "../capture/budget";
 import type { SkillShotBrief } from "../skillshot/scaffold";
 import type { Book, BookChapter } from "./types";
 
@@ -7,7 +8,7 @@ import type { Book, BookChapter } from "./types";
  */
 export function chapterBrief(book: Book, chapter: BookChapter, tag: string): SkillShotBrief {
   const text = chapter.sections.flatMap((section) => [section.heading ? `${section.heading}:` : "", ...section.paragraphs]).filter(Boolean).join("\n");
-  const notes = [`The author's chapter "${chapter.title}" from the book "${book.title}", in their own words (${book.author}).`, text, `Takeaways: ${chapter.takeaways.join(" | ")}`, `Try this: ${chapter.tryThis}`].join("\n").slice(0, 8000);
+  const notes = fitMarked([`The author's chapter "${chapter.title}" from the book "${book.title}", in their own words (${book.author}).`, text, `Takeaways: ${chapter.takeaways.join(" | ")}`, `Try this: ${chapter.tryThis}`].join("\n"), 24000);
   return {
     topic: chapter.title.length >= 4 ? chapter.title : `${chapter.title} lesson`,
     slug: `book-${tag}-ch${chapter.number}`,

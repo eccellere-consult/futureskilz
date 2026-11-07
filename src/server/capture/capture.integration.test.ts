@@ -583,3 +583,37 @@ describe.skipIf(!enabled)("accounts with passwords", () => {
   });
 
 });
+
+describe.skipIf(!enabled)("a project built from a document, with no interview", () => {
+  const PAGE =
+    "The supplier audit starts with a review of the incoming inspection records for the previous quarter. Then the auditor walks the shop floor and checks calibration stickers on every gauge in use. We used SAP and Excel to track findings. For example, once we cut rework by 15 percent after a gauge audit.";
+
+  it("needs no recording consent, refuses unattested material, and reads attested text as evidence", async () => {
+    const shared = await import("./shared");
+    const schema = await import("@/server/db/schema");
+    const source = await import("./source-service");
+    const uploads = await import("./upload-service");
+    const review = await import("./review-service");
+    const db = await shared.database();
+    const id = randomUUID();
+    await db.insert(schema.users).values({ id, email: `src-${id.slice(0, 6)}@example.test`, displayName: "Sunita Source" });
+
+    await expect(source.createSourceProject(id, { title: "x", language: "en", consents: {} })).rejects.toThrow(/AI reading/);
+    const { projectId } = await source.createSourceProject(id, { title: "Supplier audit", language: "en", consents: { ai_processing: true, content_generation: true, publication: true } });
+
+    await expect(source.addPastedSource(id, projectId, { title: "Audit", text: PAGE }, { ownership: "mine" })).rejects.toThrow(/tick the box/);
+    await expect(source.addPastedSource(id, projectId, { title: "Audit", text: "short" }, { ownership: "mine", attested: true })).rejects.toThrow(/at least/);
+    const added = await source.addPastedSource(id, projectId, { title: "Audit", text: PAGE, url: "https://example.com/audit" }, { ownership: "mine", attested: true });
+    expect(added.status).toBe("extracted");
+
+    const [row] = await db.select().from(schema.kcUploads).where(eq(schema.kcUploads.projectId, projectId));
+    expect(row.attestedAt).not.toBeNull();
+    expect(row.sourceKind).toBe("link_text");
+    expect(row.sourceUrl).toBe("https://example.com/audit");
+
+    const view = await review.getReview(id, projectId);
+    expect(view.gates.find((gate) => gate.id === "consent")?.passed).toBe(true);
+    expect(view.gates.find((gate) => gate.id === "rights")?.passed).toBe(true);
+    expect(uploads.uploadHelp.maxBytes).toBeGreaterThan(0);
+  });
+});

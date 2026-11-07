@@ -316,7 +316,7 @@ export async function listProjects(userId: string) {
     const facts = await db.select({ status: kcFacts.reviewStatus, n: sql<number>`count(*)` }).from(kcFacts).where(eq(kcFacts.projectId, row.id)).groupBy(kcFacts.reviewStatus);
     const total = facts.reduce((sum, item) => sum + Number(item.n), 0);
     const confirmed = facts.filter((item) => item.status === "confirmed" || item.status === "corrected").reduce((sum, item) => sum + Number(item.n), 0);
-    out.push({ id: row.id, title: row.title, status: row.status, stage: readState(row).stage, updatedAt: iso(row.updatedAt), facts: total, confirmed });
+    out.push({ id: row.id, title: row.title, kind: row.kind, status: row.status, stage: readState(row).stage, updatedAt: iso(row.updatedAt), facts: total, confirmed });
   }
   return out;
 }

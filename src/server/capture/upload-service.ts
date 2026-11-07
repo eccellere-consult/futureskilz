@@ -4,6 +4,8 @@ import { createHash } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
 
+import { batchByChars } from "@/features/capture/budget";
+import { ATTESTATION_VERSION } from "@/features/capture/rights";
 import type { DraftFact } from "@/features/capture/extraction";
 import { metricMentions, namedTools, sentencesOf } from "@/features/capture/signals";
 import { roleCandidatesFromText } from "@/features/capture/timeline";
@@ -15,7 +17,18 @@ import { CaptureError, audit, database, loadRoles, newUuid, nextSeq, requireProj
 import { MAX_UPLOAD_BYTES, SUPPORTED_EXTENSIONS, readUpload } from "./upload-text";
 
 
-export type UploadMeta = { ownership: "mine" | "permission" | "third_party" | "unknown"; intendedUse?: string; roleId?: string | null };
+const MAX_AI_BATCHES = 6;
+
+export type UploadMeta = {
+  ownership: "mine" | "permission" | "third_party" | "unknown";
+  intendedUse?: string;
+  roleId?: string | null;
+  /** How the source arrived, and where it came from (an article address, for example). */
+  sourceKind?: "file" | "pasted" | "link_text";
+  sourceUrl?: string | null;
+  /** The contributor ticked the attestation. Required for every source in a "source" project. */
+  attested?: boolean;
+};
 
 export type UploadResult = { id: string; status: string; note: string | null; summary: string | null; factsAdded: number; rolesFound: number; duplicate: boolean };
 
@@ -27,7 +40,11 @@ export type UploadResult = { id: string; status: string; note: string | null; su
  */
 export async function addUpload(userId: string, projectId: string, file: { name: string; type: string; bytes: Buffer }, meta: UploadMeta): Promise<UploadResult> {
   const db = await database();
-  await requireProject(db, userId, projectId);
+  const project = await requireProject(db, userId, projectId);
+  if (project.kind === "source") {
+    if (meta.ownership === "unknown") throw new CaptureError(400, "Please say whether this material is yours, shared with your permission, or someone else's.");
+    if (!meta.attested) throw new CaptureError(400, "Please tick the box confirming you may use this material before it is read.");
+  }
   if (file.bytes.byteLength === 0) throw new CaptureError(400, "That file is empty.");
   if (file.bytes.byteLength > MAX_UPLOAD_BYTES) throw new CaptureError(413, "That file is larger than 5 MB.");
   const filename = file.name.replace(/[\\/\u0000-\u001f]/g, "_").slice(0, 255) || "upload";
@@ -57,6 +74,10 @@ export async function addUpload(userId: string, projectId: string, file: { name:
       roleId: meta.roleId ?? null,
       extractionStatus: reading.status,
       extractionNote: reading.note?.slice(0, 400) ?? null,
+      sourceKind: meta.sourceKind ?? "file",
+      sourceUrl: meta.sourceUrl?.slice(0, 500) ?? null,
+      attestedAt: meta.attested ? new Date() : null,
+      attestationVersion: meta.attested ? ATTESTATION_VERSION : null,
     });
     if (reading.status !== "extracted") {
       await audit(tx, userId, "upload.add", "upload", uploadId, { status: reading.status });
@@ -124,9 +145,13 @@ export async function addUpload(userId: string, projectId: string, file: { name:
     }
 
     // A configured model may read the document too; its claims are checked against the text it was shown.
-    const ai = await readWithAi({ segments: segments.slice(0, 4), question: null, roleId: meta.roleId ?? null, processId: null });
-    if (ai) drafts.push(...ai.facts);
-    if (ai?.rejected.length) await audit(tx, userId, "extraction.rejected", "upload", uploadId, { rejected: ai.rejected.slice(0, 8) });
+    // Every section is read, in batches that run side by side; a visible cap says how many were read.
+    const plan = batchByChars(segments, (s) => s.text.length, 10_000, MAX_AI_BATCHES);
+    const readings = await Promise.all(plan.batches.map((batch) => readWithAi({ segments: batch, question: null, roleId: meta.roleId ?? null, processId: null })));
+    const rejected = readings.flatMap((r) => r?.rejected ?? []);
+    for (const ai of readings) if (ai) drafts.push(...ai.facts);
+    if (rejected.length) await audit(tx, userId, "extraction.rejected", "upload", uploadId, { rejected: rejected.slice(0, 8) });
+    const aiNote = plan.readCount < plan.total ? ` The AI read ${plan.readCount} of ${plan.total} sections; the rest are kept as evidence but were not read by the AI.` : "";
 
     let added = 0;
     for (const draft of drafts) {
@@ -139,7 +164,7 @@ export async function addUpload(userId: string, projectId: string, file: { name:
     }
 
     const toolList = [...allTools.keys()].slice(0, 5);
-    const summary = `${filename}: ${segments.length} section${segments.length === 1 ? "" : "s"} read${rolesFound ? `; ${rolesFound} job${rolesFound === 1 ? "" : "s"} added to your draft timeline` : ""}${toolList.length ? `; names ${toolList.join(", ")}` : ""}. ${meta.roleId ? "Linked to the job you chose." : "Not linked to a specific job."}`;
+    const summary = `${filename}: ${segments.length} section${segments.length === 1 ? "" : "s"} read${rolesFound ? `; ${rolesFound} job${rolesFound === 1 ? "" : "s"} added to your draft timeline` : ""}${toolList.length ? `; names ${toolList.join(", ")}` : ""}. ${meta.roleId ? "Linked to the job you chose." : "Not linked to a specific job."}${aiNote}${reading.note ? ` ${reading.note}` : ""}`;
     await tx.update(kcUploads).set({ summary, charCount: segments.reduce((sum, s) => sum + s.text.length, 0) }).where(eq(kcUploads.id, uploadId));
     await audit(tx, userId, "upload.add", "upload", uploadId, { sections: segments.length, facts: added, ownership: meta.ownership });
     return { id: uploadId, status: "extracted", note: null, summary, factsAdded: added, rolesFound, duplicate: false };

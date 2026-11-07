@@ -22,7 +22,7 @@ export const POST = (request: NextRequest, { params }: RouteContext<"/api/contri
       if (file.size > uploadHelp.maxBytes) return failure(413, "That file is larger than 5 MB.");
       const ownership = OWNERSHIP.find((item) => item === form?.get("ownership")) ?? "unknown";
       const roleId = text(form?.get("roleId"), 36) || null;
-      const result = await addUpload(user.id, (await params).id, { name: file.name, type: file.type, bytes: Buffer.from(await file.arrayBuffer()) }, { ownership, intendedUse: text(form?.get("intendedUse"), 240), roleId });
+      const result = await addUpload(user.id, (await params).id, { name: file.name, type: file.type, bytes: Buffer.from(await file.arrayBuffer()) }, { ownership, intendedUse: text(form?.get("intendedUse"), 240), roleId, attested: form?.get("attested") === "true" });
       return json(result, result.duplicate ? 200 : 201);
     },
     { write: true },

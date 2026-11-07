@@ -12,6 +12,12 @@ export const additiveColumns = [
   { table: "learner_profiles", column: "welcome_summary", definition: "text" },
   { table: "learner_profiles", column: "welcome_summary_source", definition: "varchar(16)" },
   { table: "magic_links", column: "payload", definition: "json" },
+  // 0013_source_intake
+  { table: "kc_projects", column: "kind", definition: "varchar(16) DEFAULT 'interview' NOT NULL" },
+  { table: "kc_uploads", column: "source_kind", definition: "varchar(24)" },
+  { table: "kc_uploads", column: "source_url", definition: "varchar(500)" },
+  { table: "kc_uploads", column: "attested_at", definition: "datetime" },
+  { table: "kc_uploads", column: "attestation_version", definition: "varchar(24)" },
 ] as const;
 
 /**

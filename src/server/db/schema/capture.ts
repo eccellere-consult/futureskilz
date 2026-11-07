@@ -45,6 +45,8 @@ export const kcProjects = mysqlTable(
     contributorId: referenceColumn("contributor_id").notNull().references(() => users.id, { onDelete: "restrict" }),
     title: varchar("title", { length: 200 }).notNull(),
     status: mysqlEnum("status", ["interviewing", "in_review", "approved", "published", "withdrawn"]).notNull().default("interviewing"),
+    /** "interview" = built from an Arya interview; "source" = built from a document or pasted text, no interview. */
+    kind: varchar("kind", { length: 16 }).notNull().default("interview"),
     language: varchar("language", { length: 16 }).notNull().default("en"),
     targetTopics: jsonColumn<string[]>("target_topics"),
     /** The interview checkpoint: stage, what was asked, what is open, the prompt on screen. Resuming loads this. */
@@ -144,6 +146,12 @@ export const kcUploads = mysqlTable(
     extractionNote: varchar("extraction_note", { length: 400 }),
     summary: text("summary"),
     charCount: int("char_count").notNull().default(0),
+    /** "file" | "pasted" | "link_text": how the source arrived. */
+    sourceKind: varchar("source_kind", { length: 24 }),
+    sourceUrl: varchar("source_url", { length: 500 }),
+    /** When the contributor ticked the statement that they may use this source, and which wording they saw. */
+    attestedAt: datetime("attested_at"),
+    attestationVersion: varchar("attestation_version", { length: 24 }),
     createdAt: createdAtColumn(),
   },
   (table) => [uniqueIndex("kc_uploads_project_checksum_idx").on(table.projectId, table.checksum)],

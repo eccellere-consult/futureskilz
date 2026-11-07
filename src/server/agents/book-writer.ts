@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { fitMarked } from "../../features/capture/budget";
+
 import { BOOK_STRUCTURE, CRAFT_RULES, FACT_RULE } from "../../features/book/craft";
 import { groupAnswers, outlineBook } from "../../features/book/outline";
 import { bookSchema, chapterSchema, sectionSchema, wordCount, type Book, type BookChapter, type SourceAnswer } from "../../features/book/types";
@@ -45,7 +47,7 @@ const frameSchema = z.object({
   chapterTitles: z.array(z.object({ title: z.string().max(120), subtitle: z.string().max(200).optional() })).default([]),
 });
 
-const digest = (items: SourceAnswer[]) => items.map((item) => `Q: ${item.question}${item.role ? ` (about the role: ${item.role})` : ""}\nA: ${item.answer}`).join("\n\n").slice(0, 9000);
+const digest = (items: SourceAnswer[]) => fitMarked(items.map((item) => `Q: ${item.question}${item.role ? ` (about the role: ${item.role})` : ""}\nA: ${item.answer}`).join("\n\n"), 24000);
 
 export function createBookWriterAgent(ai: AiProvider): AgentDefinition<BookInput, BookOutput> {
   return {
