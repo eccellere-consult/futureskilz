@@ -52,7 +52,11 @@ export function ReviewWorkspace({ projectId }: { projectId: string }) {
         if (done) setNotice(done);
         load();
       } catch (caught) {
-        if (caught instanceof ApiError && Array.isArray(caught.body.gates)) setBlocked(caught.body.gates as Gate[]);
+        if (caught instanceof ApiError && Array.isArray(caught.body.gates)) {
+          setBlocked(caught.body.gates as Gate[]);
+          setError("Not approved yet: some checks below still need your attention. Each one says what to fix.");
+          return;
+        }
         setError(messageOf(caught));
       } finally {
         setBusy(false);
