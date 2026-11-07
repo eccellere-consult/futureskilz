@@ -10,11 +10,12 @@ import type { DraftFact } from "@/features/capture/extraction";
 import { metricMentions, namedTools, sentencesOf } from "@/features/capture/signals";
 import { roleCandidatesFromText } from "@/features/capture/timeline";
 import type { Segment } from "@/features/capture/types";
+import { deleteObject, r2Config } from "@/server/storage/r2";
 import { kcFactRevisions, kcFactSources, kcFacts, kcRoles, kcSegments, kcUploads } from "@/server/db/schema";
 
 import { readWithAi } from "./extract-ai";
 import { CaptureError, audit, database, loadRoles, newUuid, nextSeq, requireProject, toSegment } from "./shared";
-import { MAX_READ_BYTES, MAX_READ_MB, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, SUPPORTED_EXTENSIONS, readUpload } from "./upload-text";
+import { MAX_READ_BYTES, MAX_READ_MB, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, SUPPORTED_EXTENSIONS, readUpload, readingFromPages, type UploadReading } from "./upload-text";
 
 
 const MAX_AI_BATCHES = 6;
@@ -56,6 +57,31 @@ export async function addUpload(userId: string, projectId: string, file: { name:
   if (existing) return { id: existing.id, status: existing.extractionStatus, note: "You already added this file.", summary: existing.summary, factsAdded: 0, rolesFound: 0, duplicate: true };
 
   const reading = await readUpload(filename, file.bytes);
+  return ingest(userId, projectId, { filename, mediaType: file.type, size: file.bytes.byteLength, checksum }, reading, meta);
+}
+
+type Stored = { filename: string; mediaType: string; size: number; checksum: string };
+
+/**
+ * A PDF read in the person's own browser (pages of text, no file bytes here). The server's PDF reader cannot always start on the
+ * host, so the browser does the reading; the text still goes through the same checks, sources and review as any other upload.
+ */
+export async function addPreReadUpload(userId: string, projectId: string, file: { name: string; type: string; size: number; checksum: string; pages: Array<{ num: number; text: string }>; storageKey?: string | null }, meta: UploadMeta): Promise<UploadResult> {
+  const db = await database();
+  const project = await requireProject(db, userId, projectId);
+  if (project.kind === "source") {
+    if (meta.ownership === "unknown") throw new CaptureError(400, "Please say whether this material is yours, shared with your permission, or someone else's.");
+    if (!meta.attested) throw new CaptureError(400, "Please tick the box confirming you may use this material before it is read.");
+  }
+  const filename = file.name.replace(/[\\/\u0000-\u001f]/g, "_").slice(0, 255) || "upload";
+  const [existing] = await db.select().from(kcUploads).where(and(eq(kcUploads.projectId, projectId), eq(kcUploads.checksum, file.checksum)));
+  if (existing) return { id: existing.id, status: existing.extractionStatus, note: "You already added this file.", summary: existing.summary, factsAdded: 0, rolesFound: 0, duplicate: true };
+  return ingest(userId, projectId, { filename, mediaType: file.type || "application/pdf", size: Math.min(file.size, 2_147_483_647), checksum: file.checksum }, readingFromPages(file.pages), { ...meta, storageKey: file.storageKey ?? null });
+}
+
+async function ingest(userId: string, projectId: string, stored: Stored, reading: UploadReading, meta: UploadMeta): Promise<UploadResult> {
+  const db = await database();
+  const { filename, checksum } = stored;
   const uploadId = newUuid();
   if (meta.roleId) {
     const roles = await loadRoles(db, projectId);
@@ -68,8 +94,8 @@ export async function addUpload(userId: string, projectId: string, file: { name:
       projectId,
       uploadedBy: userId,
       filename,
-      mediaType: (file.type || "application/octet-stream").slice(0, 120),
-      size: file.bytes.byteLength,
+      mediaType: (stored.mediaType || "application/octet-stream").slice(0, 120),
+      size: stored.size,
       checksum,
       ownership: meta.ownership,
       intendedUse: meta.intendedUse?.slice(0, 240) ?? null,
@@ -214,6 +240,22 @@ export async function setUploadOwnership(userId: string, projectId: string, uplo
   await requireProject(db, userId, projectId);
   await db.update(kcUploads).set({ ownership }).where(and(eq(kcUploads.id, uploadId), eq(kcUploads.projectId, projectId)));
   await audit(db, userId, "upload.ownership", "upload", uploadId, { ownership });
+}
+
+/**
+ * Removes a file that could not be read, so it stops blocking publication. A file that was read is not removed here: its
+ * statements and sources depend on it, and withdrawing is a different, deliberate step.
+ */
+export async function removeUnreadUpload(userId: string, projectId: string, uploadId: string): Promise<void> {
+  const db = await database();
+  await requireProject(db, userId, projectId);
+  const [row] = await db.select().from(kcUploads).where(and(eq(kcUploads.id, uploadId), eq(kcUploads.projectId, projectId)));
+  if (!row) throw new CaptureError(404, "That file was not found.");
+  if (row.extractionStatus === "extracted") throw new CaptureError(409, "This file was read and its statements depend on it, so it cannot be removed here.");
+  await db.delete(kcUploads).where(eq(kcUploads.id, uploadId));
+  await audit(db, userId, "upload.remove", "upload", uploadId, { status: row.extractionStatus });
+  const config = r2Config();
+  if (config && row.storageKey) await deleteObject(config, row.storageKey).catch(() => undefined);
 }
 
 export const uploadHelp = { maxBytes: MAX_UPLOAD_BYTES, extensions: SUPPORTED_EXTENSIONS };

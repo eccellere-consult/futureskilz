@@ -39,6 +39,17 @@ function chunk(text: string, locator: string): UploadPiece[] {
   return pieces.filter((piece) => piece.text);
 }
 
+/** Page text already read elsewhere (in the person's browser) becomes the same located pieces a server reading gives. */
+export const MAX_PRE_READ_PAGES = 1500;
+export const MAX_PRE_READ_CHARS = 3_000_000;
+
+export function readingFromPages(pages: Array<{ num: number; text: string }>): UploadReading {
+  const pieces = pages.flatMap((page) => chunk(page.text, `page ${page.num}`));
+  return pieces.length
+    ? { status: "extracted", pieces }
+    : { status: "failed", pieces: [], note: "This PDF has no text in it: its pages are pictures (a scan, or slides saved as images). Paste the text, or save the slides as a Word file, and add that instead." };
+}
+
 export async function readUpload(filename: string, bytes: Buffer): Promise<UploadReading> {
   const name = filename.toLowerCase();
   try {

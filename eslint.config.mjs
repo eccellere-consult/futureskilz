@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Third-party scripts served as they are (the PDF reader's helper), never edited by hand.
+    "public/**",
   ]),
 ]);
 
