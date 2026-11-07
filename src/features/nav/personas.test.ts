@@ -10,7 +10,7 @@ describe("role menus", () => {
   });
 
   it("gives each other kind of person what they work with, and nothing from the other menus", () => {
-    expect(PERSONA_MENUS.coach.items.map((item) => item.label)).toEqual(["Interview", "My lessons", "Earnings calculator"]);
+    expect(PERSONA_MENUS.coach.items.map((item) => item.label)).toEqual(["Interview", "Plan a training", "My lessons", "Earnings calculator"]);
     expect(PERSONA_MENUS.editor.items[0].label).toBe("Content to approve");
     expect(PERSONA_MENUS.admin.items.map((item) => item.label)).toEqual(expect.arrayContaining(["Dashboard", "Accounts", "Payments", "Earnings and policy"]));
     const own = (persona: keyof typeof PERSONA_MENUS) => PERSONA_MENUS[persona].items.map((item) => item.href);
@@ -41,6 +41,7 @@ describe("role menus", () => {
     expect(personaOfPath("/contribute/abc/review")).toBe("coach");
     expect(personaOfPath("/skill-shots/root-cause-five-whys")).toBe("learner");
     expect(personaOfPath("/arya")).toBeNull();
+    expect(personaOfPath("/contribute/training-needs/abc")).toBeNull();
     expect(activeItem(PERSONA_MENUS.admin, "/contribute/admin/users")?.label).toBe("Accounts");
     expect(activeItem(PERSONA_MENUS.admin, "/contribute/admin")?.label).toBe("Earnings and policy");
     expect(activeItem(PERSONA_MENUS.learner, "/skill-shots/x")).toBeNull();
