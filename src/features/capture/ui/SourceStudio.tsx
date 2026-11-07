@@ -57,6 +57,19 @@ export function SourceStudio({ existingProjectId }: { existingProjectId: string 
   const SUPPORTED = [".pdf", ".docx", ".txt", ".md", ".csv", ".xlsx", ".xls"];
   const MAX_FILES = 100;
 
+  /** A file that could not be read: delete it from the project (if it was stored) and take it off this list, so it can be added again. */
+  async function dismiss(index: number) {
+    const item = added[index];
+    if (!item) return;
+    try {
+      if (item.result.id && projectId) await api(`/api/contribute/projects/${projectId}/uploads`, { method: "DELETE", body: JSON.stringify({ uploadId: item.result.id }) });
+      setAdded((list) => list.filter((_, position) => position !== index));
+      setError(null);
+    } catch (caught) {
+      setError(messageOf(caught));
+    }
+  }
+
   async function add() {
     if (!projectId) return;
     if (!ownership) return setError("Say whether this material is yours, shared with permission, or belongs to someone else.");
@@ -206,6 +219,7 @@ export function SourceStudio({ existingProjectId }: { existingProjectId: string 
           {added.map((item, index) => (
             <li className="border-l-2 border-teal pl-3 text-sm" key={index} role="status">
               <strong>{item.name}</strong>: {item.result.duplicate ? "you already added this." : item.result.summary ?? item.result.note ?? "Added."}
+              {item.result.status !== "extracted" && !item.result.duplicate ? (<button className="ml-2 border border-border px-2 py-0.5 text-xs" type="button" disabled={busy} onClick={() => void dismiss(index)}>Remove, then add it again</button>) : null}
             </li>
           ))}
         </ul>

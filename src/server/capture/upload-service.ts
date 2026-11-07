@@ -248,7 +248,7 @@ export async function setUploadOwnership(userId: string, projectId: string, uplo
  */
 export async function removeUnreadUpload(userId: string, projectId: string, uploadId: string): Promise<void> {
   const db = await database();
-  await requireProject(db, userId, projectId);
+  await requireProject(db, userId, projectId, { staff: true });
   const [row] = await db.select().from(kcUploads).where(and(eq(kcUploads.id, uploadId), eq(kcUploads.projectId, projectId)));
   if (!row) throw new CaptureError(404, "That file was not found.");
   if (row.extractionStatus === "extracted") throw new CaptureError(409, "This file was read and its statements depend on it, so it cannot be removed here.");
