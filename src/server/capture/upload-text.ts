@@ -9,7 +9,9 @@ import * as XLSX from "xlsx";
 export type UploadPiece = { locator: string; text: string };
 export type UploadReading = { status: "extracted" | "unsupported" | "failed"; pieces: UploadPiece[]; note?: string };
 
-export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+/** Per file. Larger files need the file store (a later step), because the server holds a whole upload in memory. */
+export const MAX_UPLOAD_MB = 25;
+export const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
 const MAX_PIECE_CHARS = 4000;
 
 export const SUPPORTED_EXTENSIONS = [".pdf", ".docx", ".txt", ".md", ".csv", ".xlsx", ".xls"];
@@ -39,7 +41,13 @@ export async function readUpload(filename: string, bytes: Buffer): Promise<Uploa
   try {
     if (name.endsWith(".pdf")) {
       // Loaded only when a PDF arrives: if the PDF reader cannot start on the server, other files and pasted text still work.
-      const { PDFParse } = await import("pdf-parse");
+      let PDFParse: typeof import("pdf-parse").PDFParse;
+      try {
+        ({ PDFParse } = await import("pdf-parse"));
+      } catch (error) {
+        console.warn("[capture] the PDF reader could not start:", error instanceof Error ? error.message : error);
+        return { status: "failed", pieces: [], note: "PDF files cannot be read on this server yet. Save the PDF as a Word or text file, or paste its text, and add that instead." };
+      }
       const parser = new PDFParse({ data: bytes });
       try {
         const result = await parser.getText();
