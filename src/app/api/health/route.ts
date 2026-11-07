@@ -12,6 +12,7 @@ import { getMysqlPool } from "@/lib/mysql";
 import { SchemaStepError, ensureDatabaseSchema } from "@/server/db/ensure-schema";
 import { getServerEnvironment } from "@/server/env";
 import { SmtpEmailProvider } from "@/server/providers/smtp";
+import { R2_SETTING_NAMES, headObject, r2Config } from "@/server/storage/r2";
 
 export const dynamic = "force-dynamic";
 
@@ -104,8 +105,24 @@ async function runChecks() {
     }
   }
 
+  // The file store is optional: without it uploads are limited to 25 MB. A probe for a file that cannot exist answers
+  // 404 when the keys work and 403 when they do not, and no file is created or read.
+  let fileStore: Check;
+  const storeConfig = r2Config();
+  if (!storeConfig) {
+    const missing = R2_SETTING_NAMES.filter((name) => !isSet(name));
+    fileStore = { ok: false, detail: `not set up (missing ${missing.join(", ")}): uploads are limited to 25 MB each` };
+  } else {
+    try {
+      await headObject(storeConfig, "health/probe-does-not-exist");
+      fileStore = { ok: true, detail: "connected: files of any size can be uploaded" };
+    } catch (error) {
+      fileStore = { ok: false, detail: `the file store did not accept the keys or the bucket name (${error instanceof Error ? error.message : "unknown"})` };
+    }
+  }
+
   const signIn = Boolean(settings.SESSION_SECRET && settings.MAGIC_LINK_SECRET && database.ok && tables.ok && email.ok);
-  return { signInReady: signIn, build: { id: process.env.NEXT_PUBLIC_BUILD_ID ?? "unknown", builtAt: process.env.NEXT_PUBLIC_BUILT_AT ?? "unknown" }, settings, database, tables, email, checkedAt: new Date().toISOString() };
+  return { signInReady: signIn, build: { id: process.env.NEXT_PUBLIC_BUILD_ID ?? "unknown", builtAt: process.env.NEXT_PUBLIC_BUILT_AT ?? "unknown" }, settings, database, tables, email, fileStore, checkedAt: new Date().toISOString() };
 }
 
 let cached: { at: number; result: Promise<Awaited<ReturnType<typeof runChecks>>> } | null = null;

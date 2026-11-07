@@ -152,6 +152,8 @@ export const kcUploads = mysqlTable(
     /** When the contributor ticked the statement that they may use this source, and which wording they saw. */
     attestedAt: datetime("attested_at"),
     attestationVersion: varchar("attestation_version", { length: 24 }),
+    /** Where the original file is kept in the file store (empty when only its text was kept). */
+    storageKey: varchar("storage_key", { length: 512 }),
     createdAt: createdAtColumn(),
   },
   (table) => [uniqueIndex("kc_uploads_project_checksum_idx").on(table.projectId, table.checksum)],

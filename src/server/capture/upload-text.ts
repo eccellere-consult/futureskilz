@@ -12,6 +12,9 @@ export type UploadReading = { status: "extracted" | "unsupported" | "failed"; pi
 /** Per file. Larger files need the file store (a later step), because the server holds a whole upload in memory. */
 export const MAX_UPLOAD_MB = 25;
 export const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
+/** The most the server reads into memory from the file store. Bigger files are kept whole but not read here yet. */
+export const MAX_READ_MB = 40;
+export const MAX_READ_BYTES = MAX_READ_MB * 1024 * 1024;
 const MAX_PIECE_CHARS = 4000;
 
 export const SUPPORTED_EXTENSIONS = [".pdf", ".docx", ".txt", ".md", ".csv", ".xlsx", ".xls"];

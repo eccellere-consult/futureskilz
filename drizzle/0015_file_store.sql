@@ -1,0 +1,1 @@
+ALTER TABLE `kc_uploads` ADD `storage_key` varchar(512);

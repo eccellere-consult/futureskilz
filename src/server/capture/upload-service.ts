@@ -14,7 +14,7 @@ import { kcFactRevisions, kcFactSources, kcFacts, kcRoles, kcSegments, kcUploads
 
 import { readWithAi } from "./extract-ai";
 import { CaptureError, audit, database, loadRoles, newUuid, nextSeq, requireProject, toSegment } from "./shared";
-import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, SUPPORTED_EXTENSIONS, readUpload } from "./upload-text";
+import { MAX_READ_BYTES, MAX_READ_MB, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, SUPPORTED_EXTENSIONS, readUpload } from "./upload-text";
 
 
 const MAX_AI_BATCHES = 6;
@@ -28,6 +28,8 @@ export type UploadMeta = {
   sourceUrl?: string | null;
   /** The contributor ticked the attestation. Required for every source in a "source" project. */
   attested?: boolean;
+  /** Where the original is kept in the file store, when it came from there. */
+  storageKey?: string | null;
 };
 
 export type UploadResult = { id: string; status: string; note: string | null; summary: string | null; factsAdded: number; rolesFound: number; duplicate: boolean };
@@ -46,7 +48,7 @@ export async function addUpload(userId: string, projectId: string, file: { name:
     if (!meta.attested) throw new CaptureError(400, "Please tick the box confirming you may use this material before it is read.");
   }
   if (file.bytes.byteLength === 0) throw new CaptureError(400, "That file is empty.");
-  if (file.bytes.byteLength > MAX_UPLOAD_BYTES) throw new CaptureError(413, `That file is larger than ${MAX_UPLOAD_MB} MB. Split it, or paste its text.`);
+  if (meta.storageKey ? file.bytes.byteLength > MAX_READ_BYTES : file.bytes.byteLength > MAX_UPLOAD_BYTES) throw new CaptureError(413, `That file is larger than ${meta.storageKey ? MAX_READ_MB : MAX_UPLOAD_MB} MB. Split it, or paste its text.`);
   const filename = file.name.replace(/[\\/\u0000-\u001f]/g, "_").slice(0, 255) || "upload";
   const checksum = createHash("sha256").update(file.bytes).digest("hex");
 
@@ -78,6 +80,7 @@ export async function addUpload(userId: string, projectId: string, file: { name:
       sourceUrl: meta.sourceUrl?.slice(0, 500) ?? null,
       attestedAt: meta.attested ? new Date() : null,
       attestationVersion: meta.attested ? ATTESTATION_VERSION : null,
+      storageKey: meta.storageKey ?? null,
     });
     if (reading.status !== "extracted") {
       await audit(tx, userId, "upload.add", "upload", uploadId, { status: reading.status });
@@ -169,6 +172,41 @@ export async function addUpload(userId: string, projectId: string, file: { name:
     await audit(tx, userId, "upload.add", "upload", uploadId, { sections: segments.length, facts: added, ownership: meta.ownership });
     return { id: uploadId, status: "extracted", note: null, summary, factsAdded: added, rolesFound, duplicate: false };
   });
+}
+
+/**
+ * A file kept whole in the file store but too large to read into the server here: it is recorded, shown to the person as
+ * stored and not yet read, and never silently skipped. Reading very large files in the background comes later.
+ */
+export async function addStoredOnly(userId: string, projectId: string, file: { name: string; type: string; size: number; storageKey: string }, meta: UploadMeta): Promise<UploadResult> {
+  const db = await database();
+  const project = await requireProject(db, userId, projectId);
+  if (project.kind === "source") {
+    if (meta.ownership === "unknown") throw new CaptureError(400, "Please say whether this material is yours, shared with your permission, or someone else's.");
+    if (!meta.attested) throw new CaptureError(400, "Please tick the box confirming you may use this material before it is read.");
+  }
+  const id = newUuid();
+  const filename = file.name.replace(/[\\/\u0000-\u001f]/g, "_").slice(0, 255) || "upload";
+  const note = `Stored safely (${(file.size / 1024 / 1024).toFixed(0)} MB). It is too large to be read here yet, so nothing has been taken from it.`;
+  await db.insert(kcUploads).values({
+    id,
+    projectId,
+    uploadedBy: userId,
+    filename,
+    mediaType: (file.type || "application/octet-stream").slice(0, 120),
+    size: Math.min(file.size, 2_147_483_647),
+    checksum: createHash("sha256").update(file.storageKey).digest("hex"),
+    ownership: meta.ownership,
+    roleId: meta.roleId ?? null,
+    extractionStatus: "pending",
+    extractionNote: note,
+    sourceKind: meta.sourceKind ?? "file",
+    attestedAt: meta.attested ? new Date() : null,
+    attestationVersion: meta.attested ? ATTESTATION_VERSION : null,
+    storageKey: file.storageKey,
+  });
+  await audit(db, userId, "upload.stored", "upload", id, { size: file.size, ownership: meta.ownership });
+  return { id, status: "pending", note, summary: null, factsAdded: 0, rolesFound: 0, duplicate: false };
 }
 
 export async function setUploadOwnership(userId: string, projectId: string, uploadId: string, ownership: UploadMeta["ownership"]): Promise<void> {
