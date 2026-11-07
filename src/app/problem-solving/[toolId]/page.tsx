@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { publishedTool } from "@/lib/problemSolving/server";
+import { requireMember } from "@/server/auth/require-member";
 
 import ProblemSolvingToolClient from "./ProblemSolvingToolClient";
 
@@ -15,6 +16,7 @@ export async function generateMetadata({ params }: PageProps<"/problem-solving/[
 
 export default async function ProblemSolvingToolPage({ params, searchParams }: PageProps<"/problem-solving/[toolId]">) {
   const { toolId } = await params;
+  await requireMember(`/problem-solving/${toolId}`);
   const { demo, case: caseParam } = await searchParams;
   // ?demo=1 is the worked example: a fictional company's completed tool, read-only, nothing saved. ?case=<id> is the
   // learner's own problem the page saves to (checked on the server on every request). The key makes moving between the

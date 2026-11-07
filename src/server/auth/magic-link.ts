@@ -9,7 +9,7 @@ export const sessionTtlMs = 90 * 24 * 60 * 60 * 1000;
 export const sessionRenewThresholdMs = 30 * 24 * 60 * 60 * 1000;
 export const emailLinkLimit = { count: 3, windowMs: 15 * 60 * 1000 };
 export const ipRequestLimit = { count: 10, windowMs: 60 * 60 * 1000 };
-export const defaultRedirectPath = "/profile";
+export const defaultRedirectPath = "/home";
 
 export type SignInUser = { id: string; email: string; displayName: string; status: "invited" | "active" | "suspended" };
 

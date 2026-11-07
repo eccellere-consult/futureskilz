@@ -6,6 +6,7 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { buildStarterJourney } from "@/features/journey/model";
 import { useLearnerState } from "@/features/learner/use-learner-state";
+import { PathwayView } from "@/features/pathway/PathwayView";
 
 export default function JourneyPage() {
   const { state, error } = useLearnerState();
@@ -35,7 +36,7 @@ export default function JourneyPage() {
         <div className="grid gap-10 border-t-2 border-gold bg-ink px-6 py-8 text-cream sm:p-10 lg:grid-cols-[1fr_22rem] lg:items-end">
           <div>
             <div className="flex items-center gap-3 text-gold-light"><Route size={20} /><span className="font-mono text-[11px] uppercase">Your first learning route</span></div>
-            <h1 className="mt-5 max-w-4xl font-serif text-5xl leading-none font-light sm:text-6xl">Two focused moves, built around your gaps.</h1>
+            <h1 className="mt-5 max-w-4xl font-serif text-5xl leading-none font-light sm:text-6xl">Your route, built around your gaps.</h1>
           </div>
           <div className="border-l-2 border-gold pl-5">
             <p className="font-mono text-[10px] uppercase text-gold-light">Goal</p>
@@ -43,9 +44,11 @@ export default function JourneyPage() {
           </div>
         </div>
 
-        <section className="mt-12" aria-labelledby="journey-steps">
+        <PathwayView snapshot={snapshot} />
+
+        <section className="mt-16" aria-labelledby="journey-steps">
           <div className="flex items-center justify-between">
-            <h2 className="font-serif text-3xl" id="journey-steps">Starter journey</h2>
+            <h2 className="font-serif text-3xl" id="journey-steps">Quick start</h2>
             <span className="font-mono text-[10px] uppercase text-ink-light">About {journey.reduce((total, step) => total + step.skillShot.durationMinutes, 0)} minutes</span>
           </div>
           <div className="mt-7 divide-y divide-border border-y border-border">

@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { importableSnapshotSchema } from "@/features/learner/snapshot-schema";
 import { completeSignIn } from "@/server/auth/magic-link";
+import { grantBootstrapRoles } from "@/server/auth/password-service";
 import { DatabaseMagicLinkRepository } from "@/server/auth/magic-link-repository";
 import { sessionCookieName, sessionCookieOptions } from "@/server/auth/session-cookie";
 import { createDatabase } from "@/server/db/client";
@@ -36,6 +37,9 @@ export async function POST(request: Request) {
       { status: 410, headers: noStore },
     );
   }
+
+  // The owner's address (BOOTSTRAP_ADMIN_EMAILS) becomes an admin on its first sign-in.
+  await grantBootstrapRoles(signIn.userId).catch((error) => console.error("Bootstrap admin failed", error instanceof Error ? error.message : error));
 
   (await cookies()).set(sessionCookieName, signIn.sessionToken, sessionCookieOptions(process.env.NODE_ENV === "production", signIn.expiresAt));
 

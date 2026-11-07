@@ -1,24 +1,38 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, DM_Sans, JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-const displayFont = Cormorant_Garamond({
+/**
+ * Fonts are served from this repository (SIL Open Font License, via Fontsource), not fetched from Google while building.
+ * The host's build machine cannot always reach Google Fonts, and a failed font download stops the whole deploy.
+ */
+const displayFont = localFont({
   variable: "--font-cormorant",
-  subsets: ["latin"],
-  weight: ["300", "400", "600"],
-  style: ["normal", "italic"],
+  display: "swap",
+  src: [
+    { path: "./fonts/cormorant-garamond-latin-300-normal.woff2", weight: "300", style: "normal" },
+    { path: "./fonts/cormorant-garamond-latin-300-italic.woff2", weight: "300", style: "italic" },
+    { path: "./fonts/cormorant-garamond-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/cormorant-garamond-latin-400-italic.woff2", weight: "400", style: "italic" },
+    { path: "./fonts/cormorant-garamond-latin-600-normal.woff2", weight: "600", style: "normal" },
+    { path: "./fonts/cormorant-garamond-latin-600-italic.woff2", weight: "600", style: "italic" },
+  ],
 });
 
-const bodyFont = DM_Sans({
+const bodyFont = localFont({
   variable: "--font-dm-sans",
-  subsets: ["latin"],
-  weight: ["300", "400", "500"],
+  display: "swap",
+  src: [
+    { path: "./fonts/dm-sans-latin-300-normal.woff2", weight: "300", style: "normal" },
+    { path: "./fonts/dm-sans-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/dm-sans-latin-500-normal.woff2", weight: "500", style: "normal" },
+  ],
 });
 
-const monoFont = JetBrains_Mono({
+const monoFont = localFont({
   variable: "--font-jetbrains-mono",
-  subsets: ["latin"],
-  weight: "400",
+  display: "swap",
+  src: [{ path: "./fonts/jetbrains-mono-latin-400-normal.woff2", weight: "400", style: "normal" }],
 });
 
 export const metadata: Metadata = {

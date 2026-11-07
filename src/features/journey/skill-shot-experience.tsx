@@ -4,7 +4,10 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Clock3 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { AryaSlideShow } from "@/features/arya/AryaTeacher";
+
 import type { SkillShot } from "./model";
+import { skillShotSlides } from "./slides";
 import { completeSkillShot } from "../learner/store";
 
 export function SkillShotExperience({ skillShot }: { skillShot: SkillShot }) {
@@ -42,11 +45,18 @@ export function SkillShotExperience({ skillShot }: { skillShot: SkillShot }) {
           <h1 className="mt-4 max-w-3xl font-serif text-5xl leading-none sm:text-6xl">{skillShot.title}</h1>
           <p className="mt-5 max-w-2xl text-lg leading-8 text-ink-mid">{skillShot.objective}</p>
 
-          <div className="mt-10 space-y-10 border-t border-border pt-10">
-            <LearningBlock label="Why it matters" text={skillShot.whyItMatters} />
-            <LearningBlock label="The technique" text={skillShot.concept} />
-            <LearningBlock label="In practice" text={skillShot.example} />
+          <div className="mt-10">
+            <AryaSlideShow slides={skillShotSlides(skillShot)} />
           </div>
+
+          <details className="mt-6 border-t border-border pt-4">
+            <summary className="cursor-pointer text-sm text-teal underline underline-offset-4">Prefer to read? Show the full text</summary>
+            <div className="mt-6 space-y-10">
+              <LearningBlock label="Why it matters" text={skillShot.whyItMatters} />
+              <LearningBlock label="The technique" text={skillShot.concept} />
+              <LearningBlock label="In practice" text={skillShot.example} />
+            </div>
+          </details>
 
           <section className="mt-12 border-t-2 border-gold bg-surface p-5 shadow-[0_18px_48px_rgba(14,14,13,0.08)] sm:p-8" aria-labelledby="practice-heading">
             <p className="font-mono text-[10px] uppercase text-gold">Try it now</p>

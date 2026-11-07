@@ -105,7 +105,7 @@ async function runChecks() {
   }
 
   const signIn = Boolean(settings.SESSION_SECRET && settings.MAGIC_LINK_SECRET && database.ok && tables.ok && email.ok);
-  return { signInReady: signIn, settings, database, tables, email, checkedAt: new Date().toISOString() };
+  return { signInReady: signIn, build: { id: process.env.NEXT_PUBLIC_BUILD_ID ?? "unknown", builtAt: process.env.NEXT_PUBLIC_BUILT_AT ?? "unknown" }, settings, database, tables, email, checkedAt: new Date().toISOString() };
 }
 
 let cached: { at: number; result: Promise<Awaited<ReturnType<typeof runChecks>>> } | null = null;

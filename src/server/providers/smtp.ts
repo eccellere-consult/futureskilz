@@ -40,6 +40,7 @@ export class SmtpEmailProvider implements NotificationProvider {
       subject: email.subject,
       html: email.html,
       text: email.text,
+      attachments: message.attachments,
       headers: { "X-Entity-Ref-ID": message.idempotencyKey },
     });
 

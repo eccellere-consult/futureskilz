@@ -8,7 +8,7 @@ import {
   type LearnerSnapshot,
 } from "./draft";
 
-export type SessionUser = { displayName: string; email: string };
+export type SessionUser = { displayName: string; email: string; roles?: string[] };
 
 let sessionRequest: Promise<SessionUser | null> | undefined;
 

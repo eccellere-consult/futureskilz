@@ -19,13 +19,20 @@ export function AccountMenu() {
     };
   }, []);
 
-  if (user === undefined) return <span aria-hidden="true" className="inline-block h-9 w-28" />;
+  if (user === undefined) return <span aria-hidden="true" className="inline-block h-9 w-20" />;
 
   if (!user) {
     return (
-      <Link className="inline-flex min-h-9 items-center gap-2 border border-cream/25 px-3 text-xs font-medium text-cream hover:border-gold-light hover:text-gold-light" href="/sign-in">
-        <UserRound aria-hidden="true" size={15} /> Sign in / Join
-      </Link>
+      <div className="flex items-center gap-2">
+        <Link className="hidden text-xs text-cream/80 underline-offset-4 hover:underline sm:inline" href="/lessons">Lessons</Link>
+        <Link className="hidden text-xs text-gold-light underline-offset-4 hover:underline md:inline" href="/join?as=coach">Become a coach</Link>
+        <Link className="inline-flex min-h-9 items-center gap-2 border border-cream/25 px-3 text-xs font-medium text-cream hover:border-gold-light hover:text-gold-light" href="/join">
+          <UserRound aria-hidden="true" size={15} /> Sign in
+        </Link>
+        <Link className="inline-flex min-h-9 items-center bg-gold px-3 text-xs font-bold text-ink hover:bg-gold-light" href="/join">
+          Register
+        </Link>
+      </div>
     );
   }
 

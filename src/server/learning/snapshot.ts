@@ -19,6 +19,8 @@ export const checkInLevelGain = 0.5;
 export const checkInConfidenceGain = 0.1;
 export const checkInEvidenceType = "check-in";
 export const skillShotEvidenceSource = (slug: string) => `skill-shot:${slug}`;
+export const designedEvidenceType = "designed-check";
+export const designedEvidenceSource = (id: string, skill: string) => `designed:${id}:${skill}`;
 
 /** The 0–5 proficiency level is the single stored scale; 0–100 is a display projection. */
 export function levelFromScore(score: number): number {
@@ -96,6 +98,9 @@ export type StoredLearnerState = {
   anchorLevels: Map<string, number>;
   results: Array<{ slug: string; practice: string; checkInAnswer: number; completedAt: Date }>;
   evidence: Array<{ slug: string; createdAt: Date }>;
+  /** Every held level with evidence behind it. */
+  skillLevels?: Array<{ skill: string; level: number; confidence: number; evidenceCount: number }>;
+  designedEvidenceSources?: string[];
 };
 
 /** Projects stored rows back into the browser snapshot shape the existing pages render. */
@@ -123,6 +128,9 @@ export function projectSnapshot(state: StoredLearnerState): LearnerSnapshot {
       welcomeSummarySource: (profile?.welcomeSummarySource as "ai" | "template" | null) ?? null,
     },
   };
+
+  snapshot.skillLevels = state.skillLevels ?? [];
+  snapshot.completedDesigned = [...new Set((state.designedEvidenceSources ?? []).flatMap((source) => (source.startsWith("designed:") ? [source.split(":")[1]] : [])))];
 
   if (!hasCompleteAnswers(state.answers)) return snapshot;
 

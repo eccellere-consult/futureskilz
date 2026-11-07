@@ -22,6 +22,76 @@
       "when": 1792835900390,
       "tag": "0002_framework_workspace",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1792930227884,
+      "tag": "0003_expert_capture",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1792936744991,
+      "tag": "0004_user_credentials",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1793028346935,
+      "tag": "0005_learner_pathway",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1793029903762,
+      "tag": "0006_skill_shot_drafts",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1793034170536,
+      "tag": "0007_learner_diagnostic",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1793035268181,
+      "tag": "0008_coach_messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1793036072123,
+      "tag": "0009_passport_shares",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1793241178636,
+      "tag": "0010_book_projects",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1793412730633,
+      "tag": "0011_fraud_flags_campaigns",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1793413345650,
+      "tag": "0012_payments",
+      "breakpoints": true
     }
   ]
 }

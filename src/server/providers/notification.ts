@@ -3,6 +3,8 @@ export type NotificationMessage = {
   templateKey: string;
   variables: Record<string, string>;
   idempotencyKey: string;
+  /** Files to attach (email only). */
+  attachments?: Array<{ filename: string; content: Buffer; contentType: string }>;
 };
 
 export type NotificationReceipt = {

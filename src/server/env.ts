@@ -22,6 +22,25 @@ const serverEnvironmentSchema = z.object({
   APP_URL: z.url().default("http://localhost:3000"),
   SESSION_SECRET: z.string().min(32).optional(),
   MAGIC_LINK_SECRET: z.string().min(32).optional(),
+  /** Turns on the /demo page. Leave unset in a live launch; set it to a long random phrase only while demonstrating. */
+  /** Comma-separated addresses that become admins the first time they sign in (the owner, so there is someone to create the rest). */
+  BOOTSTRAP_ADMIN_EMAILS: z.string().optional(),
+  DEMO_ACCESS_CODE: z.string().min(12).optional(),
+  /** "auto" gives Arya a studio-quality voice through OpenAI when a key is set; "browser" always uses the visitor's own device voice. */
+  /** "off" sells nothing and locks nothing; "test" lets an admin simulate a payment (never for real money); "razorpay" takes real payments. */
+  PAYMENTS_MODE: z.enum(["off", "test", "razorpay"]).default("off"),
+  RAZORPAY_KEY_ID: z.string().min(1).optional(),
+  RAZORPAY_KEY_SECRET: z.string().min(1).optional(),
+  RAZORPAY_WEBHOOK_SECRET: z.string().min(8).optional(),
+  /** GST on invoices: the supplier's legal name, GSTIN, state code (for example "29"), and the rate in basis points (1800 = 18%). */
+  GST_SUPPLIER_NAME: z.string().min(1).optional(),
+  GST_SUPPLIER_GSTIN: z.string().min(1).optional(),
+  GST_SUPPLIER_STATE: z.string().regex(/^\d{2}$/).optional(),
+  GST_SUPPLIER_ADDRESS: z.string().min(1).optional(),
+  GST_RATE_BP: z.coerce.number().int().min(0).max(2800).default(1800),
+  /** The fewest words of interview answers a book needs. 100 while trialling; set 2000 or more for the final. */
+  BOOK_MIN_WORDS: z.coerce.number().int().min(50).max(20000).default(100),
+  ARYA_VOICE: z.enum(["auto", "browser"]).default("auto"),
 });
 
 export type ServerEnvironment = z.infer<typeof serverEnvironmentSchema>;

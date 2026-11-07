@@ -12,6 +12,7 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
+    "test:integration": "node --env-file-if-exists=.env.local node_modules/vitest/vitest.mjs run --no-file-parallelism src/server/capture/capture.integration.test.ts src/server/payments/payments.integration.test.ts",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs",
@@ -19,6 +20,8 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@react-three/fiber": "^9.8.2",
+    "@types/three": "^0.186.0",
     "drizzle-orm": "^0.45.2",
     "lucide-react": "^1.30.0",
     "mammoth": "^1.13.0",
@@ -27,8 +30,10 @@
     "nodemailer": "^10.1.2",
     "openai": "^6.49.0",
     "pdf-parse": "^2.4.5",
+    "pdfkit": "^0.15.2",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "three": "^0.186.1",
     "xlsx": "file:vendor/xlsx-0.20.3.tgz",
     "xlsx-js-style": "^1.2.0",
     "zod": "^4.4.3"
@@ -38,6 +43,7 @@
     "@types/node": "^20",
     "@types/nodemailer": "^8.0.2",
     "@types/pdf-parse": "^1.1.5",
+    "@types/pdfkit": "^0.17.7",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "drizzle-kit": "^0.31.10",

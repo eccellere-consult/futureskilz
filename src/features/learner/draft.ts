@@ -27,6 +27,12 @@ export type LearnerSnapshot = {
   answers?: AssessmentAnswers;
   scores?: PillarScore[];
   completedSkillShots?: string[];
+  /** Signed-in learners: levels held on the account that have evidence behind them, for every skill and not only the baseline five. */
+  skillLevels?: Array<{ skill: string; level: number; confidence: number; evidenceCount: number }>;
+  /** Signed-in learners: what the conversational diagnostic found, from recent situations they described. */
+  diagnostic?: Array<{ skill: string; level: number; confidence: number; kind: "reported-behaviour" | "reported-behaviour-with-result" }>;
+  /** Signed-in learners: designed Skill Shots whose check was passed. */
+  completedDesigned?: string[];
   evidence?: Array<{
     skillShotSlug: string;
     pillarId: PillarScore["id"];
