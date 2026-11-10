@@ -1,6 +1,7 @@
 import { fitMarked } from "../capture/budget";
 import { SECTIONS, type KnowledgePackage, type PackageItem, type SectionId } from "../capture/knowledge-package";
 import { suggestSkills } from "../pathway/skill-map";
+import { frameworkNote, pickFramework } from "./framework-lens";
 import type { SkillShotBrief } from "./scaffold";
 
 /**
@@ -59,7 +60,8 @@ export function planPieces(pkg: Pick<KnowledgePackage, "sections">, projectTitle
 /** One piece as a brief. The statements are the source, in the contributor's cleared words, each with where it came from. */
 export function pieceBrief(piece: Piece, input: { contributor: string; projectId: string; audience?: string }): SkillShotBrief & { sourceProjectId: string } {
   const lines = piece.items.map((item, index) => `${index + 1}. ${item.title}: ${item.text}${item.refs.length ? ` [source ${item.refs.slice(0, 3).join(", ")}]` : ""}`);
-  const notes = fitMarked([`Confirmed statements from ${input.contributor} about "${piece.sectionTitle}". Teach only from these, in plain words; add no new facts.`, ...lines].join("\n"), 24000);
+  const framework = pickFramework(piece.section, piece.items.map((item) => `${item.title} ${item.text}`).join(" "));
+  const notes = fitMarked([`Confirmed statements from ${input.contributor} about "${piece.sectionTitle}". Teach only from these, in plain words; add no new facts.`, ...(framework ? [frameworkNote(framework)] : []), ...lines].join("\n"), 24000);
   const skills = suggestSkills({ title: piece.title, objective: "", coreConcept: piece.items.map((item) => `${item.title} ${item.text}`).join(" "), narration: [], proficiency: "working" }, 3).map(({ skill, toLevel }) => ({ skill, toLevel }));
   const fromInterview = piece.items.some((item) => item.refs.some((ref) => /^[SC]\d/.test(ref)));
   return {

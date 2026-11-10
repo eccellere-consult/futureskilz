@@ -4,7 +4,8 @@
  */
 
 export type Persona = "learner" | "coach" | "editor" | "admin";
-export type NavItem = { label: string; href: string; hint: string };
+/** `more` items sit behind one "More" control, so the menu shows only what a person uses most. */
+export type NavItem = { label: string; href: string; hint: string; more?: boolean };
 export type PersonaMenu = { label: string; tagline: string; home: string; items: NavItem[] };
 
 export const PERSONA_MENUS: Record<Persona, PersonaMenu> = {
@@ -14,12 +15,12 @@ export const PERSONA_MENUS: Record<Persona, PersonaMenu> = {
     home: "/learn",
     items: [
       { label: "My roadmap", href: "/journey", hint: "Where you stand and what to learn first" },
-      { label: "Explore roles", href: "/explore", hint: "Which roles are near, and what is missing" },
+      { label: "Explore roles", href: "/explore", hint: "Which roles are near, and what is missing", more: true },
       { label: "Skill Passport", href: "/passport", hint: "What you can show, to keep or share" },
       { label: "Marketplace", href: "/marketplace", hint: "Find more to learn, by skill, role or industry" },
-      { label: "Learning path", href: "/lessons", hint: "Lessons in order, from people who have done the work" },
-      { label: "Training material", href: "/training", hint: "Skill Shots, training kits and practice" },
-      { label: "Plans and billing", href: "/pricing", hint: "Your pass, what is free, and your invoices" },
+      { label: "Learning path", href: "/lessons", hint: "Lessons in order, from people who have done the work", more: true },
+      { label: "Training material", href: "/training", hint: "Skill Shots, training kits and practice", more: true },
+      { label: "Plans and billing", href: "/pricing", hint: "Your pass, what is free, and your invoices", more: true },
     ],
   },
   coach: {
@@ -31,7 +32,7 @@ export const PERSONA_MENUS: Record<Persona, PersonaMenu> = {
       { label: "Interview", href: "/contribute", hint: "Talk with Arya and review what she heard" },
       { label: "Plan a training", href: "/contribute/training-needs", hint: "From a big topic to learner needs and a topic tree" },
       { label: "My lessons", href: "/contribute/dashboard", hint: "Your lessons, how they are used, and statements" },
-      { label: "Earnings calculator", href: "/contribute/earnings", hint: "Estimate what your lessons could earn" },
+      { label: "Earnings calculator", href: "/contribute/earnings", hint: "Estimate what your lessons could earn", more: true },
     ],
   },
   editor: {
@@ -43,7 +44,8 @@ export const PERSONA_MENUS: Record<Persona, PersonaMenu> = {
       { label: "Create from files", href: "/contribute/from-source", hint: "Drop in documents or notes; get Skill Shots" },
       { label: "Plan a training", href: "/contribute/training-needs", hint: "From a big topic to learner needs and a topic tree" },
       { label: "Skill Shot studio", href: "/contribute/skill-shots", hint: "Design, check and publish Skill Shots" },
-      { label: "Published lessons", href: "/lessons", hint: "What learners see today" },
+      { label: "Autopilot results", href: "/contribute/autopilot", hint: "What Autopilot made, what is ready and what failed" },
+      { label: "Published lessons", href: "/lessons", hint: "What learners see today", more: true },
     ],
   },
   admin: {
@@ -53,8 +55,8 @@ export const PERSONA_MENUS: Record<Persona, PersonaMenu> = {
     items: [
       { label: "Dashboard", href: "/admin", hint: "People, content and money at a glance" },
       { label: "Accounts", href: "/contribute/admin/users", hint: "Create people and give them roles" },
-      { label: "Earnings and policy", href: "/contribute/admin", hint: "Revenue-share policy, allocation runs and statements" },
-      { label: "Payments", href: "/admin/payments", hint: "Receipts, payouts and what is still to connect" },
+      { label: "Earnings and policy", href: "/contribute/admin", hint: "Revenue-share policy, allocation runs and statements", more: true },
+      { label: "Payments", href: "/admin/payments", hint: "Receipts, payouts and what is still to connect", more: true },
       { label: "Content approvals", href: "/contribute/editor", hint: "The editors' queue" },
     ],
   },
@@ -80,7 +82,7 @@ export const homeFor = (roles: readonly string[] | undefined): string => PERSONA
 /** Which persona's screens a path belongs to, so the menu can stay on the right one. */
 export function personaOfPath(pathname: string): Persona | null {
   if (pathname === "/admin" || pathname.startsWith("/admin/") || pathname.startsWith("/contribute/admin")) return "admin";
-  if (pathname.startsWith("/contribute/editor") || pathname.startsWith("/contribute/skill-shots") || pathname.startsWith("/contribute/lessons")) return "editor";
+  if (pathname.startsWith("/contribute/editor") || pathname.startsWith("/contribute/skill-shots") || pathname.startsWith("/contribute/lessons") || pathname.startsWith("/contribute/autopilot")) return "editor";
   // Shared by coaches and editors: stay on whichever menu the person already has open.
   if (pathname === "/contribute/training-needs" || pathname.startsWith("/contribute/training-needs/") || pathname === "/contribute/from-source") return null;
   if (pathname.startsWith("/contribute")) return "coach";
