@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { SiteHeader } from "@/components/site-header";
 import { requireRole } from "@/server/auth/require-member";
+import { PilotSwitch } from "@/features/capture/ui/AutopilotPanel";
 import { AdminCampaigns } from "@/features/capture/ui/AdminCampaigns";
 import { AdminEarnings } from "@/features/capture/ui/AdminEarnings";
 import { AdminFraud } from "@/features/capture/ui/AdminFraud";
@@ -15,6 +16,7 @@ export default async function AdminPage() {
   return (
     <main className="min-h-screen bg-cream text-ink">
       <SiteHeader step="Admin" />
+      <div className="pt-6"><PilotSwitch /></div>
       <AdminEarnings />
       <div className="mx-auto w-full max-w-6xl px-5 pb-16 sm:px-8"><AdminFraud /><AdminCampaigns /></div>
     </main>

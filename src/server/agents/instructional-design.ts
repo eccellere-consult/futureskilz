@@ -28,6 +28,8 @@ export const briefSchema = z.object({
   sourceKind: z.enum(["expert-interview", "document", "illustrative", "method", "design"]),
   slug: z.string().regex(/^[a-z0-9-]{3,80}$/).optional(),
   sourceLessonId: z.string().max(40).optional(),
+  sourceProjectId: z.string().max(40).optional(),
+  autopilot: z.boolean().optional(),
 });
 
 export const designOutputSchema = z.object({

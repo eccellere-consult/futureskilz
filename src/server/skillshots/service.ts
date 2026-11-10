@@ -22,6 +22,7 @@ import type { KnowledgePackage } from "@/features/capture/knowledge-package";
 import { chapterBrief } from "@/features/book/training";
 import type { Book } from "@/features/book/types";
 import { createProviders } from "@/server/providers";
+import { isPilotOn } from "@/server/pilot/pilot";
 
 type Row = typeof skillShotDrafts.$inferSelect;
 export type DraftSummary = { id: string; slug: string; title: string; status: Row["status"]; source: string; passes: boolean; blockers: number; updatedAt: string };
@@ -46,7 +47,7 @@ const summarise = (row: Row): DraftSummary => {
   const review = row.review as unknown as Review;
   return { id: row.id, slug: row.slug, title: row.title, status: row.status, source: row.source, passes: Boolean(review?.passes), blockers: review?.blockers?.length ?? 0, updatedAt: row.updatedAt.toISOString() };
 };
-type Brief = { sourceLessonId?: string; sourceProjectId?: string; contributorApprovedAt?: string | null; sourceKind?: "illustrative" | "method" | "design" | "expert-interview" | "document"; sourceNotes?: string };
+type Brief = { sourceLessonId?: string; sourceProjectId?: string; autopilot?: boolean; contributorApprovedAt?: string | null; sourceKind?: "illustrative" | "method" | "design" | "expert-interview" | "document"; sourceNotes?: string };
 
 /** The review path for a draft: from its topic, where its facts came from, whether it makes claims about real parties, and how sure the checks are. */
 function governanceOf(row: Row): Governance {
@@ -94,7 +95,7 @@ export async function designSkillShot(userId: string, rawBrief: unknown): Promis
   const parsed = briefSchema.safeParse(rawBrief);
   if (!parsed.success) throw new CaptureError(400, `Check the brief: ${parsed.error.issues[0]?.message ?? "something is missing"}.`);
   // sourceLessonId is set only by designFromLesson, which checks the lesson; a brief typed in by hand cannot claim one.
-  const brief = { ...parsed.data, sourceLessonId: undefined, sourceProjectId: undefined };
+  const brief = { ...parsed.data, sourceLessonId: undefined, sourceProjectId: undefined, autopilot: undefined };
   const queued = await insertDesigning(userId, brief, await freeSlug(briefSlug(brief)), "The design agent is working on this draft.");
   const db = await database();
   await audit(db, userId, "skillshot.design", "skill_shot_draft", queued.id);
@@ -191,16 +192,18 @@ export async function previewFromProject(userId: string, projectId: string) {
 }
 
 /** The contributor (or an editor) turns the confirmed material into Skill Shot drafts. An editor still reviews each before a learner sees it. */
-export async function designFromProject(userId: string, projectId: string, keys?: string[]): Promise<{ queued: number; alreadyStarted: number }> {
+export async function designFromProject(userId: string, projectId: string, keys?: string[], options: { autopilot?: boolean; limit?: number } = {}): Promise<{ queued: number; alreadyStarted: number }> {
   const { plan, contributor } = await loadApprovedPackage(userId, projectId);
   const db = await database();
-  const chosen = plan.pieces.filter((piece) => !keys || keys.includes(piece.key));
+  const chosen = plan.pieces.filter((piece) => !keys || keys.includes(piece.key)).slice(0, options.limit ?? 60);
   if (!chosen.length) throw new CaptureError(409, "There is nothing in the approved package to make a Skill Shot from yet. Confirm more knowledge first.");
+  // Autopilot repairs itself: a draft that failed is cleared so the piece is designed again.
+  if (options.autopilot) for (const piece of chosen) await db.delete(skillShotDrafts).where(and(eq(skillShotDrafts.slug, piece.key), eq(skillShotDrafts.status, "failed")));
   const existing = await db.select({ slug: skillShotDrafts.slug }).from(skillShotDrafts);
   const queue: Queued[] = [];
   for (const piece of chosen) {
     if (existing.some((row) => row.slug === piece.key)) continue;
-    const brief = briefSchema.parse(pieceBrief(piece, { contributor, projectId }));
+    const brief = briefSchema.parse({ ...pieceBrief(piece, { contributor, projectId }), ...(options.autopilot ? { autopilot: true } : {}) });
     queue.push(await insertDesigning(userId, brief, piece.key, "Waiting in the queue for the design agent."));
   }
   await audit(db, userId, "skillshot.fromProject", "kc_project", projectId, { queued: queue.length });
@@ -225,9 +228,17 @@ async function completeDesign(userId: string, id: string, slug: string, brief: z
   try {
     const { ai } = createProviders();
     const runner = new AgentRunner(new DatabaseAgentRunRecorder(createDatabase(), ai));
-    const result = await runner.run(createInstructionalDesignAgent(ai), brief, { userId });
+    // Autopilot repairs itself: one more try if the design fails outright.
+    let result = await runner.run(createInstructionalDesignAgent(ai), brief, { userId }).catch((error: unknown) => {
+      if (!brief.autopilot) throw error;
+      return null;
+    });
+    if (!result) result = await runner.run(createInstructionalDesignAgent(ai), brief, { userId });
     const blueprint = { ...result.blueprint, meta: { ...result.blueprint.meta, id: slug } };
-    await db.update(skillShotDrafts).set({ title: blueprint.meta.title.slice(0, 200), status: "draft", blueprint: blueprint as unknown as Record<string, unknown>, review: reviewBlueprint(blueprint) as unknown as Record<string, unknown>, source: result.source, notes: result.notes }).where(eq(skillShotDrafts.id, id));
+    // Pilot: when the checks pass, Autopilot drafts are approved at once. Approved is staff-only; only "publish" reaches learners.
+    const auto = Boolean(brief.autopilot) && reviewBlueprint(blueprint).passes && (await isPilotOn());
+    if (auto) blueprint.meta = { ...blueprint.meta, reviewStatus: "approved" };
+    await db.update(skillShotDrafts).set({ title: blueprint.meta.title.slice(0, 200), status: auto ? "approved" : "draft", approvedBy: auto ? userId : null, blueprint: blueprint as unknown as Record<string, unknown>, review: reviewBlueprint(blueprint) as unknown as Record<string, unknown>, source: result.source, notes: result.notes }).where(eq(skillShotDrafts.id, id));
   } catch (error) {
     console.error("[skillshot design]", error instanceof Error ? error.message : error);
     await db.update(skillShotDrafts).set({ status: "failed", notes: ["The design could not be completed. Try again, or write the Skill Shot by hand from the structure."] }).where(eq(skillShotDrafts.id, id)).catch(() => undefined);

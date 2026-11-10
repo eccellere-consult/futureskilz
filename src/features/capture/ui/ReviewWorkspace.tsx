@@ -2,6 +2,7 @@
 
 import { CreateFromInterview } from "@/features/book/ui/BookWorkspace";
 import { SkillShotsFromReview } from "./SkillShotsFromReview";
+import { AutopilotPanel } from "./AutopilotPanel";
 import { AlertTriangle, CheckCircle2, ChevronDown, Download, FileText, Quote, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
@@ -101,6 +102,8 @@ export function ReviewWorkspace({ projectId }: { projectId: string }) {
           <AlertTriangle aria-hidden="true" className="mt-0.5 shrink-0" size={16} /> You changed statements after approving. Approve again when you are happy; lessons are only built from an approved version.
         </p>
       ) : null}
+
+      {!withdrawn ? <div className="mt-8"><AutopilotPanel projectId={projectId} /></div> : null}
 
       {!withdrawn ? (
         <section aria-label="Create from this interview" className="mt-8">
