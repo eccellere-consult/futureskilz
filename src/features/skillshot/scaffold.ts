@@ -18,6 +18,8 @@ export type SkillShotBrief = {
   sourceLessonId?: string;
   /** Set when the draft is built from a contributor's approved knowledge package: the contributor can see it, an editor reviews it. */
   sourceProjectId?: string;
+  /** Made by Autopilot in pilot mode: it stops at "approved" (staff only) once the checks pass, instead of waiting for a person. */
+  autopilot?: boolean;
 };
 
 export const slugOf = (text: string): string => text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "skill-shot";
