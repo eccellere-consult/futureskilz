@@ -16,6 +16,8 @@ export type AutopilotReport = {
   steps: Array<{ step: string; ok: boolean; detail: string }>;
   started: number;
   alreadyHad: number;
+  /** Files in the project that were not read. The screen offers to remove them in one click. */
+  unread: number;
   /** The plain reason nothing was started, when that is so. */
   stoppedBecause: string | null;
 };
@@ -32,7 +34,7 @@ export async function runAutopilot(userId: string, projectId: string): Promise<A
   if (!roles.has("editor") && !roles.has("admin")) throw new CaptureError(403, "Autopilot is for the editor or admin running the pilot.");
   await requireProject(db, userId, projectId, { staff: true });
 
-  const report: AutopilotReport = { steps: [], started: 0, alreadyHad: 0, stoppedBecause: null };
+  const report: AutopilotReport = { steps: [], started: 0, alreadyHad: 0, unread: 0, stoppedBecause: null };
   const attempt = async <T,>(step: string, work: () => Promise<T>, describe: (value: T) => string): Promise<T | null> => {
     for (let tries = 1; tries <= 2; tries += 1) {
       try {
@@ -48,6 +50,7 @@ export async function runAutopilot(userId: string, projectId: string): Promise<A
 
   const uploads = await db.select({ name: kcUploads.filename, status: kcUploads.extractionStatus }).from(kcUploads).where(eq(kcUploads.projectId, projectId));
   const unread = uploads.filter((upload) => upload.status !== "extracted" && upload.status !== "duplicate");
+  report.unread = unread.length;
   report.steps.push({ step: "Material", ok: true, detail: `${uploads.length - unread.length} file${uploads.length - unread.length === 1 ? "" : "s"} read${unread.length ? `; skipped ${unread.length} that could not be read (${unread.slice(0, 3).map((upload) => upload.name).join(", ")})` : ""}.` });
 
   await attempt("Confirm the plain statements", () => confirmAllPlain(userId, projectId), (value) => `${value.confirmed} confirmed${value.skipped ? `, ${value.skipped} sensitive ones left out` : ""}.`);

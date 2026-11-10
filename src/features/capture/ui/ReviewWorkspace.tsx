@@ -97,6 +97,13 @@ export function ReviewWorkspace({ projectId }: { projectId: string }) {
       {error ? <p className="mt-4 border-l-2 border-crimson bg-crimson/5 px-4 py-2 text-sm text-crimson" role="alert">{error}</p> : null}
       {notice ? <p className="mt-4 border-l-2 border-teal bg-teal/5 px-4 py-2 text-sm" role="status">{notice}</p> : null}
       {withdrawn ? <p className="mt-4 border-l-2 border-crimson px-4 py-2 text-sm">This interview was withdrawn. Its lessons were retired.</p> : null}
+      {!withdrawn && data.uploads.some((upload) => upload.extractionStatus !== "extracted") ? (
+        <div className="mt-4 flex flex-wrap items-center gap-3 border-l-2 border-crimson bg-crimson/5 px-4 py-3 text-sm" role="status">
+          <span>{data.uploads.filter((upload) => upload.extractionStatus !== "extracted").length} file{data.uploads.filter((upload) => upload.extractionStatus !== "extracted").length === 1 ? "" : "s"} could not be read: {data.uploads.filter((upload) => upload.extractionStatus !== "extracted").slice(0, 3).map((upload) => upload.filename).join(", ")}.</span>
+          <button className="primary-button min-h-10! px-3! py-2!" disabled={busy} onClick={() => void run(() => api(`/api/contribute/projects/${projectId}/uploads`, { method: "DELETE", body: JSON.stringify({ allUnread: true }) }), "Removed. Add the files again to retry; PDFs are now read in your browser.")} type="button">Remove all failed files</button>
+          <Link className="underline underline-offset-4" href={`/contribute/from-source?project=${projectId}`}>Add files again</Link>
+        </div>
+      ) : null}
       {data.changedSinceApproval ? (
         <p className="mt-4 flex gap-2 border-l-2 border-gold bg-gold-pale px-4 py-2 text-sm" role="status">
           <AlertTriangle aria-hidden="true" className="mt-0.5 shrink-0" size={16} /> You changed statements after approving. Approve again when you are happy; lessons are only built from an approved version.
