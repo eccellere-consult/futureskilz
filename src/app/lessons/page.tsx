@@ -28,7 +28,7 @@ export default async function LessonsPage() {
         <p className="font-mono text-[10px] uppercase text-ink-light">Learn from people who have done the work</p>
         <h1 className="mt-2 max-w-3xl font-display text-4xl font-semibold leading-tight sm:text-6xl">Short lessons. Real experience.</h1>
         <p className="mt-4 max-w-2xl text-lg leading-8 text-ink-mid">Every lesson is built from a contributor&apos;s own words, which they reviewed and approved. Finishing a lesson shows exposure; the check at the end is where you show you can apply it.</p>
-        {paths.length === 0 ? <p className="mt-10 border-l-2 border-gold pl-4 text-ink-mid">The first lessons are being prepared with our contributors. Check back soon.</p> : null}
+        {paths.length === 0 ? <div className="mt-10 border-l-2 border-gold pl-4"><p className="text-ink-mid">Coach lessons are on their way. You can start today with Skill Shots: short, practical lessons taught by Arya.</p><p className="mt-3"><Link className="primary-button" href="/marketplace">Start with a Skill Shot</Link></p></div> : null}
         <div className="mt-10 space-y-10">
           {paths.map((path) => (
             <section key={path.id} aria-label={path.title}>

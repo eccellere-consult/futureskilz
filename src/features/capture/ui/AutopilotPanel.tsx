@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+import { SkillShotsFromReview } from "./SkillShotsFromReview";
 
 import { messageOf, post, put, useRemote } from "./api";
 
@@ -34,13 +36,21 @@ export function PilotSwitch() {
 }
 
 /** One button from material to Skill Shot drafts, shown only while the pilot switch is on. Ends with a plain report, never a dead end. */
-export function AutopilotPanel({ projectId }: { projectId: string }) {
+export function AutopilotPanel({ projectId, autoRunKey, showResults }: { projectId: string; /** Changes when new material has been read: Autopilot then runs by itself. */ autoRunKey?: number; /** Also list the Skill Shots here, so there is no second screen to visit. */ showResults?: boolean }) {
   const { data } = useRemote<{ on: boolean }>("/api/contribute/pilot");
   const [busy, setBusy] = useState(false);
   const [report, setReport] = useState<Report | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
-  if (!data?.on) return null;
-  const run = async () => {
+  const ranFor = useRef(0);
+  const on = Boolean(data?.on);
+  useEffect(() => {
+    if (!on || !autoRunKey || ranFor.current === autoRunKey) return;
+    ranFor.current = autoRunKey;
+    void run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [on, autoRunKey]);
+  if (!on) return null;
+  async function run() {
     setBusy(true);
     setFailure(null);
     setReport(null);
@@ -51,7 +61,7 @@ export function AutopilotPanel({ projectId }: { projectId: string }) {
     } finally {
       setBusy(false);
     }
-  };
+  }
   return (
     <section aria-label="Autopilot" className="border border-teal bg-surface p-5">
       <h2 className="font-display text-xl">Autopilot (pilot mode)</h2>
@@ -64,6 +74,7 @@ export function AutopilotPanel({ projectId }: { projectId: string }) {
         </div>
       ) : null}
       <button type="button" className="primary-button mt-3" disabled={busy} onClick={() => void run()}>{busy ? "Working…" : report ? "Run Autopilot again" : "Run Autopilot"}</button>
+      {showResults && report && !report.stoppedBecause ? <div className="mt-4"><SkillShotsFromReview key={`${report.started}-${report.alreadyHad}-${report.steps.length}`} projectId={projectId} /></div> : null}
     </section>
   );
 }
