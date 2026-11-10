@@ -121,8 +121,25 @@ async function runChecks() {
     }
   }
 
+  // The AI service: one tiny real request to each service that has a key. Without a working one, every AI feature quietly falls
+  // back to placeholders, so this is the first thing to look at when no Skill Shot is being made. No key is ever shown.
+  const AI_HINTS: Record<number, string> = { 401: "the key was refused (wrong, expired or deleted)", 403: "the key is not allowed to use this model", 404: "the model name was not found for this key", 429: "the account has no credit left or is over its limit" };
+  const askAi = async (label: string, baseUrl: string, key: string | undefined, model: string): Promise<string | null> => {
+    if (!key) return null;
+    try {
+      const response = await fetch(`${baseUrl}/chat/completions`, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages: [{ role: "user", content: "Say OK." }], max_tokens: 5 }), signal: AbortSignal.timeout(15_000) });
+      return response.ok ? `${label}: answering` : `${label}: FAILED, ${AI_HINTS[response.status] ?? `the service answered ${response.status}`}`;
+    } catch (error) {
+      return `${label}: FAILED, no answer (${error instanceof Error ? error.name : "unknown"})`;
+    }
+  };
+  const aiResults = (await Promise.all([askAi("OpenAI", "https://api.openai.com/v1", env.OPENAI_API_KEY, "gpt-4.1-mini"), askAi("xAI", "https://api.x.ai/v1", env.XAI_API_KEY, "grok-3-mini")])).filter((line): line is string => Boolean(line));
+  const ai: Check = aiResults.length === 0
+    ? { ok: false, detail: "no AI key is set (OPENAI_API_KEY or XAI_API_KEY): Skill Shots come out as empty structures with placeholders" }
+    : { ok: aiResults.some((line) => line.endsWith("answering")), detail: aiResults.join("; ") };
+
   const signIn = Boolean(settings.SESSION_SECRET && settings.MAGIC_LINK_SECRET && database.ok && tables.ok && email.ok);
-  return { signInReady: signIn, build: { id: process.env.NEXT_PUBLIC_BUILD_ID ?? "unknown", builtAt: process.env.NEXT_PUBLIC_BUILT_AT ?? "unknown" }, settings, database, tables, email, fileStore, checkedAt: new Date().toISOString() };
+  return { signInReady: signIn, build: { id: process.env.NEXT_PUBLIC_BUILD_ID ?? "unknown", builtAt: process.env.NEXT_PUBLIC_BUILT_AT ?? "unknown" }, settings, database, tables, email, fileStore, ai, checkedAt: new Date().toISOString() };
 }
 
 let cached: { at: number; result: Promise<Awaited<ReturnType<typeof runChecks>>> } | null = null;

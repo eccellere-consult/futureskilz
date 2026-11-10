@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { SkillShotsFromReview } from "./SkillShotsFromReview";
+import Link from "next/link";
 
 import { api, messageOf, post, put, useRemote } from "./api";
 
@@ -32,6 +32,33 @@ export function PilotSwitch() {
       {error || failure ? <p role="alert" className="mt-3 text-sm text-crimson">{failure ?? error}</p> : null}
       {data ? <button type="button" className="primary-button mt-3" disabled={busy} onClick={() => void toggle()}>{data.on ? "Pilot mode is ON. Turn it off" : "Pilot mode is off. Turn it on"}</button> : null}
     </section>
+  );
+}
+
+type Draft = { id: string; title: string; status: string; blockers: number; notes: string[] };
+const LABEL: Record<string, string> = { designing: "Being designed…", failed: "Could not be made", draft: "Made; open it to finish", in_review: "Made; open it to finish", approved: "Ready", published: "Published", retired: "Retired" };
+
+/** The Skill Shots made from this project, refreshing by itself while any is still being designed. */
+function ProjectDrafts({ projectId, quietWhenEmpty }: { projectId: string; quietWhenEmpty?: boolean }) {
+  const { data, reload } = useRemote<{ drafts: Draft[] }>(`/api/contribute/projects/${projectId}/autopilot`);
+  const working = Boolean(data?.drafts.some((draft) => draft.status === "designing"));
+  useEffect(() => {
+    if (!working) return;
+    const timer = setInterval(reload, 5000);
+    return () => clearInterval(timer);
+  }, [working, reload]);
+  if (!data) return null;
+  if (!data.drafts.length) return quietWhenEmpty ? null : <p className="mt-3 text-sm text-ink-mid">Starting…</p>;
+  return (
+    <ul className="mt-4 divide-y divide-border border border-border text-sm">
+      {data.drafts.map((draft) => (
+        <li key={draft.id} className="flex flex-wrap items-baseline justify-between gap-2 p-3">
+          {draft.status === "designing" ? <span className="font-semibold">{draft.title}</span> : <Link className="font-semibold underline underline-offset-4" href={`/contribute/skill-shots/${draft.id}`}>{draft.title}</Link>}
+          <span className={draft.status === "failed" ? "text-crimson" : "text-ink-mid"}>{LABEL[draft.status] ?? draft.status}{draft.status === "draft" && draft.blockers ? ` (${draft.blockers} point${draft.blockers === 1 ? "" : "s"} to fix)` : ""}</span>
+          {draft.status === "failed" || (draft.status === "draft" && draft.notes.length) ? <span className="w-full text-xs text-ink-mid">{draft.notes[draft.notes.length - 1]}</span> : null}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -77,7 +104,7 @@ export function AutopilotPanel({ projectId, autoRunKey, showResults }: { project
   return (
     <section aria-label="Autopilot" className="border border-teal bg-surface p-5">
       <h2 className="font-display text-xl">Autopilot (pilot mode)</h2>
-      <p className="mt-1 text-sm text-ink-mid">Confirms the plain statements, approves the knowledge package and starts a Skill Shot for each teachable piece, in one go. Skill Shots that pass their checks are approved for you to open; nothing reaches learners.</p>
+      <p className="mt-1 text-sm text-ink-mid">Builds Skill Shots straight from whatever you uploaded, pasted or said. Nothing to confirm or approve first. The ones that pass their checks are marked ready for you; nothing reaches learners.</p>
       {failure ? <p role="alert" className="mt-3 text-sm text-crimson">{failure}</p> : null}
       {report ? (
         <div role="status" className="mt-3 text-sm">
@@ -87,7 +114,7 @@ export function AutopilotPanel({ projectId, autoRunKey, showResults }: { project
       ) : null}
       {report?.unread ? <button type="button" className="mr-2 mt-3 inline-flex min-h-12 items-center border border-crimson px-4 text-sm text-crimson" disabled={busy} onClick={() => void clearFailed()}>Remove the {report.unread} file{report.unread === 1 ? "" : "s"} that could not be read</button> : null}
       <button type="button" className="primary-button mt-3" disabled={busy} onClick={() => void run()}>{busy ? "Working…" : report ? "Run Autopilot again" : "Run Autopilot"}</button>
-      {showResults && report && !report.stoppedBecause ? <div className="mt-4"><SkillShotsFromReview key={`${report.started}-${report.alreadyHad}-${report.steps.length}`} projectId={projectId} /></div> : null}
+      {report && !report.stoppedBecause ? <ProjectDrafts projectId={projectId} /> : showResults ? null : <ProjectDrafts projectId={projectId} quietWhenEmpty />}
     </section>
   );
 }
