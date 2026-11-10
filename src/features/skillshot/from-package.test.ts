@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { PackageItem, SectionId } from "../capture/knowledge-package";
+import { FRAMEWORKS, pickFramework } from "./framework-lens";
 import { MAX_STATEMENTS, pieceBrief, planPieces } from "./from-package";
 
 const item = (n: number, refs: string[] = ["D1"]): PackageItem => ({ factId: `f${n}`, title: `Point ${n}`, text: `Statement ${n} about the work.`, kind: "process", reviewStatus: "confirmed", confidence: 0.9, roleId: null, processId: null, refs, details: null, anonymized: false }) as unknown as PackageItem;
@@ -25,6 +26,19 @@ describe("framework lens", () => {
     const brief = pieceBrief(piece, { contributor: "Asha", projectId: "p1" });
     expect(brief.sourceNotes).toContain("5 Whys");
     expect(brief.sourceNotes).toContain("ONLY where the confirmed statements fit");
+  });
+});
+
+describe("framework list", () => {
+  it("holds the twelve Problem Solving methods of the Framework Workspace skill, each with steps", () => {
+    const ids = FRAMEWORKS.map((framework) => framework.id);
+    for (const id of ["five-w-two-h", "copq", "pareto", "is-is-not", "affinity", "fishbone", "five-whys", "impact-effort", "pugh", "fmea-lite", "pdca", "a3"]) expect(ids).toContain(id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(FRAMEWORKS.every((framework) => framework.steps.length >= 3)).toBe(true);
+  });
+  it("picks by the words when the section alone does not decide", () => {
+    expect(pickFramework("practices", "We compare each vendor option against the same criteria before we choose between them, a trade-off")?.id).toBe("pugh");
+    expect(pickFramework("overview", "nothing that matches")).toBeNull();
   });
 });
 
