@@ -165,6 +165,24 @@ export async function designFromBook(userId: string, projectId: string): Promise
   return { queued: queue.length, alreadyStarted: book.chapters.length - queue.length };
 }
 
+/**
+ * Designs a Skill Shot draft for each brief that has none yet, one after another on the server. The caller has already checked that the
+ * person may do this. Drafts are for an editor to review; nothing reaches a learner from here.
+ */
+export async function designBriefsFor(userId: string, briefs: Array<{ slug: string; brief: unknown }>, action: string, entity: string, entityId: string): Promise<{ queued: number; alreadyStarted: number }> {
+  const db = await database();
+  const existing = await db.select({ slug: skillShotDrafts.slug }).from(skillShotDrafts);
+  const queue: Queued[] = [];
+  for (const item of briefs) {
+    if (existing.some((row) => row.slug === item.slug)) continue;
+    const brief = briefSchema.parse({ ...(item.brief as object), slug: item.slug });
+    queue.push(await insertDesigning(userId, brief, item.slug, "Waiting in the queue for the design agent."));
+  }
+  await audit(db, userId, action, entity, entityId, { queued: queue.length });
+  void runQueue(userId, queue);
+  return { queued: queue.length, alreadyStarted: briefs.length - queue.length };
+}
+
 /** What a contributor's approved material would become, and what is left out and why. Nothing is created. */
 async function loadApprovedPackage(userId: string, projectId: string) {
   const db = await database();

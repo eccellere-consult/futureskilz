@@ -6,6 +6,8 @@ import { useRef, useState } from "react";
 import type { InterviewView } from "@/server/capture/interview-service";
 
 import { api, messageOf } from "./api";
+import { uploadReadPdf } from "./direct-upload";
+import { MAX_BROWSER_PDF_BYTES, readPdfPages } from "./read-pdf";
 
 type Result = { id: string; status: string; note: string | null; summary: string | null; factsAdded: number; rolesFound: number; duplicate: boolean };
 
@@ -26,11 +28,27 @@ export function UploadPanel({ projectId, roles, onDone }: { projectId: string; r
     setError(null);
     setResult(null);
     try {
-      const form = new FormData();
-      form.set("file", file);
-      form.set("ownership", ownership);
-      if (roleId) form.set("roleId", roleId);
-      const outcome = await api<Result>(`/api/contribute/projects/${projectId}/uploads`, { method: "POST", body: form });
+      let outcome: Result | null = null;
+      if (!roleId && file.name.toLowerCase().endsWith(".pdf") && file.size <= MAX_BROWSER_PDF_BYTES) {
+        // PDFs are read in this browser tab, which always works, and only their text is sent. If this browser cannot open the file, the server tries below.
+        let read: Awaited<ReturnType<typeof readPdfPages>> | null = null;
+        try {
+          read = await readPdfPages(file, () => undefined);
+        } catch {
+          read = null;
+        }
+        if (read) {
+          if (!read.pages.some((page) => page.text)) throw new Error("This PDF has no text in it: its pages are pictures (a scan, or slides saved as images). Paste the text, or save the slides as a Word file, and add that instead.");
+          outcome = { rolesFound: 0, ...(await uploadReadPdf(projectId, file, read, { ownership, onProgress: () => undefined })) };
+        }
+      }
+      if (!outcome) {
+        const form = new FormData();
+        form.set("file", file);
+        form.set("ownership", ownership);
+        if (roleId) form.set("roleId", roleId);
+        outcome = await api<Result>(`/api/contribute/projects/${projectId}/uploads`, { method: "POST", body: form });
+      }
       setResult(outcome);
       if (input.current) input.current.value = "";
       onDone();
