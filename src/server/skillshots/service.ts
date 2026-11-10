@@ -174,7 +174,9 @@ async function loadApprovedPackage(userId: string, projectId: string) {
   if (!approved) throw new CaptureError(409, "Approve the knowledge package first. Skill Shots are made only from what you have confirmed.");
   const [owner] = await db.select({ name: users.displayName }).from(users).where(eq(users.id, project.contributorId)).limit(1);
   const tag = projectId.replace(/-/g, "").slice(0, 8);
-  const plan = planPieces(approved.content as unknown as KnowledgePackage, project.title, tag);
+  // The package is stored as JSON text, so it is read back into its sections first.
+  const content = typeof approved.content === "string" ? (JSON.parse(approved.content) as KnowledgePackage) : (approved.content as unknown as KnowledgePackage);
+  const plan = planPieces({ sections: Array.isArray(content?.sections) ? content.sections : [] }, project.title, tag);
   return { project, plan, contributor: owner?.name ?? "The contributor", tag };
 }
 

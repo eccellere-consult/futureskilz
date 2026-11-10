@@ -53,6 +53,7 @@ export async function runAutopilot(userId: string, projectId: string): Promise<A
   await attempt("Confirm the plain statements", () => confirmAllPlain(userId, projectId), (value) => `${value.confirmed} confirmed${value.skipped ? `, ${value.skipped} sensitive ones left out` : ""}.`);
   const drafted = await attempt("Build the knowledge package", () => generateDraft(userId, projectId), (value) => `${value.stats.included} statements in the package.`);
   if (!drafted) return { ...report, stoppedBecause: "The knowledge package could not be built. See the step above." };
+  if (!drafted.stats.included) return { ...report, stoppedBecause: unread.length ? "There is no readable material yet. Remove the file that could not be read, add it again (PDFs are read in your browser), or paste its text, then run Autopilot again." : "There is no readable material yet. Add a file or paste text, then run Autopilot again." };
   const approved = await attempt("Approve the package", () => approvePackage(userId, projectId), (value) => (value.approved ? "Approved." : "Not approved."));
   if (!approved?.approved) return { ...report, stoppedBecause: "The package could not be approved. See the step above." };
 
