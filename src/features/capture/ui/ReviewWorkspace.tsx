@@ -230,6 +230,9 @@ export function ReviewWorkspace({ projectId }: { projectId: string }) {
           <section className="border border-border bg-surface p-4 text-sm" aria-label="Uploads">
             <h2 className="font-display text-xl">Your documents</h2>
             {data.uploads.length === 0 ? <p className="mt-2 text-xs text-ink-light">None added. You can upload one in the conversation.</p> : null}
+            {data.uploads.some((upload) => upload.extractionStatus !== "extracted") ? (
+              <button className="mt-2 border border-border px-2 py-1 text-xs" disabled={busy} onClick={() => void run(() => api(`/api/contribute/projects/${projectId}/uploads`, { method: "DELETE", body: JSON.stringify({ allUnread: true }) }), "Removed every file that could not be read. Add them again to retry.")} type="button">Remove all files that failed or were not read</button>
+            ) : null}
             <ul className="mt-2 space-y-2 text-xs">
               {data.uploads.map((upload) => (
                 <li key={upload.id}>

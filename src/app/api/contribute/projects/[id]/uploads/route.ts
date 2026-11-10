@@ -5,7 +5,7 @@
 import type { NextRequest } from "next/server";
 
 import { body, failure, handle, json, text } from "@/server/capture/http";
-import { addUpload, removeUnreadUpload, setUploadOwnership, uploadHelp, type UploadMeta } from "@/server/capture/upload-service";
+import { addUpload, removeAllUnreadUploads, removeUnreadUpload, setUploadOwnership, uploadHelp, type UploadMeta } from "@/server/capture/upload-service";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -34,6 +34,7 @@ export const DELETE = (request: NextRequest, { params }: RouteContext<"/api/cont
     request,
     async (user) => {
       const input = await body(request);
+      if (input.allUnread === true) return json({ removed: await removeAllUnreadUploads(user.id, (await params).id) });
       if (typeof input.uploadId !== "string") return failure(400, "Choose the file to remove.");
       await removeUnreadUpload(user.id, (await params).id, input.uploadId);
       return json({ removed: true });
