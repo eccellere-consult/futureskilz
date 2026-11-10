@@ -246,6 +246,21 @@ export async function setUploadOwnership(userId: string, projectId: string, uplo
  * Removes a file that could not be read, so it stops blocking publication. A file that was read is not removed here: its
  * statements and sources depend on it, and withdrawing is a different, deliberate step.
  */
+/** Removes every file in the project that was not read (failed, waiting, unsupported or a duplicate). Files that were read are kept. */
+export async function removeAllUnreadUploads(userId: string, projectId: string): Promise<number> {
+  const db = await database();
+  await requireProject(db, userId, projectId, { staff: true });
+  const rows = await db.select().from(kcUploads).where(eq(kcUploads.projectId, projectId));
+  const unread = rows.filter((row) => row.extractionStatus !== "extracted");
+  const config = r2Config();
+  for (const row of unread) {
+    await db.delete(kcUploads).where(eq(kcUploads.id, row.id));
+    if (config && row.storageKey) await deleteObject(config, row.storageKey).catch(() => undefined);
+  }
+  if (unread.length) await audit(db, userId, "upload.remove_all_unread", "project", projectId, { removed: unread.length });
+  return unread.length;
+}
+
 export async function removeUnreadUpload(userId: string, projectId: string, uploadId: string): Promise<void> {
   const db = await database();
   await requireProject(db, userId, projectId, { staff: true });
