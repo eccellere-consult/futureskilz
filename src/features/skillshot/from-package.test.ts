@@ -19,6 +19,15 @@ describe("planPieces", () => {
   });
 });
 
+describe("framework lens", () => {
+  it("suggests the method that fits the piece, and says to use it only where the statements fit", () => {
+    const [piece] = planPieces({ sections: [section("mistakes", 3)] } as never, "Pricing", "abc").pieces;
+    const brief = pieceBrief(piece, { contributor: "Asha", projectId: "p1" });
+    expect(brief.sourceNotes).toContain("5 Whys");
+    expect(brief.sourceNotes).toContain("ONLY where the confirmed statements fit");
+  });
+});
+
 describe("pieceBrief", () => {
   it("carries the statements, the credit and the project id", () => {
     const [piece] = planPieces({ sections: [section("howto", 3)] } as never, "Pricing", "abc").pieces;

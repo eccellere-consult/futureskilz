@@ -273,6 +273,14 @@ async function settleStale(): Promise<void> {
   await db.update(skillShotDrafts).set({ status: "failed", notes: ["The design took too long and was stopped. Try again."] }).where(and(eq(skillShotDrafts.status, "designing"), lt(skillShotDrafts.updatedAt, cutoff)));
 }
 
+/** Everything Autopilot has made, newest first: for the one screen that shows what was made, what is ready and what failed. */
+export async function listAutopilotDrafts(userId: string): Promise<DraftSummary[]> {
+  await requireStaff(userId);
+  await settleStale();
+  const db = await database();
+  return (await db.select().from(skillShotDrafts).orderBy(desc(skillShotDrafts.updatedAt))).filter((row) => briefOf(row).autopilot).map(summarise);
+}
+
 export async function listDrafts(userId: string): Promise<DraftSummary[]> {
   await requireStaff(userId);
   await settleStale();
