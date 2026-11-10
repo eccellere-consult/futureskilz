@@ -34,6 +34,9 @@ const guideMessages = [
   "Here is my working hypothesis. The baseline will test it.",
 ] as const;
 
+/** Puts the cursor in the field without making the page jump to it: on the home page this flow sits below the opening panel. */
+const quietFocus = (element: HTMLInputElement | HTMLTextAreaElement | null) => element?.focus({ preventScroll: true });
+
 export function OnboardingFlow() {
   const router = useRouter();
   const [step, setStep] = useState(0);
@@ -130,12 +133,12 @@ export function OnboardingFlow() {
         <div className="mt-10 min-h-[26rem]">
           {step === 0 ? (
             <Question title="Hi, I’m Arya. What should I call you?" subtitle="I’ll use your answers to form a working hypothesis, not a permanent label.">
-              <input autoFocus className="field-input" onChange={(event) => updateDraft("name", event.target.value)} onKeyDown={(event) => event.key === "Enter" && void continueFlow()} placeholder="Your first name" value={draft.name} />
+              <input ref={quietFocus} className="field-input" onChange={(event) => updateDraft("name", event.target.value)} onKeyDown={(event) => event.key === "Enter" && void continueFlow()} placeholder="Your first name" value={draft.name} />
             </Question>
           ) : null}
           {step === 1 ? (
             <Question title={`Good to meet you, ${draft.name}. What does your work look like today?`} subtitle="Your role gives context; your level of responsibility changes which behaviours matter most.">
-              <input autoFocus className="field-input" onChange={(event) => updateDraft("currentRole", event.target.value)} placeholder="e.g. Operations manager, founder, analyst" value={draft.currentRole} />
+              <input ref={quietFocus} className="field-input" onChange={(event) => updateDraft("currentRole", event.target.value)} placeholder="e.g. Operations manager, founder, analyst" value={draft.currentRole} />
               <ChoiceGrid className="mt-6">{responsibilityOptions.map((option) => <ChoiceButton key={option.value} label={option.label} selected={draft.responsibilityLevel === option.value} onClick={() => updateDraft("responsibilityLevel", option.value)} />)}</ChoiceGrid>
             </Question>
           ) : null}
@@ -191,7 +194,7 @@ export function OnboardingFlow() {
           ) : null}
           {step === 6 ? (
             <Question title="If this worked, what would be visibly different?" subtitle="Name an action, result or behaviour that another person could observe.">
-              <textarea autoFocus className="field-input min-h-36 resize-none" onChange={(event) => updateDraft("goal", event.target.value)} placeholder="e.g. I can lead a cross-functional decision and gain clear commitment without escalating it..." value={draft.goal} />
+              <textarea ref={quietFocus} className="field-input min-h-36 resize-none" onChange={(event) => updateDraft("goal", event.target.value)} placeholder="e.g. I can lead a cross-functional decision and gain clear commitment without escalating it..." value={draft.goal} />
             </Question>
           ) : null}
           {step === 7 ? (
