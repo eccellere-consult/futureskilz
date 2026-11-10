@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { skillTaxonomy } from "../../domain/skills/taxonomy";
-import { toSkillShotBriefs, outlineText } from "./briefs";
+import { leafBriefs, toSkillShotBriefs, outlineText } from "./briefs";
 import { checkTree } from "./check";
 import { scaffoldNeeds, scaffoldTree } from "./scaffold";
 import { addNode, depthOf, flattenDraft, indentNode, leavesOf, mergeNodes, moveNode, outdentNode, orderedNodes, removeNode, childrenOf } from "./tree";
@@ -143,6 +143,12 @@ describe("hand-off", () => {
     expect(briefs[0]).toMatchObject({ proficiency: "foundational", contributor: "A. Coach", sourceKind: "design" });
     expect(briefs[0].skills[0].toLevel).toBe(2);
     expect(toSkillShotBriefs(brief, tree(), "A. Coach")).toHaveLength(0);
+  });
+
+  it("keeps each topic's id with its brief, so a draft is recognised next time", () => {
+    const nodes = tree().map((n) => ({ ...n, status: "approved" as const }));
+    const items = leafBriefs(brief, nodes, "A. Coach");
+    expect(items.map((item) => item.leafId)).toEqual(leavesOf(nodes).map((leaf) => leaf.id));
   });
 
   it("writes a readable outline", () => {

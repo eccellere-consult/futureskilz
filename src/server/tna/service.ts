@@ -3,7 +3,8 @@ import "server-only";
 import { and, desc, eq, isNull } from "drizzle-orm";
 
 import { assistInputSchema, scaffoldAssist, type AssistResult } from "@/features/tna/assist";
-import { toSkillShotBriefs } from "@/features/tna/briefs";
+import { leafBriefs, toSkillShotBriefs } from "@/features/tna/briefs";
+import { designBriefsFor } from "@/server/skillshots/service";
 import { checkTree, type TreeCheck } from "@/features/tna/check";
 import { addNode, flattenDraft, indentNode, mergeNodes, moveNode, outdentNode, removeNode, type Change } from "@/features/tna/tree";
 import { knownSkills, needSchema, programBriefSchema, type Need, type ProgramBrief, type TopicNode } from "@/features/tna/types";
@@ -273,6 +274,18 @@ export async function briefsFor(userId: string, id: string): Promise<SkillShotBr
   const db = await database();
   const [user] = await db.select().from(users).where(eq(users.id, row.ownerId));
   return toSkillShotBriefs(briefOf(row), await loadNodes(id), user?.displayName ?? "FutureSkilz coach");
+}
+
+/** Starts a Skill Shot draft for every approved topic that has none yet. The plan's owner or an editor can do it; an editor reviews each draft. */
+export async function designSkillShots(userId: string, id: string): Promise<{ queued: number; alreadyStarted: number }> {
+  const row = await loadProgram(userId, id);
+  if (row.status !== "approved") throw new CaptureError(409, "Approve the plan first.");
+  const db = await database();
+  const [user] = await db.select().from(users).where(eq(users.id, row.ownerId));
+  const tag = id.replace(/-/g, "").slice(0, 8);
+  const items = leafBriefs(briefOf(row), await loadNodes(id), user?.displayName ?? "FutureSkilz coach").map((item) => ({ slug: `tna-${tag}-${item.leafId.replace(/-/g, "").slice(0, 8)}`, brief: item.brief }));
+  if (!items.length) throw new CaptureError(409, "The plan has no approved topics to make Skill Shots from.");
+  return designBriefsFor(userId, items, "skillshot.fromPlan", "tna_program", id);
 }
 
 export async function deleteProgram(userId: string, id: string): Promise<void> {

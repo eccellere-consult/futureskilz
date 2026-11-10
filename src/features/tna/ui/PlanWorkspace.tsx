@@ -26,6 +26,7 @@ export function PlanWorkspace({ id }: { id: string }) {
   const [plan, setPlan] = useState<ProgramDetail | null>(null);
   const [needs, setNeeds] = useState<Need[]>([]);
   const [dirty, setDirty] = useState(false);
+  const [created, setCreated] = useState<string | null>(null);
   const dirtyRef = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -106,6 +107,12 @@ export function PlanWorkspace({ id }: { id: string }) {
       if (dirtyRef.current) await saveNeeds();
       setPlan(await post<ProgramDetail>(`/api/contribute/tna/${id}/approve`));
     }, "Approved. The outline and Skill Shot briefs are ready below.");
+
+  const makeSkillShots = () =>
+    run(async () => {
+      const result = await post<{ queued: number; alreadyStarted: number }>(`/api/contribute/tna/${id}/skill-shots`);
+      setCreated(result.queued ? `${result.queued} Skill Shot draft${result.queued === 1 ? " is" : "s are"} being designed. An editor will review each one before any learner sees it.` : "Every topic already has a Skill Shot draft.");
+    });
 
   async function downloadBriefs() {
     await run(async () => {
@@ -220,12 +227,14 @@ export function PlanWorkspace({ id }: { id: string }) {
         {plan.nodes.length ? (
           <section aria-label="Approve" className="mt-10">
             <h2 className="font-display text-xl">3. Approve and hand over</h2>
-            <p className="mt-1 text-xs text-ink-mid">Approving marks every topic you have not rejected as approved. Editing afterwards puts the plan back to draft. Nothing is published, and no Skill Shot is made yet.</p>
+            <p className="mt-1 text-xs text-ink-mid">Approving marks every topic you have not rejected as approved. Editing afterwards puts the plan back to draft. Nothing is published. Skill Shots are made only when you press the button.</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <button className="primary-button" disabled={busy || Boolean(working) || !plan.check.canApprove || approved} onClick={() => void approve()} type="button">{approved ? "Approved" : "Approve this plan"}</button>
+              {approved ? <button className="primary-button" disabled={busy} onClick={() => void makeSkillShots()} type="button">Make the Skill Shots</button> : null}
               {approved ? <button className="min-h-12 border border-border px-4 text-sm" disabled={busy} onClick={() => void downloadBriefs()} type="button">Download the Skill Shot briefs</button> : null}
               <button className="min-h-12 border border-border px-4 text-sm" onClick={() => window.print()} type="button"><Printer aria-hidden="true" className="mr-1 inline" size={14} />Print the outline</button>
             </div>
+            {created ? <p className="mt-3 text-sm text-teal" role="status">{created}</p> : null}
           </section>
         ) : null}
       </div>
