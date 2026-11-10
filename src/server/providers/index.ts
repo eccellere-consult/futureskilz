@@ -40,7 +40,7 @@ export function createProviders() {
   const openAi = environment.OPENAI_API_KEY
     ? new OpenAiCompatibleProvider({
         name: "openai",
-        model: "gpt-4.1-mini",
+        model: environment.OPENAI_MODEL,
         baseUrl: "https://api.openai.com/v1",
         apiKey: environment.OPENAI_API_KEY,
       })
@@ -48,7 +48,7 @@ export function createProviders() {
   const xAi = environment.XAI_API_KEY
     ? new OpenAiCompatibleProvider({
         name: "xai",
-        model: "grok-3-mini",
+        model: environment.XAI_MODEL,
         baseUrl: "https://api.x.ai/v1",
         apiKey: environment.XAI_API_KEY,
       })

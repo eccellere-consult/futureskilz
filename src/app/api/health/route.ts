@@ -127,13 +127,15 @@ async function runChecks() {
   const askAi = async (label: string, baseUrl: string, key: string | undefined, model: string): Promise<string | null> => {
     if (!key) return null;
     try {
-      const response = await fetch(`${baseUrl}/chat/completions`, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages: [{ role: "user", content: "Say OK." }], max_tokens: 5 }), signal: AbortSignal.timeout(15_000) });
-      return response.ok ? `${label}: answering` : `${label}: FAILED, ${AI_HINTS[response.status] ?? `the service answered ${response.status}`}`;
+      const send = (settings: Record<string, unknown>) => fetch(`${baseUrl}/chat/completions`, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages: [{ role: "user", content: "Say OK." }], ...settings }), signal: AbortSignal.timeout(15_000) });
+      let response = await send({ max_tokens: 16 });
+      if (response.status === 400) response = await send({ max_completion_tokens: 64 });
+      return response.ok ? `${label} (${model}): answering` : `${label} (${model}): FAILED, ${AI_HINTS[response.status] ?? `the service answered ${response.status}`}`;
     } catch (error) {
       return `${label}: FAILED, no answer (${error instanceof Error ? error.name : "unknown"})`;
     }
   };
-  const aiResults = (await Promise.all([askAi("OpenAI", "https://api.openai.com/v1", env.OPENAI_API_KEY, "gpt-4.1-mini"), askAi("xAI", "https://api.x.ai/v1", env.XAI_API_KEY, "grok-3-mini")])).filter((line): line is string => Boolean(line));
+  const aiResults = (await Promise.all([askAi("OpenAI", "https://api.openai.com/v1", env.OPENAI_API_KEY, env.OPENAI_MODEL), askAi("xAI", "https://api.x.ai/v1", env.XAI_API_KEY, env.XAI_MODEL)])).filter((line): line is string => Boolean(line));
   const ai: Check = aiResults.length === 0
     ? { ok: false, detail: "no AI key is set (OPENAI_API_KEY or XAI_API_KEY): Skill Shots come out as empty structures with placeholders" }
     : { ok: aiResults.some((line) => line.endsWith("answering")), detail: aiResults.join("; ") };

@@ -12,6 +12,9 @@ const serverEnvironmentSchema = z.object({
   AI_PROVIDER: z.enum(["auto", "deterministic", "openai", "xai"]).default("deterministic"),
   OPENAI_API_KEY: z.string().min(1).optional(),
   XAI_API_KEY: z.string().min(1).optional(),
+  /** The model each AI service is asked for. Changeable in the host's settings, so a retired model needs no code change. */
+  OPENAI_MODEL: z.string().min(1).default("gpt-6-luna"),
+  XAI_MODEL: z.string().min(1).default("grok-3-mini"),
   STORAGE_PROVIDER: z.enum(["local"]).default("local"),
   NOTIFICATION_PROVIDER: z.enum(["console", "smtp"]).default("console"),
   SMTP_HOST: z.string().min(1).default("smtp.hostinger.com"),
