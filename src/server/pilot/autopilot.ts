@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { CaptureError, database, requireProject, rolesOf } from "@/server/capture/shared";
 import { approvePackage, confirmAllPlain, generateDraft } from "@/server/capture/review-service";
 import { kcUploads } from "@/server/db/schema";
-import { designFromProject } from "@/server/skillshots/service";
+import { designFromMaterial } from "@/server/skillshots/service";
 
 import { isPilotOn } from "./pilot";
 
@@ -53,17 +53,21 @@ export async function runAutopilot(userId: string, projectId: string): Promise<A
   report.unread = unread.length;
   report.steps.push({ step: "Material", ok: true, detail: `${uploads.length - unread.length} file${uploads.length - unread.length === 1 ? "" : "s"} read${unread.length ? `; skipped ${unread.length} that could not be read (${unread.slice(0, 3).map((upload) => upload.name).join(", ")})` : ""}.` });
 
-  await attempt("Confirm the plain statements", () => confirmAllPlain(userId, projectId), (value) => `${value.confirmed} confirmed${value.skipped ? `, ${value.skipped} sensitive ones left out` : ""}.`);
-  const drafted = await attempt("Build the knowledge package", () => generateDraft(userId, projectId), (value) => `${value.stats.included} statements in the package.`);
-  if (!drafted) return { ...report, stoppedBecause: "The knowledge package could not be built. See the step above." };
-  if (!drafted.stats.included) return { ...report, stoppedBecause: unread.length ? "There is no readable material yet. Remove the file that could not be read, add it again (PDFs are read in your browser), or paste its text, then run Autopilot again." : "There is no readable material yet. Add a file or paste text, then run Autopilot again." };
-  const approved = await attempt("Approve the package", () => approvePackage(userId, projectId), (value) => (value.approved ? "Approved." : "Not approved."));
-  if (!approved?.approved) return { ...report, stoppedBecause: "The package could not be approved. See the step above." };
-
-  const designed = await attempt("Design the Skill Shots", () => designFromProject(userId, projectId, undefined, { autopilot: true, limit: AUTOPILOT_LIMIT }), (value) => `${value.queued} started${value.alreadyStarted ? `, ${value.alreadyStarted} already made` : ""}. Each stops at approved when its checks pass.`);
-  if (!designed) return { ...report, stoppedBecause: "No Skill Shots could be started. See the step above." };
+  // The direct route: Skill Shots straight from the text that was read or said. Nothing has to be confirmed, packaged or approved first.
+  const designed = await attempt("Design the Skill Shots from the material", () => designFromMaterial(userId, projectId, AUTOPILOT_LIMIT), (value) => (value.queued || value.alreadyStarted ? `${value.queued} started${value.alreadyStarted ? `, ${value.alreadyStarted} already made` : ""}, from ${value.chars.toLocaleString("en-IN")} characters of text. Each takes a minute or two.` : `Only ${value.chars} characters of readable text were found.`));
+  if (!designed) return { ...report, stoppedBecause: "The Skill Shots could not be started. See the step above." };
   report.started = designed.queued;
   report.alreadyHad = designed.alreadyStarted;
-  if (!designed.queued && !designed.alreadyStarted) report.stoppedBecause = "There is not enough confirmed knowledge to make a Skill Shot from yet.";
+  if (!designed.queued && !designed.alreadyStarted) {
+    report.stoppedBecause = unread.length
+      ? "There is no readable text yet. Remove the file that could not be read and add it again (PDFs are read in your browser), or paste its text. Autopilot then runs by itself."
+      : "There is no readable text yet. Add a file or paste text. Autopilot then runs by itself.";
+    return report;
+  }
+
+  // Extra, never in the way: the statements are also confirmed and packaged for the review page. A failure here does not stop anything.
+  await confirmAllPlain(userId, projectId).catch(() => undefined);
+  await generateDraft(userId, projectId).catch(() => undefined);
+  await approvePackage(userId, projectId).catch(() => undefined);
   return report;
 }

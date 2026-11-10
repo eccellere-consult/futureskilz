@@ -16,7 +16,8 @@ import { briefSchema, createInstructionalDesignAgent } from "@/server/agents/ins
 import { AgentRunner } from "@/server/agents/runner";
 import { CaptureError, audit, database, newUuid, requireProject, rolesOf } from "@/server/capture/shared";
 import { createDatabase } from "@/server/db/client";
-import { bookProjects, kcDocuments, kcLessons, kcProjects, skillShotDrafts, users } from "@/server/db/schema";
+import { bookProjects, kcDocuments, kcLessons, kcProjects, kcSegments, skillShotDrafts, users } from "@/server/db/schema";
+import { materialBrief, splitMaterial } from "@/features/skillshot/from-material";
 import { pieceBrief, planPieces } from "@/features/skillshot/from-package";
 import type { KnowledgePackage } from "@/features/capture/knowledge-package";
 import { chapterBrief } from "@/features/book/training";
@@ -184,6 +185,26 @@ export async function designBriefsFor(userId: string, briefs: Array<{ slug: stri
   return { queued: queue.length, alreadyStarted: briefs.length - queue.length };
 }
 
+/**
+ * The direct route (pilot): a Skill Shot for each part of the project's own text, uploads and the person's interview answers alike,
+ * with no confirm or approval step in between. Failed drafts are cleared and made again. Returns how many were started, and how much
+ * text there was, so the caller can say plainly why nothing started.
+ */
+export async function designFromMaterial(userId: string, projectId: string, limit: number): Promise<{ queued: number; alreadyStarted: number; chars: number }> {
+  const db = await database();
+  const project = await requireProject(db, userId, projectId, { staff: true });
+  const rows = await db.select({ text: kcSegments.text, speaker: kcSegments.speaker, locator: kcSegments.locator, seq: kcSegments.seq }).from(kcSegments).where(eq(kcSegments.projectId, projectId));
+  const text = rows.filter((row) => row.speaker === "expert" && row.text.trim()).sort((a, b) => a.seq - b.seq).map((row) => row.text.trim()).join("\n\n");
+  const parts = splitMaterial(text, limit);
+  if (!parts.length) return { queued: 0, alreadyStarted: 0, chars: text.length };
+  const [owner] = await db.select({ name: users.displayName }).from(users).where(eq(users.id, project.contributorId)).limit(1);
+  const tag = projectId.replace(/-/g, "").slice(0, 8);
+  const briefs = parts.map((part) => materialBrief(part, { title: project.title, contributor: owner?.name ?? "The contributor", projectId, tag }));
+  for (const brief of briefs) await db.delete(skillShotDrafts).where(and(eq(skillShotDrafts.slug, brief.slug), eq(skillShotDrafts.status, "failed")));
+  const result = await designBriefsFor(userId, briefs.map((brief) => ({ slug: brief.slug, brief })), "skillshot.fromMaterial", "kc_project", projectId);
+  return { ...result, chars: text.length };
+}
+
 /** What a contributor's approved material would become, and what is left out and why. Nothing is created. */
 async function loadApprovedPackage(userId: string, projectId: string) {
   const db = await database();
@@ -271,6 +292,14 @@ async function settleStale(): Promise<void> {
   const db = await database();
   const cutoff = new Date(Date.now() - STALE_MS);
   await db.update(skillShotDrafts).set({ status: "failed", notes: ["The design took too long and was stopped. Try again."] }).where(and(eq(skillShotDrafts.status, "designing"), lt(skillShotDrafts.updatedAt, cutoff)));
+}
+
+/** The Skill Shot drafts made from one project, newest first, for the person running the pilot to watch and open. */
+export async function listProjectDrafts(userId: string, projectId: string): Promise<Array<DraftSummary & { notes: string[] }>> {
+  await requireStaff(userId);
+  await settleStale();
+  const db = await database();
+  return (await db.select().from(skillShotDrafts).orderBy(desc(skillShotDrafts.updatedAt))).filter((row) => briefOf(row).sourceProjectId === projectId).map((row) => ({ ...summarise(row), notes: (row.notes as string[] | null) ?? [] }));
 }
 
 /** Everything Autopilot has made, newest first: for the one screen that shows what was made, what is ready and what failed. */
