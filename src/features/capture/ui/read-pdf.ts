@@ -15,10 +15,30 @@ async function sha256Hex(buffer: ArrayBuffer): Promise<string> {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+let worker: Promise<string> | null = null;
+
+/**
+ * The reader's helper script is served from this site's own public folder (a copy kept equal to the installed version by a test).
+ * The host serves that file as plain text, and a browser refuses to run a helper that is not labelled as a script. So the text is
+ * fetched and handed to the browser with the right label. This works whatever label the host puts on the file.
+ */
+function workerUrl(): Promise<string> {
+  worker ??= fetch("/pdf.worker.min.mjs")
+    .then((response) => {
+      if (!response.ok) throw new Error(`The PDF helper could not be loaded (${response.status}).`);
+      return response.text();
+    })
+    .then((text) => URL.createObjectURL(new Blob([text], { type: "text/javascript" })))
+    .catch((error: unknown) => {
+      worker = null; // try again next time rather than remembering a failure
+      throw error;
+    });
+  return worker;
+}
+
 export async function readPdfPages(file: File, onProgress?: (page: number, of: number) => void): Promise<PdfPages> {
   const pdfjs = await import("pdfjs-dist");
-  // The reader's helper script is served from this site's own public folder (a copy kept equal to the installed version by a test).
-  pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+  pdfjs.GlobalWorkerOptions.workerSrc = await workerUrl();
   const buffer = await file.arrayBuffer();
   const checksum = await sha256Hex(buffer);
   // The reader takes ownership of the bytes it is given, so it gets a copy and the checksum above stays valid.
