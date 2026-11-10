@@ -7,14 +7,14 @@ import { ARYA_SPEAK_ENDPOINT, aryaVoice, type VoiceSource } from "./voice";
 type Availability = { server: boolean; providers: { openai: boolean; xai: boolean }; anthropic: { available: false; reason: string }; default: "openai" | "xai" | null };
 
 const CHOICES: Array<{ id: VoiceSource; label: string; note: string }> = [
-  { id: "device", label: "My phone or device (no AI)", note: "Uses your device's own voice. Free, private, works offline." },
-  { id: "openai", label: "OpenAI voice (AI)", note: "A natural studio voice from the OpenAI API." },
-  { id: "xai", label: "Grok voice (AI)", note: "A studio voice from the xAI Grok API." },
+  { id: "device", label: "This device's voice", note: "Free and private. Works offline." },
+  { id: "openai", label: "Natural voice", note: "A clear studio voice. Needs a connection." },
+  { id: "xai", label: "Natural voice, second style", note: "Another studio voice. Needs a connection." },
 ];
 
 /**
  * Lets the listener pick where Arya's voice comes from: their own device (no AI), or an AI voice service. AI choices are offered
- * only when the site has that service switched on. Anthropic is shown as unavailable, with the reason, because it has no voice API.
+ * only when the site has that service switched on. Only the voices switched on for this site are listed, in plain names, behind one small link so the page stays calm.
  * The choice is kept on this device only.
  */
 export function VoiceSourcePicker({ className = "" }: { className?: string }) {
@@ -37,23 +37,16 @@ export function VoiceSourcePicker({ className = "" }: { className?: string }) {
   const shown: VoiceSource = chosen === "auto" ? (available?.default ?? "device") : chosen;
 
   return (
-    <fieldset className={className}>
-      <legend className="font-mono text-[10px] uppercase text-gold-light">Arya&apos;s voice</legend>
+    <details className={className}>
+      <summary className="cursor-pointer font-mono text-[10px] uppercase text-gold-light">Change Arya&apos;s voice</summary>
       <div className="mt-2 space-y-1.5">
-        {CHOICES.map((choice) => {
-          const on = enabled(choice.id);
-          return (
-            <label key={choice.id} className={`flex cursor-pointer items-start gap-2 text-sm ${on ? "" : "cursor-not-allowed opacity-50"}`}>
-              <input checked={shown === choice.id} className="mt-1" disabled={!on} name="arya-voice-source" onChange={() => { setChosen(choice.id); aryaVoice.setSource(choice.id); }} type="radio" />
-              <span><span className="font-semibold">{choice.label}</span><span className="block text-xs opacity-75">{on ? choice.note : "Not switched on for this site."}</span></span>
-            </label>
-          );
-        })}
-        <label className="flex cursor-not-allowed items-start gap-2 text-sm opacity-50">
-          <input className="mt-1" disabled name="arya-voice-source" type="radio" />
-          <span><span className="font-semibold">Anthropic voice</span><span className="block text-xs opacity-75">{available?.anthropic.reason ?? "Anthropic has no voice (text-to-speech) API, so it cannot be a voice."}</span></span>
-        </label>
+        {CHOICES.filter((choice) => enabled(choice.id)).map((choice) => (
+          <label key={choice.id} className="flex cursor-pointer items-start gap-2 text-sm">
+            <input checked={shown === choice.id} className="mt-1" name="arya-voice-source" onChange={() => { setChosen(choice.id); aryaVoice.setSource(choice.id); }} type="radio" />
+            <span><span className="font-semibold">{choice.label}</span><span className="block text-xs opacity-75">{choice.note}</span></span>
+          </label>
+        ))}
       </div>
-    </fieldset>
+    </details>
   );
 }

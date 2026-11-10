@@ -37,7 +37,18 @@ export function PricingView() {
 
   if (!data) {
     const signedOut = error && /sign in/i.test(error);
-    return <div className="mx-auto max-w-3xl px-5 py-16" role="status">{signedOut ? <p>Please <Link className="text-teal underline underline-offset-4" href="/sign-in">sign in</Link> to see your plan and billing.</p> : <p className="text-ink-light">{error ?? "Loading…"}</p>}</div>;
+    return <div className="mx-auto max-w-3xl px-5 py-16" role="status">{signedOut ? (
+      <div>
+        <p className="font-mono text-[10px] uppercase text-ink-light">Plans</p>
+        <h1 className="mt-2 font-display text-4xl font-semibold leading-tight">Start free. Pay only when you want more.</h1>
+        <p className="mt-4 text-lg leading-8 text-ink-mid">Your skills profile, your personal path and the first Skill Shots are free. Plans and prices are shown inside your account, where your pass and invoices also live.</p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link className="primary-button" href="/join?next=%2Fpricing">Register free</Link>
+          <Link className="inline-flex min-h-12 items-center border border-border px-4 text-sm" href="/sign-in?next=%2Fpricing">I already have an account</Link>
+          <Link className="inline-flex min-h-12 items-center px-2 text-sm text-teal underline underline-offset-4" href="/marketplace">See what you can learn</Link>
+        </div>
+      </div>
+    ) : <p className="text-ink-light">{error ?? "Loading…"}</p>}</div>;
   }
   const chosen = data.plans.find((plan) => plan.id === (planId || data.plans[0]?.id));
 

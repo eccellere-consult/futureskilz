@@ -7,6 +7,7 @@ import { useRef, useState } from "react";
 import { ATTESTATION_TEXT } from "../rights";
 
 import { api, messageOf, post } from "./api";
+import { AutopilotPanel } from "./AutopilotPanel";
 import { uploadReadPdf, uploadToStore } from "./direct-upload";
 import { MAX_BROWSER_PDF_BYTES, readPdfPages } from "./read-pdf";
 
@@ -224,6 +225,7 @@ export function SourceStudio({ existingProjectId }: { existingProjectId: string 
           ))}
         </ul>
       ) : null}
+      {projectId && added.some((item) => item.result.status === "extracted") && !busy ? <div className="mt-6"><AutopilotPanel autoRunKey={added.filter((item) => item.result.status === "extracted").length} projectId={projectId} showResults /></div> : null}
       {projectId && added.length ? (
         <p className="mt-6">
           <Link className="primary-button" href={`/contribute/${projectId}/review`}>Review what I found</Link>
