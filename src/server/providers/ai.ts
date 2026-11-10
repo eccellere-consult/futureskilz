@@ -57,19 +57,18 @@ export class OpenAiCompatibleProvider implements AiProvider {
   }
 
   async generate(request: AiRequest): Promise<AiResponse> {
-    const response = await this.fetchImplementation(`${this.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: this.model,
-        messages: request.messages,
-        temperature: request.temperature ?? 0.3,
-        max_tokens: request.maxOutputTokens ?? 800,
-      }),
-    });
+    const send = (body: Record<string, unknown>) =>
+      this.fetchImplementation(`${this.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ model: this.model, messages: request.messages, ...body }),
+      });
+    let response = await send({ temperature: request.temperature ?? 0.3, max_tokens: request.maxOutputTokens ?? 800 });
+    // Newer models refuse the older setting names (a 400). They are asked once more in the newer form before giving up.
+    if (response.status === 400) response = await send({ max_completion_tokens: request.maxOutputTokens ?? 800 });
 
     if (!response.ok) {
       throw new Error(`${this.name} request failed with status ${response.status}.`);
