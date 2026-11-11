@@ -13,6 +13,7 @@ import { fetchSessionUser } from "@/features/learner/store";
 import { WORDS_PER_MINUTE, clock, sceneSeconds, timeline, totalSeconds, wordCount } from "./duration";
 import type { Blueprint, ChoiceOption, Scene } from "./types";
 import { gradeKnowledgeCheck } from "./grade";
+import { PlayerSettings, useCaptions } from "./PlayerSettings";
 import { completeDesigned } from "./store";
 import { SceneVisual } from "./visuals";
 
@@ -37,6 +38,8 @@ export function DesignedSkillShotPlayer({ blueprint, preview = false }: { bluepr
   const [index, setIndex] = useState(0);
   const [bow, setBow] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [captions, setCaptions] = useCaptions();
+  const [settings, setSettings] = useState(false);
   /** Decisions and check questions the learner has answered, so Arya knows what she may explain. */
   const [answered, setAnswered] = useState<string[]>([]);
   const markAnswered = (id: string) => setAnswered((list) => (list.includes(id) ? list : [...list, id]));
@@ -111,19 +114,20 @@ export function DesignedSkillShotPlayer({ blueprint, preview = false }: { bluepr
           <AryaTeacherWindow bow={bow} className="absolute right-3 top-3 h-28 w-28 sm:right-5 sm:top-5 sm:h-44 sm:w-44" speaking={voice.speaking} />
           <p className="font-mono text-[10px] uppercase text-gold-light">Scene {index + 1} of {scenes.length} · {clock(times[index].start)} to {clock(times[index].end)}</p>
           <h2 className="mt-2 font-serif text-3xl leading-tight sm:text-4xl">{scene.title}</h2>
-          {scene.visual ? (
-            <div className="mt-4 max-w-2xl"><SceneVisual visual={scene.visual} /></div>
-          ) : (
-            <ul className="mt-4 space-y-2 text-xl leading-snug">{scene.onScreen.map((line) => <li key={line}>{line}</li>)}</ul>
-          )}
+          {scene.purpose ? <p className="mt-2 max-w-2xl text-sm leading-6 text-cream/70">{scene.purpose}</p> : null}
+          {/* A slide carries both: the key points in words, and the picture that organises them. */}
+          {scene.onScreen.length ? <ul className={`mt-4 max-w-2xl space-y-2 leading-snug ${scene.visual ? "text-lg" : "text-xl"}`}>{scene.onScreen.map((line) => <li key={line} className="flex gap-3"><span aria-hidden="true" className="mt-2.5 size-1.5 shrink-0 bg-gold-light" />{line}</li>)}</ul> : null}
+          {scene.visual ? <div className="mt-5 max-w-2xl"><SceneVisual visual={scene.visual} /></div> : null}
         </div>
 
         {scene.interaction ? <InteractionPanel key={scene.id} interaction={scene.interaction} onChoose={(option) => void choose(option)} /> : null}
 
-        <div aria-live="polite" className="border-t border-cream/15 bg-ink/90 px-6 py-4">
-          <p className="font-mono text-[10px] uppercase text-gold-light">Arya says (captions)</p>
-          <p className="mt-1 text-sm leading-6 text-cream/90">{scene.narration}</p>
-        </div>
+        {captions ? (
+          <div aria-live="polite" className="border-t border-cream/15 bg-ink/90 px-6 py-4">
+            <p className="font-mono text-[10px] uppercase text-gold-light">Arya says (captions)</p>
+            <p className="mt-1 text-base leading-7 text-cream/90">{scene.narration}</p>
+          </div>
+        ) : <p aria-live="polite" className="sr-only">{scene.narration}</p>}
 
         <div className="flex flex-wrap items-center gap-3 border-t border-cream/15 px-6 py-3">
           <button aria-label="Previous scene" className="inline-flex size-10 items-center justify-center border border-cream/30 disabled:opacity-40" disabled={index === 0} onClick={() => go(index - 1)} type="button"><ChevronLeft aria-hidden="true" size={18} /></button>
@@ -139,7 +143,9 @@ export function DesignedSkillShotPlayer({ blueprint, preview = false }: { bluepr
           <button aria-pressed={voice.enabled} className="inline-flex min-h-10 items-center gap-2 text-sm text-cream/70 underline underline-offset-4" onClick={() => voice.setEnabled(!voice.enabled)} type="button">
             {voice.enabled ? <Volume2 aria-hidden="true" size={15} /> : <VolumeX aria-hidden="true" size={15} />} Sound: {voice.enabled ? "on" : "off"}
           </button>
+          <button aria-expanded={settings} className="inline-flex min-h-10 items-center gap-2 text-sm text-cream/70 underline underline-offset-4" onClick={() => setSettings((value) => !value)} type="button">Voice, speed and captions</button>
         </div>
+        {settings ? <PlayerSettings captions={captions} onCaptions={setCaptions} onChange={() => { if (!voice.enabled) voice.setEnabled(true); }} /> : null}
         <p className="border-t border-cream/10 px-6 py-2 text-[11px] leading-5 text-cream/60">{blueprint.disclosure}</p>
       </section>
 
