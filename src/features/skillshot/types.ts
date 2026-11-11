@@ -25,7 +25,13 @@ export type Visual =
   | { type: "steps"; items: string[] }
   | { type: "why-chain"; problem: string; links: Array<{ why: string; because: string }>; root?: string }
   | { type: "checklist"; title: string; items: string[] }
-  | { type: "takeaways"; items: string[] };
+  | { type: "takeaways"; items: string[] }
+  /** Diagrams drawn from the lesson's own content. */
+  | { type: "flow"; items: string[] }
+  | { type: "cycle"; items: string[]; centre?: string }
+  | { type: "matrix"; xAxis: string; yAxis: string; cells: Array<{ title: string; text: string }> }
+  | { type: "bars"; title: string; unit?: string; bars: Array<{ label: string; value: number }> }
+  | { type: "timeline"; items: Array<{ when: string; what: string }> };
 
 export type ChoiceOption = { id: string; text: string; feedback: string };
 export type Interaction = { prompt: string; context?: string; options: ChoiceOption[]; correctId: string; thinkSeconds: number; rationale: string };
@@ -35,6 +41,10 @@ export type Scene = {
   section: SceneSection;
   purpose: string;
   title: string;
+  /** One line under the headline that frames the slide. Optional: older Skill Shots have none. */
+  subtitle?: string;
+  /** The "so what" of the slide, shown along its bottom edge. Optional: older Skill Shots have none. */
+  takeaway?: string;
   onScreen: string[];
   visual?: Visual;
   /** What Arya says. Captions are this text. */

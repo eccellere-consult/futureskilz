@@ -14,6 +14,11 @@ function describeVisual(visual: Visual | undefined): string {
     case "why-chain": return `Why chain for "${visual.problem}": ${visual.links.map((link) => `${link.why} ${link.because}`).join(" ")}${visual.root ? ` ${visual.root}` : ""}`;
     case "checklist": return `Checklist "${visual.title}": ${visual.items.join("; ")}.`;
     case "takeaways": return `Takeaways: ${visual.items.join(" ")}`;
+    case "flow": return `Flow diagram: ${visual.items.join(" then ")}.`;
+    case "cycle": return `Cycle diagram${visual.centre ? ` around "${visual.centre}"` : ""}: ${visual.items.join(", then ")}, then back to the start.`;
+    case "matrix": return `Two-by-two matrix (${visual.yAxis} against ${visual.xAxis}): ${visual.cells.map((cell) => `${cell.title}: ${cell.text}`).join("; ")}.`;
+    case "bars": return `Bar chart "${visual.title}": ${visual.bars.map((bar) => `${bar.label} ${bar.value}${visual.unit ?? ""}`).join("; ")}.`;
+    case "timeline": return `Timeline: ${visual.items.map((item) => `${item.when}: ${item.what}`).join("; ")}.`;
   }
 }
 

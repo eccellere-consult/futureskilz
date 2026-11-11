@@ -110,14 +110,29 @@ export function DesignedSkillShotPlayer({ blueprint, preview = false }: { bluepr
       </p>
 
       <section aria-label="Skill Shot with Arya" className="mt-6 overflow-hidden border border-ink bg-linear-to-br from-purple to-ink text-cream">
-        <div className="relative min-h-80 p-6 pr-32 sm:p-8 sm:pr-56">
-          <AryaTeacherWindow bow={bow} className="absolute right-3 top-3 h-28 w-28 sm:right-5 sm:top-5 sm:h-44 sm:w-44" speaking={voice.speaking} />
-          <p className="font-mono text-[10px] uppercase text-gold-light">Scene {index + 1} of {scenes.length} · {clock(times[index].start)} to {clock(times[index].end)}</p>
-          <h2 className="mt-2 font-serif text-3xl leading-tight sm:text-4xl">{scene.title}</h2>
-          {scene.purpose ? <p className="mt-2 max-w-2xl text-sm leading-6 text-cream/70">{scene.purpose}</p> : null}
-          {/* A slide carries both: the key points in words, and the picture that organises them. */}
-          {scene.onScreen.length ? <ul className={`mt-4 max-w-2xl space-y-2 leading-snug ${scene.visual ? "text-lg" : "text-xl"}`}>{scene.onScreen.map((line) => <li key={line} className="flex gap-3"><span aria-hidden="true" className="mt-2.5 size-1.5 shrink-0 bg-gold-light" />{line}</li>)}</ul> : null}
-          {scene.visual ? <div className="mt-5 max-w-2xl"><SceneVisual visual={scene.visual} /></div> : null}
+        {/* One slide, laid out like a consulting slide: a headline that states the point, a subtitle, the content beside the picture, and the takeaway along the bottom. */}
+        <div className="relative">
+          <AryaTeacherWindow bow={bow} className="absolute right-3 top-3 h-28 w-28 sm:right-5 sm:top-5 sm:h-40 sm:w-40" speaking={voice.speaking} />
+          <header className="min-h-36 border-b border-cream/15 p-6 pr-36 sm:min-h-48 sm:p-8 sm:pr-52">
+            <p className="font-mono text-[10px] uppercase text-gold-light">Scene {index + 1} of {scenes.length} · {clock(times[index].start)} to {clock(times[index].end)}</p>
+            <h2 className="mt-2 font-serif text-2xl leading-tight sm:text-4xl">{scene.title}</h2>
+            {scene.subtitle || scene.purpose ? <p className="mt-2 max-w-3xl text-base leading-6 text-cream/75">{scene.subtitle || scene.purpose}</p> : null}
+          </header>
+          <div className={`grid gap-6 p-6 sm:p-8 ${scene.visual && scene.onScreen.length ? "lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]" : ""}`}>
+            {scene.onScreen.length ? (
+              <div>
+                <p className="font-mono text-[10px] uppercase text-gold-light">Key points</p>
+                <ul className={`mt-2 space-y-3 leading-snug ${scene.visual ? "text-lg" : "text-xl"}`}>{scene.onScreen.map((line) => <li key={line} className="flex gap-3"><span aria-hidden="true" className="mt-2.5 size-1.5 shrink-0 bg-gold-light" />{line}</li>)}</ul>
+              </div>
+            ) : null}
+            {scene.visual ? <div className="min-w-0"><SceneVisual visual={scene.visual} /></div> : null}
+          </div>
+          {scene.takeaway ? (
+            <p className="flex gap-3 border-t border-gold/50 bg-gold/15 px-6 py-4 text-lg font-semibold leading-snug sm:px-8">
+              <span className="shrink-0 font-mono text-[10px] font-normal uppercase leading-7 text-gold-light">Takeaway</span>
+              <span>{scene.takeaway}</span>
+            </p>
+          ) : null}
         </div>
 
         {scene.interaction ? <InteractionPanel key={scene.id} interaction={scene.interaction} onChoose={(option) => void choose(option)} /> : null}

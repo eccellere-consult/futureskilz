@@ -1,6 +1,6 @@
 # Scene plan: Find the cause, not just the symptom
 
-## Scene 1 · A fix that did not last
+## Scene 1 · A fix that treats the symptom lasts only two days
 - **Time:** 0:00 to 0:32 (32s)
 - **Purpose:** Show a credible problem the learner recognises, and the question the lesson will answer.
 - **Section:** hook
@@ -11,18 +11,18 @@
 - **Captions and accessibility:** Captions are the narration. The case card lists four facts. The narration gives the same story in sentences. No information is carried by colour alone.
 - **Sources:** S1
 
-## Scene 2 · By the end, you can…
+## Scene 2 · By the end you can trace a repeating problem to a cause you can fix
 - **Time:** 0:32 to 1:00 (28s)
 - **Purpose:** State what the learner will be able to do, tied to real work.
 - **Section:** outcome
 - **On-screen text:** Trace a repeating problem to a cause you can fix / Use five checkable whys
-- **Visual:** None (Arya and the on-screen lines only).
+- **Visual:** Flow diagram: What you can see then Why it happens then Why that happens then A cause you can fix.
 - **Avatar action:** point
 - **Learner interaction:** None
 - **Captions and accessibility:** Captions are the narration. Two short lines on screen; the narration adds examples of where the method helps.
 - **Sources:** S2
 
-## Scene 3 · Symptom and root cause
+## Scene 3 · The symptom is what you see; the root cause is what makes it happen
 - **Time:** 1:00 to 1:49 (49s)
 - **Purpose:** Explain the idea in plain language, with an analogy, then the accepted terms and their limits.
 - **Section:** concept
@@ -33,7 +33,7 @@
 - **Captions and accessibility:** Captions are the narration. A two-column table compares symptom and root cause. The narration explains it with the leaking-tap analogy.
 - **Sources:** S2
 
-## Scene 4 · The method, in five steps
+## Scene 4 · Five checkable whys take you from the symptom to the cause
 - **Time:** 1:49 to 2:40 (51s)
 - **Purpose:** Show the steps, the decisions and the checks, and the common errors.
 - **Section:** method
@@ -44,7 +44,7 @@
 - **Captions and accessibility:** Captions are the narration. Five numbered steps on screen. The narration adds the four common errors, which are also in the lesson notes.
 - **Sources:** S2
 
-## Scene 5 · The packing line, five whys
+## Scene 5 · On the packing line, the fifth why finds a missing handover step, not a slow packer
 - **Time:** 2:40 to 3:57 (77s)
 - **Purpose:** Return to the opening case and apply the method step by step, with the reasoning and a caveat.
 - **Section:** application
@@ -55,7 +55,7 @@
 - **Captions and accessibility:** Captions are the narration. The chain is shown as five numbered question-and-answer pairs followed by the root cause, in reading order. All of it is also in the transcript.
 - **Sources:** S1, S2
 
-## Scene 6 · Your turn
+## Scene 6 · Your turn: choose the next question on a new problem
 - **Time:** 3:57 to 4:22 (25s)
 - **Purpose:** Give the learner a new, related problem and ask for one decision, with a thinking pause and an explained answer.
 - **Section:** challenge
@@ -66,7 +66,7 @@
 - **Captions and accessibility:** Captions are the narration. Three options in plain text, selectable by keyboard. Feedback appears as text and is also spoken. Thinking time is shown on screen and can be skipped.
 - **Sources:** S1, S2
 
-## Scene 7 · Take it to work
+## Scene 7 · This week, run five whys on one problem that keeps coming back
 - **Time:** 4:22 to 5:17 (55s)
 - **Purpose:** Reinforce the takeaways, give a workplace action and point to the next step.
 - **Section:** summary

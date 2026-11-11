@@ -45,3 +45,25 @@ describe("tidying a correct blueprint", () => {
     if (parsed.ok) expect(parsed.blueprint).toEqual(JSON.parse(JSON.stringify(rootCauseSkillShot)));
   });
 });
+
+describe("the slide parts and diagrams", () => {
+  it("keeps subtitle, takeaway and each diagram, and drops a diagram that is not usable", () => {
+    const draft = JSON.parse(JSON.stringify(rootCauseSkillShot)) as { scenes: Array<Record<string, unknown>> };
+    draft.scenes[0].visual = { type: "cycle", items: ["Plan", "Do", "Check", "Act"], center: "PDCA" };
+    draft.scenes[1].visual = { type: "matrix", xAxis: "Effort", yAxis: "Impact", cells: [{ title: "Major project", text: "Plan it" }, { title: "Quick win", text: "Do first" }, { title: "Avoid", text: "Leave" }, { title: "Fill-in", text: "When free" }] };
+    draft.scenes[2].visual = { type: "bars", title: "Late orders", unit: "%", bars: [{ label: "Week 1", value: "12" }, { label: "Week 2", value: 9 }] };
+    draft.scenes[3].visual = { type: "timeline", items: [{ date: "Week 27", event: "Station added" }, { when: "Week 30", what: "Rework rises" }] };
+    draft.scenes[4].visual = { type: "matrix", xAxis: "x", yAxis: "y", cells: [{ title: "only one", text: "cell" }] };
+    const parsed = parseBlueprint(JSON.stringify(draft));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const [a, b, c, d, e] = parsed.blueprint.scenes;
+    expect(a.subtitle).toBeTruthy();
+    expect(a.takeaway).toBeTruthy();
+    expect(a.visual).toMatchObject({ type: "cycle", centre: "PDCA" });
+    expect(b.visual?.type).toBe("matrix");
+    expect(c.visual).toMatchObject({ type: "bars", bars: [{ label: "Week 1", value: 12 }, { label: "Week 2", value: 9 }] });
+    expect(d.visual).toMatchObject({ type: "timeline", items: [{ when: "Week 27", what: "Station added" }, { when: "Week 30", what: "Rework rises" }] });
+    expect(e.visual).toBeUndefined();
+  });
+});
