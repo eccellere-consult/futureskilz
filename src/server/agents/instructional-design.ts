@@ -47,7 +47,7 @@ Follow these rules exactly.
 - Start from a real need. Give the learner an observable outcome that begins with a verb (trace, choose, write, compare, decide, diagnose, map, apply...).
 - Explain in plain language first, with one analogy, then give the proper term. Demonstrate the method step by step on a case, then give the learner a NEW related problem with one decision.
 - Use six to nine scenes with these sections in order: hook, outcome, concept, method, application, challenge, summary. The hook shows the problem. The application returns to the same case. The challenge scene has an interaction with 3 options, a thinking pause of at least 5 seconds, feedback that explains EVERY option, and a rationale.
-- Narration is what Arya says aloud: short sentences, spoken, 90 to 160 words per scene. On-screen text is short (at most 14 words a line, at most 4 lines) and must not repeat the narration.
+- Narration is what Arya says aloud: short sentences, spoken. EVERY scene's narration MUST be 100 to 160 words; count them. All scenes together MUST be 750 to 1,400 spoken words. A draft with shorter narration is rejected. On-screen text is short (at most 14 words a line, at most 4 lines) and must not repeat the narration.
 - Total spoken length across scenes must be about 5 to 10 minutes at 145 words a minute.
 - Add 2 or 3 knowledge-check questions with explained options, a workplace task for this week, 2 to 4 takeaways and what to learn next.
 - SOURCE INTEGRITY: use ONLY the author's notes for facts about a real organisation, person, number or result. Do not invent statistics, companies, quotes or experiences. If the notes lack a case, write a clearly illustrative case, set its source kind to "illustrative", and label the case card "Illustrative case, written for this lesson". Every scene lists the source ids it relies on. Name the limits of the method.
@@ -96,14 +96,14 @@ export function createInstructionalDesignAgent(ai: AiProvider): AgentDefinition<
       let problems: string[] = [];
       let best: { blueprint: Blueprint; review: Review } | null = null;
 
-      for (let attempt = 1; attempt <= 2; attempt += 1) {
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
         try {
           const messages = [
             { role: "system" as const, content: SYSTEM },
             { role: "user" as const, content: user },
             ...(previous ? [{ role: "assistant" as const, content: previous }, { role: "user" as const, content: `Repair this draft. Fix every point and return the complete JSON again:\n- ${problems.join("\n- ")}` }] : []),
           ];
-          const response = await ai.generate({ temperature: 0.4, maxOutputTokens: 7000, messages });
+          const response = await ai.generate({ temperature: 0.4, maxOutputTokens: 16000, messages });
           previous = response.content;
           const parsed = parseBlueprint(response.content);
           if (!parsed.ok) {
@@ -115,16 +115,19 @@ export function createInstructionalDesignAgent(ai: AiProvider): AgentDefinition<
           const review = reviewBlueprint(blueprint);
           if (!best || review.blockers.length < best.review.blockers.length) best = { blueprint, review };
           if (review.passes) return { ...best, source: "ai" as const, attempts: attempt, notes };
-          problems = review.blockers;
+          const spoken = blueprint.scenes.map((scene) => scene.narration.split(/\s+/).filter(Boolean).length);
+          const total = spoken.reduce((sum, count) => sum + count, 0);
+          // The most common fault is narration that is far too short: say exactly how short, scene by scene, so the repair is concrete.
+          problems = total < 700 ? [...review.blockers, `The narration is ${total} words in all (scene by scene: ${spoken.join(", ")}). Rewrite EVERY scene's narration to 100 to 160 words of real teaching from the notes, 750 words or more in all, and keep everything else.`] : review.blockers;
           notes.push(`Attempt ${attempt}: ${review.blockers.length} point${review.blockers.length === 1 ? "" : "s"} to fix.`);
         } catch {
           notes.push(`Attempt ${attempt}: the AI service did not answer.`);
           break;
         }
       }
-      if (best) return { ...best, source: "ai" as const, attempts: 2, notes: [...notes, "Kept the closest draft. A person needs to fix the remaining points."] };
+      if (best) return { ...best, source: "ai" as const, attempts: 3, notes: [...notes, "Kept the closest draft. A person needs to fix the remaining points."] };
       const fallback = scaffold();
-      return { ...fallback, notes: [...notes, ...fallback.notes] };
+      return { ...fallback, notes: [...notes, "The AI's replies could not be used, so this is only the empty structure. Run it again."] };
     },
   };
 }

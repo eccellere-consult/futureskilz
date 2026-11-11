@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { skillTaxonomy } from "../../domain/skills/taxonomy";
+import { tidyBlueprint } from "./tidy";
 import type { Blueprint } from "./types";
 
 /** Validates a Blueprint that came from outside the code (an AI draft or a stored row) before anything renders or scores it. */
@@ -93,6 +94,8 @@ export function parseBlueprint(raw: unknown): ParsedBlueprint {
       return { ok: false, errors: ["The reply was not valid JSON."] };
     }
   }
+  // An AI reply is tidied into shape first, so one small slip (a null, a sentence where a list belongs) does not discard a good lesson.
+  if (typeof raw === "string") value = tidyBlueprint(value);
   const parsed = blueprintSchema.safeParse(value);
   if (!parsed.success) return { ok: false, errors: parsed.error.issues.slice(0, 12).map((issue) => `${issue.path.join(".")}: ${issue.message}`) };
   const choice = (ids: string[], id: string) => ids.includes(id);

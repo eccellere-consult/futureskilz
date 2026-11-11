@@ -200,7 +200,11 @@ export async function designFromMaterial(userId: string, projectId: string, limi
   const [owner] = await db.select({ name: users.displayName }).from(users).where(eq(users.id, project.contributorId)).limit(1);
   const tag = projectId.replace(/-/g, "").slice(0, 8);
   const briefs = parts.map((part) => materialBrief(part, { title: project.title, contributor: owner?.name ?? "The contributor", projectId, tag }));
-  for (const brief of briefs) await db.delete(skillShotDrafts).where(and(eq(skillShotDrafts.slug, brief.slug), eq(skillShotDrafts.status, "failed")));
+  // Autopilot repairs itself: a draft that failed, or is only the empty structure, is cleared so that part is designed again.
+  for (const brief of briefs) {
+    const [old] = await db.select().from(skillShotDrafts).where(eq(skillShotDrafts.slug, brief.slug)).limit(1);
+    if (old && isScrap(old)) await db.delete(skillShotDrafts).where(eq(skillShotDrafts.id, old.id));
+  }
   const result = await designBriefsFor(userId, briefs.map((brief) => ({ slug: brief.slug, brief })), "skillshot.fromMaterial", "kc_project", projectId);
   return { ...result, chars: text.length };
 }
@@ -302,12 +306,40 @@ export async function listProjectDrafts(userId: string, projectId: string): Prom
   return (await db.select().from(skillShotDrafts).orderBy(desc(skillShotDrafts.updatedAt))).filter((row) => briefOf(row).sourceProjectId === projectId).map((row) => ({ ...summarise(row), notes: (row.notes as string[] | null) ?? [] }));
 }
 
-/** Everything Autopilot has made, newest first: for the one screen that shows what was made, what is ready and what failed. */
-export async function listAutopilotDrafts(userId: string): Promise<DraftSummary[]> {
+const isScrap = (row: Row): boolean => (Boolean(briefOf(row).autopilot) || Boolean(briefOf(row).sourceProjectId)) && (row.status === "failed" || ((row.status === "draft" || row.status === "in_review") && row.source === "scaffold"));
+
+/**
+ * Clears the scrap in one go: Skill Shot drafts made from material that failed, or that are only the empty structure with
+ * placeholders because the AI's reply could not be used. Anything with real AI content, anything approved and anything
+ * published is kept. Deleting a scrap draft also lets the same material be designed again.
+ */
+export async function deleteScrapDrafts(userId: string): Promise<{ removed: number }> {
   await requireStaff(userId);
   await settleStale();
   const db = await database();
-  return (await db.select().from(skillShotDrafts).orderBy(desc(skillShotDrafts.updatedAt))).filter((row) => briefOf(row).autopilot).map(summarise);
+  const scrap = (await db.select().from(skillShotDrafts)).filter(isScrap);
+  for (const row of scrap) await db.delete(skillShotDrafts).where(eq(skillShotDrafts.id, row.id));
+  if (scrap.length) await audit(db, userId, "skillshot.delete_scrap", "skill_shot_draft", null, { removed: scrap.length });
+  return { removed: scrap.length };
+}
+
+/** One draft, deleted by an editor or admin. A published Skill Shot is retired, not deleted. */
+export async function deleteDraft(userId: string, id: string): Promise<void> {
+  await requireStaff(userId);
+  const db = await database();
+  const [row] = await db.select().from(skillShotDrafts).where(eq(skillShotDrafts.id, id)).limit(1);
+  if (!row) throw new CaptureError(404, "That Skill Shot was not found.");
+  if (row.status === "published") throw new CaptureError(409, "A published Skill Shot is retired, not deleted.");
+  await db.delete(skillShotDrafts).where(eq(skillShotDrafts.id, id));
+  await audit(db, userId, "skillshot.delete", "skill_shot_draft", id, { status: row.status });
+}
+
+/** Everything Autopilot has made, newest first: for the one screen that shows what was made, what is ready and what failed. */
+export async function listAutopilotDrafts(userId: string): Promise<Array<DraftSummary & { scrap: boolean }>> {
+  await requireStaff(userId);
+  await settleStale();
+  const db = await database();
+  return (await db.select().from(skillShotDrafts).orderBy(desc(skillShotDrafts.updatedAt))).filter((row) => briefOf(row).autopilot).map((row) => ({ ...summarise(row), scrap: isScrap(row) }));
 }
 
 export async function listDrafts(userId: string): Promise<DraftSummary[]> {
