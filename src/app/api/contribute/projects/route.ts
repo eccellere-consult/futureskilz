@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { CONSENT_LABELS, type ConsentPurpose, type ConsentState } from "@/features/capture/gates";
 import { body, handle, json, text } from "@/server/capture/http";
 import { createProject, listProjects } from "@/server/capture/interview-service";
+import { deleteEmptyProjects } from "@/server/capture/project-admin";
 import { createSourceProject } from "@/server/capture/source-service";
 
 export const dynamic = "force-dynamic";
@@ -23,3 +24,6 @@ export const POST = (request: NextRequest) =>
     },
     { write: true },
   );
+
+/** DELETE: clear the person's own projects that hold nothing confirmed, approved or published. */
+export const DELETE = (request: NextRequest) => handle(request, async (user) => json(await deleteEmptyProjects(user.id)), { write: true });

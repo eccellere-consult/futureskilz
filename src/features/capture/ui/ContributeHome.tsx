@@ -13,6 +13,7 @@ import { SignInForm } from "@/features/learner/sign-in-form";
 import { CONSENT_LABELS, type ConsentPurpose } from "../gates";
 
 import { api, messageOf, post, shortDate } from "./api";
+import { ClearEmpty, ProjectActions } from "./ProjectActions";
 
 type ProjectRow = { id: string; title: string; kind?: string; status: string; stage: string; updatedAt: string; facts: number; confirmed: number };
 
@@ -43,6 +44,8 @@ export function ContributeHome() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dayPart = useDayPart();
+
+  const reloadProjects = () => void api<{ projects: ProjectRow[] }>("/api/contribute/projects").then((data) => setProjects(data.projects)).catch(() => undefined);
 
   useEffect(() => {
     let active = true;
@@ -122,6 +125,7 @@ export function ContributeHome() {
           <section aria-label="My interviews">
             <h2 className="font-display text-2xl">Welcome, {user.displayName}</h2>
             {projects.length === 0 ? <p className="mt-2 text-sm text-ink-mid">You have no interviews yet. Start one on the right; it takes a minute to begin.</p> : null}
+            {projects.some((project) => project.confirmed === 0 && project.status !== "approved" && project.status !== "published") ? <ClearEmpty count={projects.filter((project) => project.confirmed === 0 && project.status !== "approved" && project.status !== "published").length} onChanged={reloadProjects} /> : null}
             <ul className="mt-3 divide-y divide-border border border-border bg-surface">
               {projects.map((project) => (
                 <li key={project.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
@@ -129,9 +133,10 @@ export function ContributeHome() {
                     <p className="font-semibold">{project.title}</p>
                     <p className="text-xs text-ink-light">{STATUS[project.status] ?? project.status} · {project.confirmed} of {project.facts} statements confirmed · updated {shortDate(project.updatedAt)}</p>
                   </div>
-                  <div className="flex gap-3 text-sm">
+                  <div className="flex flex-wrap items-center gap-3 text-sm">
                     {project.status === "interviewing" ? <Link className="primary-button min-h-10! px-3! py-2!" href={project.kind === "source" ? `/contribute/from-source?project=${project.id}` : `/contribute/${project.id}`}>Continue <ArrowRight aria-hidden="true" size={14} /></Link> : null}
                     {project.status !== "withdrawn" ? <Link className="inline-flex min-h-10 items-center text-teal underline underline-offset-4" href={`/contribute/${project.id}/review`}>Review</Link> : null}
+                    <ProjectActions onChanged={reloadProjects} project={project} />
                   </div>
                 </li>
               ))}
