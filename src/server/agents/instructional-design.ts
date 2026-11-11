@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { skillTaxonomy } from "../../domain/skills/taxonomy";
+import { DIRECT_TEACHING_RULE, LESSON_STANDARD } from "../../features/skillshot/lesson-standard";
 import { reviewBlueprint, type Review } from "../../features/skillshot/rubric";
 import { briefSlug, scaffoldBlueprint, type SkillShotBrief } from "../../features/skillshot/scaffold";
 import { parseBlueprint } from "../../features/skillshot/schema";
@@ -53,6 +54,9 @@ Follow these rules exactly.
 - Total spoken length across scenes must be about 5 to 10 minutes at 145 words a minute.
 - Add 2 or 3 knowledge-check questions with explained options, a workplace task for this week, 2 to 4 takeaways and what to learn next.
 - SOURCE INTEGRITY: use ONLY the author's notes for facts about a real organisation, person, number or result. Do not invent statistics, companies, quotes or experiences. If the notes lack a case, write a clearly illustrative case, set its source kind to "illustrative", and label the case card "Illustrative case, written for this lesson". Every scene lists the source ids it relies on. Name the limits of the method.
+- ${DIRECT_TEACHING_RULE} The "sources" list and the attribution still record where the content came from; only the teaching itself stays free of it.
+- ADULT-LEARNING STANDARD, which every lesson meets: ${LESSON_STANDARD.join(" ")}
+- When the notes say FOLLOW THE MATERIAL, the lesson covers that whole section in its own order and keeps its terms, steps and examples; the hook, outcome, decision and summary are built around that content, not instead of it.
 - The disclosure must say that Arya is an AI and the voice is synthetic, and that this is a draft not yet reviewed by a person.
 - reviewStatus is always "draft". Language is English (India). Be respectful of adult learners; no flattery.
 
@@ -91,7 +95,7 @@ export function createInstructionalDesignAgent(ai: AiProvider): AgentDefinition<
       const user = JSON.stringify({
         brief: { ...brief, sourceNotes: undefined, sourceLessonId: undefined, sourceProjectId: undefined },
         authorNotes: brief.sourceNotes || "(none: write a clearly illustrative case)",
-        ...(fromLesson ? { contributorWords: "The notes are a coach's own words from an approved lesson. Keep their key sentences in the narration where you can, in their meaning and order. Add the plain-language structure, the decision and the check, but add NO fact, number, name or experience that is not in the notes. Set the source kind to expert-interview and label the source with the credit line." } : {}),
+        ...(fromLesson && brief.sourceKind !== "document" ? { contributorWords: "The notes are a coach's own words from an approved lesson. Keep their key sentences in the narration where you can, in their meaning and order. Add the plain-language structure, the decision and the check, but add NO fact, number, name or experience that is not in the notes. Set the source kind to expert-interview and label the source with the credit line." } : {}),
       });
       const notes: string[] = [];
       let previous: string | null = null;

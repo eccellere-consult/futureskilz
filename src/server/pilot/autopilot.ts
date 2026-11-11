@@ -54,7 +54,7 @@ export async function runAutopilot(userId: string, projectId: string): Promise<A
   report.steps.push({ step: "Material", ok: true, detail: `${uploads.length - unread.length} file${uploads.length - unread.length === 1 ? "" : "s"} read${unread.length ? `; skipped ${unread.length} that could not be read (${unread.slice(0, 3).map((upload) => upload.name).join(", ")})` : ""}.` });
 
   // The direct route: Skill Shots straight from the text that was read or said. Nothing has to be confirmed, packaged or approved first.
-  const designed = await attempt("Design the Skill Shots from the material", () => designFromMaterial(userId, projectId, AUTOPILOT_LIMIT), (value) => (value.queued || value.alreadyStarted ? `${value.queued} started${value.alreadyStarted ? `, ${value.alreadyStarted} already made` : ""}, from ${value.chars.toLocaleString("en-IN")} characters of text. Each takes a minute or two.` : `Only ${value.chars} characters of readable text were found.`));
+  const designed = await attempt("Design the Skill Shots from the material", () => designFromMaterial(userId, projectId, AUTOPILOT_LIMIT), (value) => (value.queued || value.alreadyStarted ? `The material gives a course of ${value.lessons} lesson${value.lessons === 1 ? "" : "s"}, in its own order: ${value.queued} started${value.alreadyStarted ? `, ${value.alreadyStarted} already made` : ""}${value.remaining ? `, ${value.remaining} more start on the next run` : ""}. Each takes a minute or two.` : `Only ${value.chars} characters of readable text were found.`));
   if (!designed) return { ...report, stoppedBecause: "The Skill Shots could not be started. See the step above." };
   report.started = designed.queued;
   report.alreadyHad = designed.alreadyStarted;
