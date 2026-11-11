@@ -31,7 +31,11 @@ export type Visual =
   | { type: "cycle"; items: string[]; centre?: string }
   | { type: "matrix"; xAxis: string; yAxis: string; cells: Array<{ title: string; text: string }> }
   | { type: "bars"; title: string; unit?: string; bars: Array<{ label: string; value: number }> }
-  | { type: "timeline"; items: Array<{ when: string; what: string }> };
+  | { type: "timeline"; items: Array<{ when: string; what: string }> }
+  | { type: "hexagon"; centre: string; items: string[] }
+  | { type: "roadmap"; phases: Array<{ when: string; title: string; text?: string }> }
+  | { type: "pyramid"; levels: string[] }
+  | { type: "funnel"; stages: Array<{ label: string; value?: string }> };
 
 export type ChoiceOption = { id: string; text: string; feedback: string };
 export type Interaction = { prompt: string; context?: string; options: ChoiceOption[]; correctId: string; thinkSeconds: number; rationale: string };

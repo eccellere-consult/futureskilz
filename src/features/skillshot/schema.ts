@@ -22,6 +22,10 @@ const visual = z.discriminatedUnion("type", [
   z.object({ type: z.literal("matrix"), xAxis: str(80), yAxis: str(80), cells: z.array(z.object({ title: str(60), text: str(160) })).length(4) }),
   z.object({ type: z.literal("bars"), title: str(120), unit: str(20).optional(), bars: z.array(z.object({ label: str(60), value: z.number().min(0).max(1_000_000_000) })).min(2).max(7) }),
   z.object({ type: z.literal("timeline"), items: z.array(z.object({ when: str(40), what: str(160) })).min(2).max(6) }),
+  z.object({ type: z.literal("hexagon"), centre: str(40), items: z.array(str(48)).min(3).max(6) }),
+  z.object({ type: z.literal("roadmap"), phases: z.array(z.object({ when: str(40), title: str(60), text: str(140).optional() })).min(2).max(5) }),
+  z.object({ type: z.literal("pyramid"), levels: z.array(str(110)).min(3).max(5) }),
+  z.object({ type: z.literal("funnel"), stages: z.array(z.object({ label: str(90), value: str(24).optional() })).min(3).max(5) }),
 ]);
 
 const scene = z.object({

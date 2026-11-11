@@ -64,7 +64,23 @@ function interaction(value: unknown): Any | undefined {
 
 function visual(value: unknown): Any | undefined {
   if (!isObject(value)) return undefined;
-  const type = pick(value.type, ["case-card", "compare", "steps", "why-chain", "checklist", "takeaways", "flow", "cycle", "matrix", "bars", "timeline"] as const, "steps");
+  const type = pick(value.type, ["case-card", "compare", "steps", "why-chain", "checklist", "takeaways", "flow", "cycle", "matrix", "bars", "timeline", "hexagon", "roadmap", "pyramid", "funnel"] as const, "steps");
+  if (type === "hexagon") {
+    const items = list(value.items ?? value.parts, 6, 48);
+    return items.length >= 3 ? { type, centre: text(value.centre ?? value.center ?? value.title, 40), items } : undefined;
+  }
+  if (type === "roadmap") {
+    const phases = (Array.isArray(value.phases) ? value.phases : Array.isArray(value.items) ? value.items : []).slice(0, 5).map((phase) => ({ when: text(obj(phase).when ?? obj(phase).date, 40), title: text(obj(phase).title ?? obj(phase).what, 60), ...(optional(obj(phase).text ?? obj(phase).description, 140) ? { text: optional(obj(phase).text ?? obj(phase).description, 140) } : {}) })).filter((phase) => phase.title);
+    return phases.length >= 2 ? { type, phases } : undefined;
+  }
+  if (type === "pyramid") {
+    const levels = list(value.levels ?? value.items, 5, 110);
+    return levels.length >= 3 ? { type, levels } : undefined;
+  }
+  if (type === "funnel") {
+    const stages = (Array.isArray(value.stages) ? value.stages : Array.isArray(value.items) ? value.items : []).slice(0, 5).map((stage) => (isObject(stage) ? { label: text(stage.label ?? stage.title, 90), ...(optional(stage.value, 24) ? { value: optional(stage.value, 24) } : {}) } : { label: text(stage, 90) })).filter((stage) => stage.label);
+    return stages.length >= 3 ? { type, stages } : undefined;
+  }
   if (type === "flow") {
     const items = list(value.items ?? value.steps, 6, 120);
     return items.length >= 2 ? { type, items } : undefined;
