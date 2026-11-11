@@ -17,6 +17,11 @@ const visual = z.discriminatedUnion("type", [
   z.object({ type: z.literal("why-chain"), problem: str(240), links: z.array(z.object({ why: str(200), because: str(300) })).max(8), root: str(400).optional() }),
   z.object({ type: z.literal("checklist"), title: str(120), items: z.array(str(240)).max(10) }),
   z.object({ type: z.literal("takeaways"), items: z.array(str(240)).max(6) }),
+  z.object({ type: z.literal("flow"), items: z.array(str(120)).min(2).max(6) }),
+  z.object({ type: z.literal("cycle"), items: z.array(str(80)).min(3).max(6), centre: str(60).optional() }),
+  z.object({ type: z.literal("matrix"), xAxis: str(80), yAxis: str(80), cells: z.array(z.object({ title: str(60), text: str(160) })).length(4) }),
+  z.object({ type: z.literal("bars"), title: str(120), unit: str(20).optional(), bars: z.array(z.object({ label: str(60), value: z.number().min(0).max(1_000_000_000) })).min(2).max(7) }),
+  z.object({ type: z.literal("timeline"), items: z.array(z.object({ when: str(40), what: str(160) })).min(2).max(6) }),
 ]);
 
 const scene = z.object({
@@ -24,6 +29,8 @@ const scene = z.object({
   section: z.enum(["hook", "outcome", "concept", "method", "application", "challenge", "summary"]),
   purpose: str(300),
   title: str(120),
+  subtitle: str(200).optional(),
+  takeaway: str(240).optional(),
   onScreen: z.array(str(200)).max(6),
   visual: visual.optional(),
   narration: str(2400),
