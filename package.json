@@ -26,8 +26,8 @@
     "lucide-react": "^1.30.0",
     "mammoth": "^1.13.0",
     "mysql2": "^3.23.2",
-    "next": "16.3.0",
-    "nodemailer": "^10.1.2",
+    "next": "16.4.1",
+    "nodemailer": "^10.1.4",
     "openai": "^6.49.0",
     "pdf-parse": "^2.4.5",
     "pdfjs-dist": "^5.4.296",
@@ -37,7 +37,7 @@
     "three": "^0.186.1",
     "xlsx": "file:vendor/xlsx-0.20.3.tgz",
     "xlsx-js-style": "^1.2.0",
-    "zod": "^4.4.3"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -53,6 +53,6 @@
     "tailwindcss": "^4",
     "tsx": "^4.23.11",
     "typescript": "^5",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }
