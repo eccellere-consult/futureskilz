@@ -142,9 +142,18 @@ export function DesignedSkillShotPlayer({ blueprint, preview = false }: { bluepr
         <span className="bg-gold-pale px-2 py-0.5 font-mono text-[10px] uppercase text-ink">Draft: awaiting human review</span>
       </p>
 
-      <section aria-label="Skill Shot with Arya" className={full ? "fixed inset-0 z-50 flex flex-col overflow-hidden bg-ink text-cream" : "mt-6 overflow-hidden border border-ink bg-linear-to-br from-purple to-ink text-cream"} ref={stage}>
+      <p className="mt-6 flex justify-end">
+        <button className="inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-teal underline underline-offset-4" onClick={toggleFull} type="button"><Maximize2 aria-hidden="true" size={16} /> Expand to full screen</button>
+      </p>
+      <section aria-label="Skill Shot with Arya" className={full ? "fixed inset-0 z-50 flex flex-col overflow-hidden bg-ink text-cream" : "mt-1 overflow-hidden border border-ink bg-linear-to-br from-purple to-ink text-cream"} ref={stage}>
        {/* In full screen the frame is as tall as the screen and never wider than 16:9, so a laptop shows a true 16:9 slide and a phone uses its whole width. */}
        <div className={full ? "mx-auto flex h-full w-full flex-col bg-linear-to-br from-purple to-ink" : ""} style={full ? { maxWidth: "calc(100dvh * 16 / 9)" } : undefined}>
+        {full ? (
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-cream/15 bg-ink/80 px-4 py-2">
+            <p className="min-w-0 truncate font-mono text-[11px] uppercase text-gold-light">{meta.title}</p>
+            <button className="inline-flex min-h-10 shrink-0 items-center gap-2 border border-cream/40 px-3 text-sm font-semibold text-cream hover:bg-cream/10" onClick={toggleFull} type="button"><Minimize2 aria-hidden="true" size={16} /> Minimise</button>
+          </div>
+        ) : null}
         <div className={full ? "min-h-0 flex-1 overflow-y-auto" : ""}>
         {/* One slide, laid out like a consulting slide: a headline that states the point, a subtitle, the content beside the picture, and the takeaway along the bottom. */}
         <div className="relative">
