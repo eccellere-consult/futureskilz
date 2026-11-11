@@ -28,6 +28,10 @@ export const ARYA_SPEAK_ENDPOINT = '/api/arya/speech';
 const CLOSED: MouthShape = { open: 0, wide: 0, round: 0 };
 const MUTE_KEY = 'arya_muted';
 const SOURCE_KEY = 'arya_voice_source';
+const VOICE_KEY = 'arya_voice_uri';
+const RATE_KEY = 'arya_voice_rate';
+/** Speeds a listener may choose. 1 is Arya's normal, unhurried pace. */
+export const VOICE_RATES = [0.75, 1, 1.25, 1.5] as const;
 
 /** Where Arya's voice comes from. "auto" is the site's default studio voice, falling back to the device; "device" never calls an AI service. */
 export type VoiceSource = 'auto' | 'device' | 'openai' | 'xai';
@@ -90,6 +94,45 @@ class AryaVoice {
       // not worth surfacing
     }
     this.stop();
+  }
+
+  /** A device voice the listener picked by name (their phone or computer's own voices), or '' for Arya's usual voice. */
+  getVoiceURI(): string {
+    try {
+      return (typeof localStorage !== 'undefined' && localStorage.getItem(VOICE_KEY)) || '';
+    } catch {
+      return '';
+    }
+  }
+
+  /** Picking a device voice also switches the source to the device; clearing it goes back to Arya's usual voice. */
+  setVoiceURI(uri: string): void {
+    try {
+      if (uri) localStorage.setItem(VOICE_KEY, uri);
+      else localStorage.removeItem(VOICE_KEY);
+    } catch {
+      // not worth surfacing
+    }
+    this.setSource(uri ? 'device' : 'auto');
+  }
+
+  getRate(): number {
+    try {
+      const stored = Number(typeof localStorage !== 'undefined' ? localStorage.getItem(RATE_KEY) : '');
+      return (VOICE_RATES as readonly number[]).includes(stored) ? stored : 1;
+    } catch {
+      return 1;
+    }
+  }
+
+  /** Takes effect from the next sentence; what is being said now also changes pace when it is a studio voice. */
+  setRate(rate: number): void {
+    try {
+      localStorage.setItem(RATE_KEY, String(rate));
+    } catch {
+      // not worth surfacing
+    }
+    if (this.audio) this.audio.playbackRate = rate;
   }
 
   get speaking(): boolean {
@@ -295,6 +338,7 @@ class AryaVoice {
         resolve(false);
       };
       audio.src = url;
+      audio.playbackRate = this.getRate();
       this.synthStartedAt = performance.now();
       void this.ctx?.resume();
       audio.play().then(
@@ -320,6 +364,10 @@ class AryaVoice {
       });
       voices = synth.getVoices();
     }
+    // The listener's own pick comes first, when this device still has it.
+    const chosen = this.getVoiceURI();
+    const picked = chosen ? voices.find((v) => v.voiceURI === chosen) : undefined;
+    if (picked) return picked;
     // Another Indian language: the best woman's voice for it, else any voice for it.
     if (lang !== 'en') {
       const own = voices.filter((v) => new RegExp(`^${lang}[-_]IN$`, 'i').test(v.lang));
@@ -346,8 +394,8 @@ class AryaVoice {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = voice?.lang ?? (lang === 'en' ? 'en-IN' : `${lang}-IN`);
       if (voice) utterance.voice = voice;
-      utterance.rate = 0.93; // unhurried and clear
-      utterance.pitch = 1.05;
+      utterance.rate = 0.93 * this.getRate(); // unhurried and clear at 1; the listener may choose faster or slower
+      utterance.pitch = this.getVoiceURI() ? 1 : 1.05;
       utterance.onstart = () => {
         this.synthPlaying = true;
         this.synthStartedAt = performance.now();
@@ -368,3 +416,33 @@ class AryaVoice {
 }
 
 export const aryaVoice = new AryaVoice();
+
+export type VoiceChoice = { uri: string; label: string; accent: string; gender: 'Female' | 'Male' | '' };
+
+const ACCENTS: Record<string, string> = { 'en-in': 'Indian English', 'en-us': 'US English', 'en-gb': 'UK English', 'en-au': 'Australian English', 'en-ca': 'Canadian English', 'en-ie': 'Irish English', 'en-za': 'South African English', 'en-nz': 'New Zealand English', 'en-sg': 'Singapore English', 'hi-in': 'Hindi' };
+const ACCENT_ORDER = ['Indian English', 'US English', 'UK English'];
+const FEMALE_NAMES = /female|woman|neerja|heera|veena|priya|kalpana|aditi|raveena|swara|lekha|zira|aria|jenny|michelle|ana\b|sonia|libby|hazel|susan|samantha|karen|moira|tessa|fiona|victoria|allison|ava\b|emma|olivia|natasha|catherine|kate|serena|google us english|google uk english female/i;
+const MALE_NAMES = /\bmale\b|\bman\b|ravi|hemant|prabhat|rishi|david|mark\b|guy\b|george|ryan|thomas|daniel|alex\b|fred|oliver|james|christopher|eric\b|brian|william|andrew|liam|google uk english male/i;
+
+/**
+ * The English (and Hindi) voices this device offers, named in plain words: the accent, whether it sounds like a woman or a man
+ * where the name says so, and the maker (Google, Microsoft, Apple) so two voices of the same accent can be told apart.
+ * Which voices exist depends on the listener's own phone, computer and browser: Chrome brings the Google US and UK voices.
+ */
+export function describeVoices(voices: Array<Pick<SpeechSynthesisVoice, 'voiceURI' | 'name' | 'lang'>>): VoiceChoice[] {
+  const seen = new Set<string>();
+  const out: VoiceChoice[] = [];
+  for (const voice of voices) {
+    const lang = voice.lang.toLowerCase().replace('_', '-');
+    if (!lang.startsWith('en') && lang !== 'hi-in') continue;
+    if (seen.has(voice.voiceURI)) continue;
+    seen.add(voice.voiceURI);
+    const accent = ACCENTS[lang] ?? 'English';
+    const gender = MALE_NAMES.test(voice.name) ? 'Male' : FEMALE_NAMES.test(voice.name) ? 'Female' : '';
+    const maker = /google/i.test(voice.name) ? 'Google' : /microsoft/i.test(voice.name) ? 'Microsoft' : /apple|siri/i.test(voice.name) ? 'Apple' : '';
+    const person = voice.name.replace(/microsoft|google|apple|online|\(natural\)|natural|desktop|english|united states|united kingdom|india|\(.*?\)|- .*$/gi, ' ').replace(/\b(us|uk|female|male)\b/gi, ' ').replace(/\s+/g, ' ').trim();
+    out.push({ uri: voice.voiceURI, accent, gender, label: [accent, gender, [maker, person].filter(Boolean).join(' ')].filter(Boolean).join(' · ') });
+  }
+  const rank = (choice: VoiceChoice) => { const at = ACCENT_ORDER.indexOf(choice.accent); return at < 0 ? ACCENT_ORDER.length : at; };
+  return out.sort((a, b) => rank(a) - rank(b) || a.accent.localeCompare(b.accent) || a.label.localeCompare(b.label));
+}
