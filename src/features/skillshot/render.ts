@@ -18,6 +18,10 @@ function describeVisual(visual: Visual | undefined): string {
     case "cycle": return `Cycle diagram${visual.centre ? ` around "${visual.centre}"` : ""}: ${visual.items.join(", then ")}, then back to the start.`;
     case "matrix": return `Two-by-two matrix (${visual.yAxis} against ${visual.xAxis}): ${visual.cells.map((cell) => `${cell.title}: ${cell.text}`).join("; ")}.`;
     case "bars": return `Bar chart "${visual.title}": ${visual.bars.map((bar) => `${bar.label} ${bar.value}${visual.unit ?? ""}`).join("; ")}.`;
+    case "hexagon": return `Hexagon diagram, "${visual.centre}" in the middle, around it: ${visual.items.join("; ")}.`;
+    case "roadmap": return `Roadmap: ${visual.phases.map((phase) => `${phase.when}: ${phase.title}${phase.text ? ` (${phase.text})` : ""}`).join(" then ")}.`;
+    case "pyramid": return `Pyramid, top to base: ${visual.levels.join("; ")}.`;
+    case "funnel": return `Funnel, top to bottom: ${visual.stages.map((stage) => `${stage.label}${stage.value ? ` ${stage.value}` : ""}`).join("; ")}.`;
     case "timeline": return `Timeline: ${visual.items.map((item) => `${item.when}: ${item.what}`).join("; ")}.`;
   }
 }

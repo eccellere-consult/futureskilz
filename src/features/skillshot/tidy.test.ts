@@ -67,3 +67,23 @@ describe("the slide parts and diagrams", () => {
     expect(e.visual).toBeUndefined();
   });
 });
+
+describe("the illustrated diagrams", () => {
+  it("keeps a hexagon, roadmap, pyramid and funnel, tidying loose field names", () => {
+    const draft = JSON.parse(JSON.stringify(rootCauseSkillShot)) as { scenes: Array<Record<string, unknown>> };
+    draft.scenes[0].visual = { type: "hexagon", center: "Self awareness", items: ["Emotions", "Strengths", "Triggers", "Feedback"] };
+    draft.scenes[1].visual = { type: "roadmap", items: [{ date: "Week 1", what: "Notice" }, { when: "Week 4", title: "Adjust", description: "Change one reaction" }] };
+    draft.scenes[2].visual = { type: "pyramid", items: ["Purpose", "Goals", "Plans"] };
+    draft.scenes[3].visual = { type: "funnel", stages: ["Enquiries", { title: "Quotes", value: 120 }, { label: "Orders", value: "18" }] };
+    draft.scenes[4].visual = { type: "hexagon", centre: "Too few", items: ["One", "Two"] };
+    const parsed = parseBlueprint(JSON.stringify(draft));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const [a, b, c, d, e] = parsed.blueprint.scenes;
+    expect(a.visual).toMatchObject({ type: "hexagon", centre: "Self awareness" });
+    expect(b.visual).toMatchObject({ type: "roadmap", phases: [{ when: "Week 1", title: "Notice" }, { when: "Week 4", title: "Adjust", text: "Change one reaction" }] });
+    expect(c.visual).toMatchObject({ type: "pyramid", levels: ["Purpose", "Goals", "Plans"] });
+    expect(d.visual).toMatchObject({ type: "funnel", stages: [{ label: "Enquiries" }, { label: "Quotes", value: "120" }, { label: "Orders", value: "18" }] });
+    expect(e.visual).toBeUndefined();
+  });
+});

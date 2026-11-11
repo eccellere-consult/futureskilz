@@ -1,3 +1,4 @@
+import { FunnelDiagram, HexagonDiagram, MatrixDiagram, PyramidDiagram, RoadmapDiagram } from "./diagrams";
 import type { Visual } from "./types";
 
 /** The picture beside Arya. Each one is built to be read at a glance, in reading order, with no meaning carried by colour alone. */
@@ -51,22 +52,15 @@ export function SceneVisual({ visual }: { visual: Visual }) {
     case "cycle":
       return <CycleDiagram centre={visual.centre} items={visual.items} />;
     case "matrix":
-      return (
-        <figure aria-label={`${visual.yAxis} against ${visual.xAxis}`}>
-          <div className="flex gap-2">
-            <p className="flex items-center font-mono text-[10px] uppercase text-gold-light [writing-mode:vertical-rl] rotate-180">{visual.yAxis} →</p>
-            <div className="grid flex-1 grid-cols-2 gap-1.5">
-              {visual.cells.map((cell, index) => (
-                <div key={cell.title} className={`min-h-24 border p-3 ${index === 1 ? "border-teal bg-teal/15" : "border-cream/20 bg-ink/50"}`}>
-                  <p className="font-display text-lg leading-tight text-gold-light">{cell.title}</p>
-                  <p className="mt-1 text-sm leading-5 text-cream/90">{cell.text}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-          <p className="mt-1 pl-6 text-center font-mono text-[10px] uppercase text-gold-light">{visual.xAxis} →</p>
-        </figure>
-      );
+      return <MatrixDiagram cells={visual.cells} xAxis={visual.xAxis} yAxis={visual.yAxis} />;
+    case "hexagon":
+      return <HexagonDiagram centre={visual.centre} items={visual.items} />;
+    case "roadmap":
+      return <RoadmapDiagram phases={visual.phases} />;
+    case "pyramid":
+      return <PyramidDiagram levels={visual.levels} />;
+    case "funnel":
+      return <FunnelDiagram stages={visual.stages} />;
     case "bars": {
       const top = Math.max(...visual.bars.map((bar) => bar.value), 1);
       return (
