@@ -64,7 +64,27 @@ function interaction(value: unknown): Any | undefined {
 
 function visual(value: unknown): Any | undefined {
   if (!isObject(value)) return undefined;
-  const type = pick(value.type, ["case-card", "compare", "steps", "why-chain", "checklist", "takeaways"] as const, "steps");
+  const type = pick(value.type, ["case-card", "compare", "steps", "why-chain", "checklist", "takeaways", "flow", "cycle", "matrix", "bars", "timeline"] as const, "steps");
+  if (type === "flow") {
+    const items = list(value.items ?? value.steps, 6, 120);
+    return items.length >= 2 ? { type, items } : undefined;
+  }
+  if (type === "cycle") {
+    const items = list(value.items ?? value.steps, 6, 80);
+    return items.length >= 3 ? { type, items, ...(optional(value.centre ?? value.center, 60) ? { centre: optional(value.centre ?? value.center, 60) } : {}) } : undefined;
+  }
+  if (type === "matrix") {
+    const cells = (Array.isArray(value.cells) ? value.cells : []).slice(0, 4).map((cell) => ({ title: text(obj(cell).title ?? obj(cell).label, 60), text: text(obj(cell).text ?? obj(cell).description, 160) }));
+    return cells.length === 4 ? { type, xAxis: text(value.xAxis, 80), yAxis: text(value.yAxis, 80), cells } : undefined;
+  }
+  if (type === "bars") {
+    const bars = (Array.isArray(value.bars) ? value.bars : []).slice(0, 7).map((bar) => ({ label: text(obj(bar).label, 60), value: number(obj(bar).value, 0, 1_000_000_000, Number.NaN) })).filter((bar) => bar.label && Number.isFinite(bar.value));
+    return bars.length >= 2 ? { type, title: text(value.title, 120), ...(optional(value.unit, 20) ? { unit: optional(value.unit, 20) } : {}), bars } : undefined;
+  }
+  if (type === "timeline") {
+    const items = (Array.isArray(value.items) ? value.items : []).slice(0, 6).map((item) => ({ when: text(obj(item).when ?? obj(item).date, 40), what: text(obj(item).what ?? obj(item).event ?? obj(item).text, 160) })).filter((item) => item.what);
+    return items.length >= 2 ? { type, items } : undefined;
+  }
   if (type === "case-card") return { type, heading: text(value.heading ?? value.title, 120), facts: list(value.facts ?? value.items, 8, 200), ...(optional(value.label, 160) ? { label: optional(value.label, 160) } : {}) };
   if (type === "compare") {
     const rows = (Array.isArray(value.rows) ? value.rows : []).slice(0, 8).map((row) => (Array.isArray(row) ? row : isObject(row) ? Object.values(row) : [])).filter((row) => row.length >= 3).map((row) => [text(row[0], 120), text(row[1], 200), text(row[2], 200)]);
@@ -90,6 +110,8 @@ function scene(value: unknown, index: number): Any {
     section,
     purpose: text(item.purpose, 300),
     title: text(item.title, 120),
+    ...(optional(item.subtitle, 200) ? { subtitle: optional(item.subtitle, 200) } : {}),
+    ...(optional(item.takeaway ?? item.soWhat, 240) ? { takeaway: optional(item.takeaway ?? item.soWhat, 240) } : {}),
     onScreen: list(item.onScreen, 6, 200),
     ...(picture ? { visual: picture } : {}),
     narration: text(item.narration, 2400),
