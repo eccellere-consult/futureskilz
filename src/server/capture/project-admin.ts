@@ -47,7 +47,7 @@ export async function deleteProject(userId: string, projectId: string): Promise<
 }
 
 /**
- * Clears the scrap in one go: the person's own projects that hold nothing confirmed and nothing approved or published (abandoned
+ * Clears the scrap in one go: the person's own projects that hold nothing confirmed and are not published (abandoned
  * starts, tests, failed uploads). An editor or admin clears their own list the same way.
  */
 export async function deleteEmptyProjects(userId: string): Promise<{ removed: number; kept: number }> {
@@ -57,7 +57,8 @@ export async function deleteEmptyProjects(userId: string): Promise<{ removed: nu
   let removed = 0;
   let kept = 0;
   for (const project of mine) {
-    if (project.status === "approved" || project.status === "published") continue;
+    // "Approved" alone does not protect it: an editor can approve an empty project. Nothing confirmed means nothing to lose.
+    if (project.status === "published") continue;
     const facts = await db.select({ status: kcFacts.reviewStatus }).from(kcFacts).where(eq(kcFacts.projectId, project.id));
     if (facts.some((fact) => fact.status === "confirmed" || fact.status === "corrected")) continue;
     try {

@@ -125,7 +125,7 @@ export function ContributeHome() {
           <section aria-label="My interviews">
             <h2 className="font-display text-2xl">Welcome, {user.displayName}</h2>
             {projects.length === 0 ? <p className="mt-2 text-sm text-ink-mid">You have no interviews yet. Start one on the right; it takes a minute to begin.</p> : null}
-            {projects.some((project) => project.confirmed === 0 && project.status !== "approved" && project.status !== "published") ? <ClearEmpty count={projects.filter((project) => project.confirmed === 0 && project.status !== "approved" && project.status !== "published").length} onChanged={reloadProjects} /> : null}
+            {projects.some((project) => project.confirmed === 0 && project.status !== "published") ? <ClearEmpty count={projects.filter((project) => project.confirmed === 0 && project.status !== "published").length} onChanged={reloadProjects} /> : null}
             <ul className="mt-3 divide-y divide-border border border-border bg-surface">
               {projects.map((project) => (
                 <li key={project.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
