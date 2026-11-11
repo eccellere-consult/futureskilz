@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronLeft, ChevronRight, Play, Square, Volume2, VolumeX, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Maximize2, Minimize2, Play, Square, Volume2, VolumeX, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -40,6 +40,39 @@ export function DesignedSkillShotPlayer({ blueprint, preview = false }: { bluepr
   const [playing, setPlaying] = useState(false);
   const [captions, setCaptions] = useCaptions();
   const [settings, setSettings] = useState(false);
+  /** Full screen: the lesson fills the screen, in a 16:9 frame on a wide screen and edge to edge on a phone or tablet held upright. */
+  const [full, setFull] = useState(false);
+  const stage = useRef<HTMLElement | null>(null);
+
+  function toggleFull() {
+    if (full) {
+      setFull(false);
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+      return;
+    }
+    setFull(true);
+    // The browser's own full screen hides its bars where it can (laptops, Android, iPad). Where it cannot (iPhone), the lesson still fills the page.
+    void stage.current?.requestFullscreen?.().catch(() => undefined);
+  }
+
+  useEffect(() => {
+    if (!full) return;
+    const scroll = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const left = () => {
+      if (!document.fullscreenElement) setFull(false);
+    };
+    const key = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFull(false);
+    };
+    document.addEventListener("fullscreenchange", left);
+    document.addEventListener("keydown", key);
+    return () => {
+      document.body.style.overflow = scroll;
+      document.removeEventListener("fullscreenchange", left);
+      document.removeEventListener("keydown", key);
+    };
+  }, [full]);
   /** Decisions and check questions the learner has answered, so Arya knows what she may explain. */
   const [answered, setAnswered] = useState<string[]>([]);
   const markAnswered = (id: string) => setAnswered((list) => (list.includes(id) ? list : [...list, id]));
@@ -109,7 +142,10 @@ export function DesignedSkillShotPlayer({ blueprint, preview = false }: { bluepr
         <span className="bg-gold-pale px-2 py-0.5 font-mono text-[10px] uppercase text-ink">Draft: awaiting human review</span>
       </p>
 
-      <section aria-label="Skill Shot with Arya" className="mt-6 overflow-hidden border border-ink bg-linear-to-br from-purple to-ink text-cream">
+      <section aria-label="Skill Shot with Arya" className={full ? "fixed inset-0 z-50 flex flex-col overflow-hidden bg-ink text-cream" : "mt-6 overflow-hidden border border-ink bg-linear-to-br from-purple to-ink text-cream"} ref={stage}>
+       {/* In full screen the frame is as tall as the screen and never wider than 16:9, so a laptop shows a true 16:9 slide and a phone uses its whole width. */}
+       <div className={full ? "mx-auto flex h-full w-full flex-col bg-linear-to-br from-purple to-ink" : ""} style={full ? { maxWidth: "calc(100dvh * 16 / 9)" } : undefined}>
+        <div className={full ? "min-h-0 flex-1 overflow-y-auto" : ""}>
         {/* One slide, laid out like a consulting slide: a headline that states the point, a subtitle, the content beside the picture, and the takeaway along the bottom. */}
         <div className="relative">
           <AryaTeacherWindow bow={bow} className="absolute right-3 top-3 h-28 w-28 sm:right-5 sm:top-5 sm:h-40 sm:w-40" speaking={voice.speaking} />
@@ -137,8 +173,9 @@ export function DesignedSkillShotPlayer({ blueprint, preview = false }: { bluepr
 
         {scene.interaction ? <InteractionPanel key={scene.id} interaction={scene.interaction} onChoose={(option) => void choose(option)} /> : null}
 
+        </div>
         {captions ? (
-          <div aria-live="polite" className="border-t border-cream/15 bg-ink/90 px-6 py-4">
+          <div aria-live="polite" className={`border-t border-cream/15 bg-ink/90 px-6 py-4 ${full ? "max-h-[28dvh] shrink-0 overflow-y-auto" : ""}`}>
             <p className="font-mono text-[10px] uppercase text-gold-light">Arya says (captions)</p>
             <p className="mt-1 text-base leading-7 text-cream/90">{scene.narration}</p>
           </div>
@@ -159,9 +196,11 @@ export function DesignedSkillShotPlayer({ blueprint, preview = false }: { bluepr
             {voice.enabled ? <Volume2 aria-hidden="true" size={15} /> : <VolumeX aria-hidden="true" size={15} />} Sound: {voice.enabled ? "on" : "off"}
           </button>
           <button aria-expanded={settings} className="inline-flex min-h-10 items-center gap-2 text-sm text-cream/70 underline underline-offset-4" onClick={() => setSettings((value) => !value)} type="button">Voice, speed and captions</button>
+          <button aria-pressed={full} className="inline-flex min-h-10 items-center gap-2 border border-cream/30 px-3 text-sm text-cream" onClick={toggleFull} type="button">{full ? <><Minimize2 aria-hidden="true" size={15} /> Exit full screen</> : <><Maximize2 aria-hidden="true" size={15} /> Full screen</>}</button>
         </div>
         {settings ? <PlayerSettings captions={captions} onCaptions={setCaptions} onChange={() => { if (!voice.enabled) voice.setEnabled(true); }} /> : null}
-        <p className="border-t border-cream/10 px-6 py-2 text-[11px] leading-5 text-cream/60">{blueprint.disclosure}</p>
+        {full ? null : <p className="border-t border-cream/10 px-6 py-2 text-[11px] leading-5 text-cream/60">{blueprint.disclosure}</p>}
+       </div>
       </section>
 
       {preview ? (
