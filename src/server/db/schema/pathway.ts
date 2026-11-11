@@ -98,3 +98,22 @@ export const passportShares = mysqlTable(
   },
   (table) => [uniqueIndex("passport_shares_token_idx").on(table.tokenHash), index("passport_shares_user_idx").on(table.userId, table.createdAt)],
 );
+
+/**
+ * A learner's star rating (1 to 5) of a Skill Shot, with an optional comment. One per learner and Skill Shot; rating again
+ * replaces the earlier one. The Skill Shot is named by its slug, because some are built into the product and are not rows.
+ * The learner is a one-way reference, the same kind lesson feedback uses, so a rating never stores who gave it.
+ */
+export const skillShotRatings = mysqlTable(
+  "skill_shot_ratings",
+  {
+    id: referenceColumn("id").primaryKey(),
+    slug: varchar("slug", { length: 80 }).notNull(),
+    learnerRef: varchar("learner_ref", { length: 64 }).notNull(),
+    rating: int("rating").notNull(),
+    comment: text("comment"),
+    createdAt: createdAtColumn(),
+    updatedAt: updatedAtColumn(),
+  },
+  (table) => [uniqueIndex("skill_shot_ratings_learner_idx").on(table.slug, table.learnerRef)],
+);

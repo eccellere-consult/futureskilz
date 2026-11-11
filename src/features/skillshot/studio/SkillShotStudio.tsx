@@ -10,6 +10,7 @@ import { LEGACY_BRIEFS } from "../legacy";
 import { WAVE_ONE } from "../wave1";
 
 import { RefreshAll } from "./RefreshAll";
+import { RatingLine } from "../StarRating";
 import { slugOf } from "../scaffold";
 
 const STATUS: Record<string, string> = { designing: "Being designed…", failed: "Could not be designed", draft: "Draft", in_review: "In review", approved: "Approved", published: "Live", retired: "Retired" };
@@ -135,7 +136,7 @@ export function SkillShotStudio() {
           {data.drafts.map((draft) => (
             <li key={draft.id}>
               <Link className="flex flex-wrap items-center justify-between gap-3 p-4 hover:bg-gold-pale" href={`/contribute/skill-shots/${draft.id}`}>
-                <span><span className="block font-semibold">{draft.title}</span><span className="block font-mono text-[10px] uppercase text-ink-light">{STATUS[draft.status]} · {draft.source === "ai" ? "AI draft" : "structure only"}</span></span>
+                <span><span className="block font-semibold">{draft.title}</span><span className="block font-mono text-[10px] uppercase text-ink-light">{STATUS[draft.status]} · {draft.source === "ai" ? "AI draft" : "structure only"}</span><RatingLine className="mt-1" summary={draft.rating} /></span>
                 <span className={`text-sm ${draft.passes ? "text-teal" : "text-ink-mid"}`}>{draft.status === "designing" ? "" : draft.passes ? "Checks pass" : `${draft.blockers} to fix`}</span>
               </Link>
             </li>

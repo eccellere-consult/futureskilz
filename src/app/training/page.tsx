@@ -6,7 +6,10 @@ import { SiteHeader } from "@/components/site-header";
 import { skillShots } from "@/features/journey/model";
 import { designedSkillShots } from "@/features/skillshot";
 import { totalSeconds } from "@/features/skillshot/duration";
+import type { RatingSummary } from "@/features/skillshot/rating";
+import { RatingLine } from "@/features/skillshot/StarRating";
 import { requireMember } from "@/server/auth/require-member";
+import { ratingSummaries } from "@/server/skillshots/ratings";
 
 export const metadata: Metadata = { title: "Training material" };
 
@@ -15,6 +18,8 @@ export const dynamic = "force-dynamic";
 /** Everything a learner can learn from, in one place: Skill Shots taught by Arya, training kits, and coaches' lessons. */
 export default async function TrainingPage() {
   await requireMember("/training");
+  // Learners' stars on each card. If they cannot be read, the page still shows.
+  const ratings = await ratingSummaries(designedSkillShots.map((item) => item.meta.id)).catch(() => new Map<string, RatingSummary>());
   return (
     <main className="min-h-screen bg-cream text-ink">
       <SiteHeader step="Learner" />
@@ -31,6 +36,7 @@ export default async function TrainingPage() {
                 <span className="font-mono text-[10px] uppercase text-teal">New · about {Math.round(totalSeconds(item) / 60)} min · {item.meta.domain}</span>
                 <span className="mt-1 block font-display text-xl leading-snug">{item.meta.title}</span>
                 <span className="mt-1 block text-sm leading-6 text-ink-mid">{item.design.learningObjective}</span>
+                <RatingLine className="mt-2" summary={ratings.get(item.meta.id)} />
               </Link></li>
             ))}
             {skillShots.map((item) => (
