@@ -13,6 +13,8 @@
 // called synchronously from the tap handler that opens Arya; the same <audio>
 // element is then reused for every later utterance so it stays unlocked.
 
+import { forSpeech } from './pronounce';
+
 export interface MouthShape {
   /** 0 closed → 1 fully open (jaw). */
   open: number;
@@ -190,7 +192,8 @@ class AryaVoice {
   /** Speaks `text`, resolving when finished (or cut off by stop()/a newer speak()). Never rejects. */
   async speak(text: string, lang = 'en'): Promise<void> {
     
-    const clean = text.trim();
+    // What is spoken is prepared for the voice (AI is said "A I", "e.g." is said "for example"); captions keep the written text.
+    const clean = forSpeech(text.trim());
     this.stop();
     if (!clean || this.muted || typeof window === 'undefined') return;
 

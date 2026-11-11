@@ -8,6 +8,8 @@ import { messageOf, post, useRemote } from "../../capture/ui/api";
 import type { DraftSummary } from "@/server/skillshots/service";
 import { LEGACY_BRIEFS } from "../legacy";
 import { WAVE_ONE } from "../wave1";
+
+import { RefreshAll } from "./RefreshAll";
 import { slugOf } from "../scaffold";
 
 const STATUS: Record<string, string> = { designing: "Being designed…", failed: "Could not be designed", draft: "Draft", in_review: "In review", approved: "Approved", published: "Live", retired: "Retired" };
@@ -85,6 +87,8 @@ export function SkillShotStudio() {
       <p className="mt-3 max-w-3xl text-ink-mid">Give the design agent one capability and what you know. It drafts a 5 to 10 minute lesson taught by Arya, then checks the draft against the quality rubric. Every draft needs a person to review it before a learner sees it, because the checks cover structure, not teaching quality.</p>
       <p className="mt-3 text-sm"><Link className="text-teal underline underline-offset-4" href="/contribute/skill-shots/conversations">Conversations with Arya</Link> <span className="text-ink-light">: what learners asked her, to check safety and quality.</span></p>
       {error ? <p className="mt-4 border-l-2 border-crimson bg-crimson/5 px-4 py-2 text-sm text-crimson" role="alert">{error}</p> : null}
+
+      <RefreshAll onStarted={reload} />
 
       <section className="mt-8 border border-gold bg-gold-pale/40 p-5" aria-label="Content wave 1">
         <h2 className="font-display text-2xl">Content wave 1: twelve Skill Shots</h2>

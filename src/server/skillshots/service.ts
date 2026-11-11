@@ -306,6 +306,55 @@ export async function listProjectDrafts(userId: string, projectId: string): Prom
   return (await db.select().from(skillShotDrafts).orderBy(desc(skillShotDrafts.updatedAt))).filter((row) => briefOf(row).sourceProjectId === projectId).map((row) => ({ ...summarise(row), notes: (row.notes as string[] | null) ?? [] }));
 }
 
+/** The newest slide format gives every slide a takeaway line. A Skill Shot without them was made under older rules. */
+const isLatestFormat = (row: Row): boolean => {
+  const scenes = (row.blueprint as unknown as Blueprint).scenes ?? [];
+  return scenes.length > 0 && scenes.every((scene) => Boolean(scene.takeaway));
+};
+const REFRESH_LIMIT = 30;
+
+/** How many Skill Shots were made under older rules and can be refreshed. */
+export async function countRefreshable(userId: string): Promise<number> {
+  await requireStaff(userId);
+  return (await (await database()).select().from(skillShotDrafts)).filter(canRefresh).length;
+}
+const canRefresh = (row: Row): boolean => ["draft", "in_review", "approved", "published"].includes(row.status) && row.source === "ai" && Boolean(briefOf(row).sourceNotes) && !isLatestFormat(row);
+
+/**
+ * Brings older Skill Shots up to today's rules in one go: each is designed again from the same reference it was first made from
+ * (consulting-style slides, diagrams, full spoken length). The new version replaces the old one ONLY when it is at least as clean
+ * on the checks; otherwise the earlier version stays exactly as it was, with a note. Status, address and learners' progress are
+ * kept. Runs one after another on the server, up to thirty a press; press again for the rest.
+ */
+export async function refreshAllDrafts(userId: string): Promise<{ queued: number; left: number }> {
+  await requireStaff(userId);
+  const db = await database();
+  const rows = (await db.select().from(skillShotDrafts).orderBy(desc(skillShotDrafts.updatedAt))).filter(canRefresh);
+  const batch = rows.slice(0, REFRESH_LIMIT);
+  await audit(db, userId, "skillshot.refresh_all", "skill_shot_draft", null, { queued: batch.length });
+  void (async () => {
+    for (const row of batch) await refreshOne(userId, row).catch((error: unknown) => console.error("[skillshot refresh]", error instanceof Error ? error.message : error));
+  })();
+  return { queued: batch.length, left: rows.length - batch.length };
+}
+
+async function refreshOne(userId: string, row: Row): Promise<void> {
+  const db = await database();
+  const keep = (note: string) => db.update(skillShotDrafts).set({ notes: [...((row.notes as string[] | null) ?? []).filter((line) => !line.startsWith("Refresh")), note] }).where(eq(skillShotDrafts.id, row.id));
+  const parsed = briefSchema.safeParse(row.brief);
+  if (!parsed.success) return void (await keep("Refresh skipped: the original reference for this Skill Shot is not stored."));
+  const { ai } = createProviders();
+  const runner = new AgentRunner(new DatabaseAgentRunRecorder(createDatabase(), ai));
+  const result = await runner.run(createInstructionalDesignAgent(ai), parsed.data, { userId });
+  const before = (row.review as unknown as Review)?.blockers?.length ?? 0;
+  const blueprint: Blueprint = { ...result.blueprint, meta: { ...result.blueprint.meta, id: row.slug, reviewStatus: row.status === "published" ? "published" : row.status === "approved" ? "approved" : row.status === "in_review" ? "in_review" : "draft" } };
+  const review = reviewBlueprint(blueprint);
+  // Never make a Skill Shot worse: a published or approved one must still pass; a draft must not gain points to fix.
+  const good = result.source === "ai" && (row.status === "published" || row.status === "approved" ? review.passes : review.blockers.length <= before);
+  if (!good) return void (await keep("Refresh tried: the new version did not do as well on the checks, so the earlier version was kept."));
+  await db.update(skillShotDrafts).set({ title: blueprint.meta.title.slice(0, 200), blueprint: blueprint as unknown as Record<string, unknown>, review: review as unknown as Record<string, unknown>, notes: ["Refreshed to the latest slide format."] }).where(eq(skillShotDrafts.id, row.id));
+}
+
 const isScrap = (row: Row): boolean => (Boolean(briefOf(row).autopilot) || Boolean(briefOf(row).sourceProjectId)) && (row.status === "failed" || ((row.status === "draft" || row.status === "in_review") && row.source === "scaffold"));
 
 /**
