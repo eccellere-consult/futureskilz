@@ -32,6 +32,29 @@ Apply these rules to every product workflow, diagnostic, recommendation, Skill S
 - End with a teach-back, observable action or decision that demonstrates understanding.
 - Prefer short sentences, specific verbs and familiar words; define necessary technical terms on first use.
 
+## Lesson standard (every Skill Shot)
+
+The same sentences are in `src/features/skillshot/lesson-standard.ts`, which the design agent is given. A test keeps the two in step: change both together.
+
+- Start from a real workplace need and say why it matters to the learner now.
+- State one observable outcome: what the learner will be able to do after the lesson.
+- Connect the idea to what a working adult already knows before adding anything new.
+- Explain in plain words first, with one analogy, and only then give the proper term (Feynman).
+- Show one concrete workplace example and one non-example.
+- Demonstrate the method step by step on a case before asking the learner to use it.
+- Give the learner one decision to make on a new, related problem, with feedback on every option.
+- Ask the learner to explain or apply the idea in their own work (teach-back).
+- End with two to four takeaways, one task to do at work this week, and what to learn next.
+- Teach one capability per lesson, in short sentences, with no flattery and respect for the learner's experience.
+
+## Content made from uploaded material
+
+- Read everything that was attached (PDF, Word, text, spreadsheets) and build from all of it.
+- Follow the material's own structure: one Skill Shot per chapter or section, in the same order and under the same name. A long section becomes two or three smaller Skill Shots; a thin one joins its neighbour. Cut by size only when the material has no headings.
+- If the material is already learning material, keep its lessons, terms, steps, examples and exercises; add the lesson standard around them, not instead of them.
+- Teach directly. The narration and the slide never mention the document, the material, the reference, the file or what was shared. Where the content came from is recorded in the sources and the attribution only.
+- Use only facts that are in the material; where it is thin, teach less rather than invent.
+
 ## Conversational diagnostics
 
 - Ask one decision at a time and explain why it matters.
