@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 
 import { batchByChars } from "@/features/capture/budget";
-import { ATTESTATION_VERSION } from "@/features/capture/rights";
+import { ATTESTATION_VERSION, publishedWorkRefusal } from "@/features/capture/rights";
 import type { DraftFact } from "@/features/capture/extraction";
 import { metricMentions, namedTools, sentencesOf } from "@/features/capture/signals";
 import { roleCandidatesFromText } from "@/features/capture/timeline";
@@ -57,7 +57,15 @@ export async function addUpload(userId: string, projectId: string, file: { name:
   if (existing) return { id: existing.id, status: existing.extractionStatus, note: "You already added this file.", summary: existing.summary, factsAdded: 0, rolesFound: 0, duplicate: true };
 
   const reading = await readUpload(filename, file.bytes);
+  if (project.kind === "source") refuseIfPublishedWork(meta, reading);
   return ingest(userId, projectId, { filename, mediaType: file.type, size: file.bytes.byteLength, checksum }, reading, meta);
+}
+
+/** A source declared as the contributor's own that carries a publisher's marks is refused before it is saved, with what to do instead. */
+function refuseIfPublishedWork(meta: UploadMeta, reading: UploadReading): void {
+  if (reading.status !== "extracted") return;
+  const refusal = publishedWorkRefusal(meta.ownership, reading.pieces.map((piece) => piece.text).join("\n"));
+  if (refusal) throw new CaptureError(422, refusal);
 }
 
 type Stored = { filename: string; mediaType: string; size: number; checksum: string };
@@ -76,7 +84,9 @@ export async function addPreReadUpload(userId: string, projectId: string, file: 
   const filename = file.name.replace(/[\\/\u0000-\u001f]/g, "_").slice(0, 255) || "upload";
   const [existing] = await db.select().from(kcUploads).where(and(eq(kcUploads.projectId, projectId), eq(kcUploads.checksum, file.checksum)));
   if (existing) return { id: existing.id, status: existing.extractionStatus, note: "You already added this file.", summary: existing.summary, factsAdded: 0, rolesFound: 0, duplicate: true };
-  return ingest(userId, projectId, { filename, mediaType: file.type || "application/pdf", size: Math.min(file.size, 2_147_483_647), checksum: file.checksum }, readingFromPages(file.pages), { ...meta, storageKey: file.storageKey ?? null });
+  const reading = readingFromPages(file.pages);
+  if (project.kind === "source") refuseIfPublishedWork(meta, reading);
+  return ingest(userId, projectId, { filename, mediaType: file.type || "application/pdf", size: Math.min(file.size, 2_147_483_647), checksum: file.checksum }, reading, { ...meta, storageKey: file.storageKey ?? null });
 }
 
 async function ingest(userId: string, projectId: string, stored: Stored, reading: UploadReading, meta: UploadMeta): Promise<UploadResult> {

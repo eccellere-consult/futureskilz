@@ -55,7 +55,7 @@ export function SourceStudio({ existingProjectId }: { existingProjectId: string 
     }
   }
 
-  const SUPPORTED = [".pdf", ".docx", ".txt", ".md", ".csv", ".xlsx", ".xls"];
+  const SUPPORTED = [".pdf", ".docx", ".pptx", ".txt", ".md", ".csv", ".xlsx", ".xls"];
   const MAX_FILES = 100;
 
   /** A file that could not be read: delete it from the project (if it was stored) and take it off this list, so it can be added again. */
@@ -84,7 +84,7 @@ export function SourceStudio({ existingProjectId }: { existingProjectId: string 
         const chosen = [...(fileInput.current?.files ?? []), ...(folderInput.current?.files ?? [])];
         const supported = chosen.filter((file) => SUPPORTED.some((ext) => file.name.toLowerCase().endsWith(ext)));
         const skipped = chosen.length - supported.length;
-        if (!supported.length) throw new Error(chosen.length ? "None of those files are a type I can read (PDF, Word, text, CSV or Excel)." : "Choose one or more files, or a folder, first.");
+        if (!supported.length) throw new Error(chosen.length ? "None of those files are a type I can read (PDF, Word, PowerPoint, text, CSV or Excel)." : "Choose one or more files, or a folder, first.");
         const batch = supported.slice(0, MAX_FILES);
         const notes: string[] = [];
         if (skipped) notes.push(`${skipped} file${skipped === 1 ? "" : "s"} of another type ${skipped === 1 ? "was" : "were"} left out.`);
@@ -174,8 +174,8 @@ export function SourceStudio({ existingProjectId }: { existingProjectId: string 
           {mode === "file" ? (
             <div className="mt-3 grid gap-3 text-xs">
               <label className="block">
-                <span className="font-mono text-[10px] uppercase text-ink-light">Files: PDF, Word, text, CSV or Excel. Pick as many as you like. Files over 25 MB need the secure file store.</span>
-                <input accept=".pdf,.docx,.txt,.md,.csv,.xlsx,.xls" className="mt-1 block w-full text-sm" multiple ref={fileInput} type="file" />
+                <span className="font-mono text-[10px] uppercase text-ink-light">Files: PDF, Word, PowerPoint, text, CSV or Excel. Pick as many as you like. Files over 25 MB need the secure file store.</span>
+                <input accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.xls" className="mt-1 block w-full text-sm" multiple ref={fileInput} type="file" />
               </label>
               <label className="block">
                 <span className="font-mono text-[10px] uppercase text-ink-light">Or a whole folder (every readable file inside it, including sub-folders, up to 100 at a time)</span>

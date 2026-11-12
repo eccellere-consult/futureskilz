@@ -10,7 +10,7 @@ About **60% of the Master Build scope is built** (40% on 26 Oct). Phases 1 to 6 
 
 **What is missing, in order of importance** (full list in `docs/v1.3-gap-analysis.md`):
 
-1. **Content can only be created from an Arya interview.** A PDF, Word file, PowerPoint, recording, YouTube link or article cannot become a Skill Shot on its own; uploads only support an interview. This is Phase 7.
+1. **Content intake is partly done.** A project can now start from documents, PowerPoint or pasted text (with an article address kept as a citation) without an interview, with an attestation, a copy check and a safety screen (Phase 7a, with the file store and Autopilot). Still open: images and scans, audio and video transcription, minutes and presentation outputs (Phase 7b).
 2. **The Skill Graph has one axis, not six** (function, industry, seniority, level, journey stage, plus pillar). Discovery by role or industry and the enterprise portal depend on it. Phase 8.
 3. **Learner delivery basics v1.3 treats as Release 1 are missing:** PWA and install, streaks, certificates, scheduled notifications, cohorts, MSME hub, blog. Phases 9 and 10.
 4. **Nine documents or decisions conflict** (channel, Skill Shot format, skills model, design system and others): `docs/v1.3-gap-analysis.md` section 5 gives a recommendation for each.
@@ -132,7 +132,9 @@ Built: plans (time-boxed passes, admin-priced), Razorpay checkout and signed web
 - Razorpay (UPI, cards, EMI, GST invoices), free-tier gating (first two Skill Shots per pillar free), real receipts feeding the ledger, a payout provider for coaches.
 - The statement screens and policy engine are ready; what is missing is the provider and the approved policy.
 
-### Phase 7: Content intake, any source to a reviewed Skill Shot (about 4 weeks). Next after Phase 0
+### Phase 7: Content intake, any source to a reviewed Skill Shot (about 4 weeks). 7a BUILT, 7b OPEN
+
+**Status 12 Nov 2026.** Built and merged: Phase 7a (project kind "source", pasted text with an optional citation address, ownership and attestation recorded per file, a verbatim-overlap check and a harmful-advice screen on drafts, a file store for originals, PDFs read in the browser, AI reading in batches with a visible cap, Autopilot from material to Skill Shot drafts). Added 12 Nov: PowerPoint files are read slide by slide with speaker notes, and a source declared "mine" that carries a publisher's marks (copyright line, ISBN, "all rights reserved", imprint) is refused until the person says it is used with permission. **Open (7b):** images and scans (OCR or vision), audio and video files with transcription in a background job, speaker turns and a recording-consent record, the outputs minutes and presentation (PPTX), fetching a public web page (today only the address is kept, never fetched) and automatic YouTube transcripts (decision D8).
 
 Scope confirmed 31 Oct: every source below is in the first release.
 
@@ -223,9 +225,9 @@ Rendered video and voice generation agents (HeyGen, Gemini, Veo and Descript too
 
 ## 8. Technical debt and risks to track
 
-- Original upload files are not retained; only text, location and checksum. Phase 7 needs an object store.
-- Silent truncation: the book writer cuts each chapter's source to 9,000 characters and the Skill Shot designer cuts notes to 8,000 without saying what was dropped (breaks v1.3 rule 10). Fixed in Phase 7.
-- The interview is the only content door, so every piece of content needs a person to be interviewed (Phase 7).
+- Original upload files: kept in the file store when it is configured (Phase 7a); otherwise only text, location and checksum.
+- Truncation is now marked in the text (limits raised to 24,000 characters, with a note of what was left out); AI reading is batched with a visible cap. Keep checking that no limit cuts silently.
+- Content doors: interview, documents, PowerPoint and pasted text exist; audio, video and images do not yet (Phase 7b).
 - The Skill Graph has one axis of six, so discovery by industry, function and seniority is approximate until Phase 8.
 - Fraud rules are first-pass and untuned; real traffic will show false positives and gaps.
 - Free-tier gating is at page level. The five original Skill Shots ship their content in the browser, so it is a paywall for honest use, not copy protection.

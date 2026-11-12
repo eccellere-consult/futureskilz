@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { batchByChars, fitToBudget } from "./budget";
-import { isTooCopied, screenHarmfulAdvice, verbatimOverlap } from "./rights";
+import { isTooCopied, publishedWorkMarkers, publishedWorkRefusal, screenHarmfulAdvice, verbatimOverlap } from "./rights";
 
 const page = "The supplier audit starts with a review of the incoming inspection records for the previous quarter and then moves to the shop floor where the auditor checks calibration stickers on every gauge in use and compares the control plan with what operators actually do at each station during a normal shift";
 
@@ -50,5 +50,22 @@ describe("batchByChars", () => {
     expect(r.batches).toHaveLength(2);
     expect(r.readCount).toBe(4);
     expect(r.total).toBe(10);
+  });
+});
+
+describe("published-work marks", () => {
+  const bookPage = `Chapter 3. The Planning Habit\n\n${page}\n\n© 2019 Harbor Lane Press. All rights reserved. ISBN 978-1-4028-9462-6.\nNo part of this publication may be reproduced, stored or transmitted in any form.`;
+  it("finds the notices on a copied book page", () => {
+    expect(publishedWorkMarkers(bookPage).length).toBeGreaterThanOrEqual(3);
+  });
+  it("refuses it as your own, and says what to do instead", () => {
+    const refusal = publishedWorkRefusal("mine", bookPage);
+    expect(refusal).toMatch(/published work/);
+    expect(refusal).toMatch(/shared with my permission/);
+  });
+  it("accepts a stated permission, and ordinary text as your own", () => {
+    expect(publishedWorkRefusal("permission", bookPage)).toBeNull();
+    expect(publishedWorkRefusal("mine", page)).toBeNull();
+    expect(publishedWorkMarkers(page)).toEqual([]);
   });
 });

@@ -1,5 +1,6 @@
 import "server-only";
 
+import JSZip from "jszip";
 import * as XLSX from "xlsx";
 
 /**
@@ -17,7 +18,35 @@ export const MAX_READ_MB = 40;
 export const MAX_READ_BYTES = MAX_READ_MB * 1024 * 1024;
 const MAX_PIECE_CHARS = 4000;
 
-export const SUPPORTED_EXTENSIONS = [".pdf", ".docx", ".txt", ".md", ".csv", ".xlsx", ".xls"];
+export const SUPPORTED_EXTENSIONS = [".pdf", ".docx", ".pptx", ".txt", ".md", ".csv", ".xlsx", ".xls"];
+
+const MAX_SLIDES = 200;
+
+const unxml = (text: string): string => text.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
+
+/** The text of one slide or notes page, paragraph by paragraph. */
+function slideText(xml: string): string {
+  return (xml.match(/<a:p\b[\s\S]*?<\/a:p>/g) ?? [])
+    .map((paragraph) => unxml((paragraph.match(/<a:t[^>]*>[\s\S]*?<\/a:t>/g) ?? []).map((run) => run.replace(/<[^>]+>/g, "")).join("")).trim())
+    .filter(Boolean)
+    .join("\n");
+}
+
+/** Slides and speaker notes in order, each with its slide number as the location. Slides that are only pictures have no text to read. */
+async function readPresentation(bytes: Buffer): Promise<UploadReading> {
+  const zip = await JSZip.loadAsync(bytes);
+  const number = (path: string): number => Number(/(\d+)\.xml$/.exec(path)?.[1] ?? 0);
+  const slides = Object.keys(zip.files).filter((path) => /^ppt\/slides\/slide\d+\.xml$/.test(path)).sort((a, b) => number(a) - number(b));
+  const pieces: UploadPiece[] = [];
+  for (const path of slides.slice(0, MAX_SLIDES)) {
+    const n = number(path);
+    pieces.push(...chunk(slideText(await zip.files[path].async("string")), `slide ${n}`));
+    const notes = zip.files[`ppt/notesSlides/notesSlide${n}.xml`];
+    if (notes) pieces.push(...chunk(slideText(await notes.async("string")), `slide ${n} notes`));
+  }
+  if (!pieces.length) return { status: "failed", pieces: [], note: "No readable text was found on the slides. If they are pictures, paste the text instead." };
+  return { status: "extracted", pieces, note: slides.length > MAX_SLIDES ? `Read the first ${MAX_SLIDES} of ${slides.length} slides; the rest were left out.` : undefined };
+}
 
 function chunk(text: string, locator: string): UploadPiece[] {
   const clean = text.replace(/\r/g, "").replace(/[ \t]+\n/g, "\n").trim();
@@ -80,6 +109,7 @@ export async function readUpload(filename: string, bytes: Buffer): Promise<Uploa
       const pieces = chunk(text, "document");
       return pieces.length ? { status: "extracted", pieces } : { status: "failed", pieces: [], note: "The document has no readable text." };
     }
+    if (name.endsWith(".pptx")) return await readPresentation(bytes);
     if (name.endsWith(".txt") || name.endsWith(".md")) {
       const pieces = chunk(bytes.toString("utf8"), "document");
       return pieces.length ? { status: "extracted", pieces } : { status: "failed", pieces: [], note: "The file is empty." };
@@ -99,7 +129,7 @@ export async function readUpload(filename: string, bytes: Buffer): Promise<Uploa
       }
       return pieces.length ? { status: "extracted", pieces, note: skipped.length ? `Not read: ${skipped.join("; ")}.` : undefined } : { status: "failed", pieces: [], note: "The spreadsheet has no readable cells." };
     }
-    return { status: "unsupported", pieces: [], note: "This file type is stored for the record but not read yet. Supported: PDF, Word (.docx), text, CSV and Excel." };
+    return { status: "unsupported", pieces: [], note: "This file type is stored for the record but not read yet. Supported: PDF, Word (.docx), PowerPoint (.pptx), text, CSV and Excel." };
   } catch (error) {
     console.warn("[capture] upload could not be read:", error instanceof Error ? error.message : error);
     return { status: "failed", pieces: [], note: "The file could not be read. Try another copy of it." };
