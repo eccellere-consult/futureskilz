@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, lt } from "drizzle-orm";
+import { and, desc, eq, like, lt } from "drizzle-orm";
 import type { z } from "zod";
 
 import { reviewBlueprint, type Review } from "@/features/skillshot/rubric";
@@ -19,8 +19,8 @@ import { CaptureError, audit, database, newUuid, requireProject, rolesOf } from 
 
 import { ratingSummaries } from "./ratings";
 import { createDatabase } from "@/server/db/client";
-import { bookProjects, kcDocuments, kcLessons, kcProjects, kcSegments, skillShotDrafts, users } from "@/server/db/schema";
-import { materialBrief, splitMaterial } from "@/features/skillshot/from-material";
+import { bookProjects, kcDocuments, kcLessons, kcProjects, kcSegments, kcUploads, skillShotDrafts, users } from "@/server/db/schema";
+import { materialBrief, planMaterial } from "@/features/skillshot/from-material";
 import { pieceBrief, planPieces } from "@/features/skillshot/from-package";
 import type { KnowledgePackage } from "@/features/capture/knowledge-package";
 import { chapterBrief } from "@/features/book/training";
@@ -193,23 +193,39 @@ export async function designBriefsFor(userId: string, briefs: Array<{ slug: stri
  * with no confirm or approval step in between. Failed drafts are cleared and made again. Returns how many were started, and how much
  * text there was, so the caller can say plainly why nothing started.
  */
-export async function designFromMaterial(userId: string, projectId: string, limit: number): Promise<{ queued: number; alreadyStarted: number; chars: number }> {
+export async function designFromMaterial(userId: string, projectId: string, limit: number): Promise<{ queued: number; alreadyStarted: number; chars: number; lessons: number; remaining: number }> {
   const db = await database();
   const project = await requireProject(db, userId, projectId, { staff: true });
-  const rows = await db.select({ text: kcSegments.text, speaker: kcSegments.speaker, locator: kcSegments.locator, seq: kcSegments.seq }).from(kcSegments).where(eq(kcSegments.projectId, projectId));
-  const text = rows.filter((row) => row.speaker === "expert" && row.text.trim()).sort((a, b) => a.seq - b.seq).map((row) => row.text.trim()).join("\n\n");
-  const parts = splitMaterial(text, limit);
-  if (!parts.length) return { queued: 0, alreadyStarted: 0, chars: text.length };
+  const rows = await db.select({ text: kcSegments.text, speaker: kcSegments.speaker, locator: kcSegments.locator, seq: kcSegments.seq, uploadId: kcSegments.uploadId }).from(kcSegments).where(eq(kcSegments.projectId, projectId));
+  const said = rows.filter((row) => row.speaker === "expert" && row.text.trim()).sort((a, b) => a.seq - b.seq);
+  // With several files in one project, each file starts its own part of the course, named after the file.
+  const files = await db.select({ id: kcUploads.id, filename: kcUploads.filename }).from(kcUploads).where(eq(kcUploads.projectId, projectId));
+  const several = new Set(said.map((row) => row.uploadId).filter(Boolean)).size > 1;
+  let lastFile: string | null = null;
+  const text = said
+    .map((row) => {
+      const opens = several && Boolean(row.uploadId) && row.uploadId !== lastFile;
+      lastFile = row.uploadId ?? lastFile;
+      const name = opens ? (files.find((file) => file.id === row.uploadId)?.filename ?? "").replace(/\.[a-z0-9]{2,5}$/i, "").replace(/[_-]+/g, " ").trim() : "";
+      return `${name ? `# ${name}\n` : ""}${row.text.trim()}`;
+    })
+    .join("\n\n");
+  const course = planMaterial(text);
+  if (!course.length) return { queued: 0, alreadyStarted: 0, chars: text.length, lessons: 0, remaining: 0 };
   const [owner] = await db.select({ name: users.displayName }).from(users).where(eq(users.id, project.contributorId)).limit(1);
   const tag = projectId.replace(/-/g, "").slice(0, 8);
-  const briefs = parts.map((part) => materialBrief(part, { title: project.title, contributor: owner?.name ?? "The contributor", projectId, tag }));
+  const all = course.map((part) => materialBrief(part, { title: project.title, contributor: owner?.name ?? "The contributor", projectId, tag }));
+  // One run starts the next few lessons that are not made yet, in the course's order, so a long document is finished over a few runs.
+  const made = await db.select().from(skillShotDrafts).where(like(skillShotDrafts.slug, `doc-${tag}-%`));
+  const waiting = all.filter((brief) => { const row = made.find((draft) => draft.slug === brief.slug); return !row || isScrap(row); });
+  const briefs = waiting.slice(0, limit);
   // Autopilot repairs itself: a draft that failed, or is only the empty structure, is cleared so that part is designed again.
   for (const brief of briefs) {
     const [old] = await db.select().from(skillShotDrafts).where(eq(skillShotDrafts.slug, brief.slug)).limit(1);
     if (old && isScrap(old)) await db.delete(skillShotDrafts).where(eq(skillShotDrafts.id, old.id));
   }
   const result = await designBriefsFor(userId, briefs.map((brief) => ({ slug: brief.slug, brief })), "skillshot.fromMaterial", "kc_project", projectId);
-  return { ...result, chars: text.length };
+  return { queued: result.queued, alreadyStarted: all.length - waiting.length, chars: text.length, lessons: all.length, remaining: waiting.length - briefs.length };
 }
 
 /** What a contributor's approved material would become, and what is left out and why. Nothing is created. */

@@ -1,4 +1,5 @@
 import { totalSeconds, wordCount } from "./duration";
+import { pointsAtSource } from "./lesson-standard";
 import type { Blueprint } from "./types";
 
 /**
@@ -58,7 +59,15 @@ export function reviewBlueprint(blueprint: Blueprint): Review {
     [...(unsourced.length ? [`Scenes without a source: ${unsourced.join(", ")}.`] : []), ...(caseUnlabelled ? ["An illustrative case is not labelled as illustrative."] : [])],
   );
 
-  add("explanation", [[scenes.some((scene) => scene.section === "concept"), "Include a concept scene."], [design.keyConcept.length > 60, "Explain the key concept in plain language."]]);
+  // A lesson teaches; it does not report on the file it was made from ("the document says...").
+  const pointing = scenes
+    .map((scene) => ({ id: scene.id, phrase: pointsAtSource([scene.title, scene.subtitle ?? "", scene.takeaway ?? "", ...scene.onScreen, scene.narration, scene.interaction?.prompt ?? ""].join(" | ")) }))
+    .filter((found) => found.phrase);
+  add(
+    "explanation",
+    [[scenes.some((scene) => scene.section === "concept"), "Include a concept scene."], [design.keyConcept.length > 60, "Explain the key concept in plain language."]],
+    pointing.length ? [`Teach the content directly. Remove every mention of the document, material, reference or what was shared (for example "${pointing[0].phrase}" in ${pointing.map((found) => found.id).join(", ")}).`] : [],
+  );
   add("demonstration", [[scenes.some((scene) => scene.section === "method"), "Include a method scene."], [design.stepByStepApplication.length >= 3, "Show the method step by step."], [design.commonMistakes.length >= 2, "Name common mistakes."]]);
   add("case integration", [[scenes.some((scene) => scene.section === "application"), "Return to the case and apply the method."], [scenes.some((scene) => scene.visual?.type === "why-chain" || scene.visual?.type === "case-card"), "Use a visual that carries the case."]]);
 
