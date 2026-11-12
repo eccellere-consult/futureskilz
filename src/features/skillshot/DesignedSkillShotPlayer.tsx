@@ -14,6 +14,7 @@ import { WORDS_PER_MINUTE, clock, sceneSeconds, timeline, totalSeconds, wordCoun
 import type { Blueprint, ChoiceOption, Scene } from "./types";
 import { gradeKnowledgeCheck } from "./grade";
 import { PlayerSettings, useCaptions } from "./PlayerSettings";
+import { StarRating } from "./StarRating";
 import { completeDesigned } from "./store";
 import { SceneVisual } from "./visuals";
 
@@ -226,6 +227,8 @@ export function DesignedSkillShotPlayer({ blueprint, preview = false }: { bluepr
       </section>
 
       {preview ? null : <PracticeNote blueprint={blueprint} />}
+
+      {preview ? null : <StarRating slug={blueprint.meta.id} />}
 
       <section aria-label="Key takeaways and common mistakes" className="mt-10 grid gap-6 md:grid-cols-2">
         <div className="border border-border bg-surface p-5"><h2 className="font-display text-2xl">Remember</h2><ul className="mt-3 space-y-2 text-sm leading-6">{design.summaryTakeaways.map((item) => <li key={item} className="flex gap-2"><Check aria-hidden="true" className="mt-1 shrink-0 text-teal" size={14} />{item}</li>)}</ul></div>

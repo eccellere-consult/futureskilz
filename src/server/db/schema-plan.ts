@@ -338,6 +338,12 @@ export const additiveTables = [
       "CREATE INDEX `tna_topics_program_idx` ON `tna_topics` (`program_id`,`parent_id`,`position`);",
     ],
   },
+  {
+    table: "skill_shot_ratings",
+    statements: [
+      "CREATE TABLE `skill_shot_ratings` (\n\t`id` varchar(36) NOT NULL,\n\t`slug` varchar(80) NOT NULL,\n\t`learner_ref` varchar(64) NOT NULL,\n\t`rating` int NOT NULL,\n\t`comment` text,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `skill_shot_ratings_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `skill_shot_ratings_learner_idx` UNIQUE(`slug`,`learner_ref`)\n);",
+    ],
+  },
 ] as const;
 
 export type SchemaPlan = "migrate" | "add-columns";

@@ -14,7 +14,10 @@ import type { Blueprint } from "@/features/skillshot/types";
 import { DatabaseAgentRunRecorder } from "@/server/agents/database-recorder";
 import { briefSchema, createInstructionalDesignAgent } from "@/server/agents/instructional-design";
 import { AgentRunner } from "@/server/agents/runner";
+import type { RatingSummary } from "@/features/skillshot/rating";
 import { CaptureError, audit, database, newUuid, requireProject, rolesOf } from "@/server/capture/shared";
+
+import { ratingSummaries } from "./ratings";
 import { createDatabase } from "@/server/db/client";
 import { bookProjects, kcDocuments, kcLessons, kcProjects, kcSegments, kcUploads, skillShotDrafts, users } from "@/server/db/schema";
 import { materialBrief, planMaterial } from "@/features/skillshot/from-material";
@@ -26,7 +29,7 @@ import { createProviders } from "@/server/providers";
 import { isPilotOn } from "@/server/pilot/pilot";
 
 type Row = typeof skillShotDrafts.$inferSelect;
-export type DraftSummary = { id: string; slug: string; title: string; status: Row["status"]; source: string; passes: boolean; blockers: number; updatedAt: string };
+export type DraftSummary = { id: string; slug: string; title: string; status: Row["status"]; source: string; passes: boolean; blockers: number; updatedAt: string; /** Learners' star ratings, where the list shows them. */ rating?: RatingSummary | null };
 export type DraftDetail = DraftSummary & {
   blueprint: Blueprint;
   review: Review;
@@ -411,7 +414,10 @@ export async function listDrafts(userId: string): Promise<DraftSummary[]> {
   await requireStaff(userId);
   await settleStale();
   const db = await database();
-  return (await db.select().from(skillShotDrafts).orderBy(desc(skillShotDrafts.updatedAt))).map(summarise);
+  const rows = await db.select().from(skillShotDrafts).orderBy(desc(skillShotDrafts.updatedAt));
+  // Learners' stars beside each one. If the ratings cannot be read, the list still shows.
+  const ratings = await ratingSummaries(rows.map((row) => row.slug)).catch(() => new Map<string, RatingSummary>());
+  return rows.map((row) => ({ ...summarise(row), rating: ratings.get(row.slug) ?? null }));
 }
 
 async function isStaff(userId: string): Promise<boolean> {
