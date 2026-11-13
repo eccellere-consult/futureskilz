@@ -2,17 +2,21 @@
 
 import { FileText, ShieldCheck } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { IMAGE_EXTENSIONS, MAX_TRANSCRIBE_BYTES, MEDIA_EXTENSIONS, isMediaFile } from "@/features/intake/media";
 
 import { ATTESTATION_TEXT } from "../rights";
 
 import { api, messageOf, post } from "./api";
 import { AutopilotPanel } from "./AutopilotPanel";
 import { uploadReadPdf, uploadToStore } from "./direct-upload";
+import { splitRecording } from "./media-chunks";
 import { MAX_BROWSER_PDF_BYTES, readPdfPages } from "./read-pdf";
 
 type Result = { id: string; status: string; note: string | null; summary: string | null; factsAdded: number; duplicate: boolean };
 type Added = { name: string; result: Result };
+type MediaJob = { id: string; filename: string; status: "queued" | "working" | "done" | "failed"; note: string | null; uploadId: string | null };
 
 const OWNERSHIP = [
   ["mine", "I wrote it and own it"],
@@ -28,7 +32,12 @@ export function SourceStudio({ existingProjectId }: { existingProjectId: string 
   const [projectId, setProjectId] = useState<string | null>(existingProjectId);
   const [title, setTitle] = useState("");
   const [aiOk, setAiOk] = useState(false);
-  const [mode, setMode] = useState<"file" | "paste">("file");
+  const [mode, setMode] = useState<"file" | "link" | "media" | "paste">("file");
+  const [link, setLink] = useState("");
+  const [recordingConsent, setRecordingConsent] = useState(false);
+  const mediaInput = useRef<HTMLInputElement>(null);
+  const reported = useRef<Set<string>>(new Set());
+  const [waiting, setWaiting] = useState(0);
   const [pasteTitle, setPasteTitle] = useState("");
   const [pasted, setPasted] = useState("");
   const [url, setUrl] = useState("");
@@ -55,7 +64,7 @@ export function SourceStudio({ existingProjectId }: { existingProjectId: string 
     }
   }
 
-  const SUPPORTED = [".pdf", ".docx", ".pptx", ".txt", ".md", ".csv", ".xlsx", ".xls"];
+  const SUPPORTED = [".pdf", ".docx", ".pptx", ".txt", ".md", ".csv", ".xlsx", ".xls", ...IMAGE_EXTENSIONS];
   const MAX_FILES = 100;
 
   /** A file that could not be read: delete it from the project (if it was stored) and take it off this list, so it can be added again. */
@@ -71,6 +80,64 @@ export function SourceStudio({ existingProjectId }: { existingProjectId: string 
     }
   }
 
+  /** Recordings are transcribed in the background: ask how they are doing until none is waiting, and list each one when it finishes. */
+  const checkJobs = useCallback(async (): Promise<number> => {
+    if (!projectId) return 0;
+    const data = await api<{ jobs: MediaJob[] }>(`/api/contribute/projects/${projectId}/media`).catch(() => ({ jobs: [] as MediaJob[] }));
+    let open = 0;
+    for (const job of data.jobs) {
+      if (job.status === "queued" || job.status === "working") {
+        open += 1;
+        continue;
+      }
+      if (reported.current.has(job.id)) continue;
+      reported.current.add(job.id);
+      setAdded((list) => [...list, { name: job.filename, result: { id: job.uploadId ?? "", status: job.status === "done" ? "extracted" : "failed", note: job.note, summary: job.status === "done" ? job.note : null, factsAdded: 0, duplicate: false } }]);
+    }
+    setWaiting(open);
+    return open;
+  }, [projectId]);
+
+  const polling = waiting > 0;
+  useEffect(() => {
+    if (!projectId) return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const loop = async () => {
+      const open = await checkJobs();
+      if (active && open > 0) timer = setTimeout(() => void loop(), 4000);
+    };
+    void loop();
+    return () => {
+      active = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [projectId, checkJobs, polling]);
+
+  async function addRecording() {
+    if (!projectId) return;
+    const files = [...(mediaInput.current?.files ?? [])].filter((file) => isMediaFile(file.name));
+    if (!files.length) throw new Error(`Choose an audio or video file (${MEDIA_EXTENSIONS.join(", ")}).`);
+    if (!recordingConsent) throw new Error("Please confirm that everyone who speaks in the recording agreed to it being recorded and used to make lessons.");
+    for (const file of files) {
+      const parts = file.size <= MAX_TRANSCRIBE_BYTES ? [{ blob: file as Blob, name: file.name, offsetSeconds: 0, label: "" }] : await splitRecording(file, setProgress);
+      for (const [index, part] of parts.entries()) {
+        setProgress(`Sending ${file.name}${parts.length > 1 ? ` (part ${index + 1} of ${parts.length})` : ""}`);
+        const form = new FormData();
+        form.set("file", part.blob, part.name);
+        form.set("ownership", ownership);
+        form.set("attested", "true");
+        form.set("recordingConsent", "true");
+        form.set("offsetSeconds", String(part.offsetSeconds));
+        await api<MediaJob>(`/api/contribute/projects/${projectId}/media`, { method: "POST", body: form });
+      }
+    }
+    if (mediaInput.current) mediaInput.current.value = "";
+    setProgress("Transcribing in the background. You can leave this page; the points appear in your review when it is done.");
+    setWaiting(1);
+    await checkJobs();
+  }
+
   async function add() {
     if (!projectId) return;
     if (!ownership) return setError("Say whether this material is yours, shared with permission, or belongs to someone else.");
@@ -80,11 +147,21 @@ export function SourceStudio({ existingProjectId }: { existingProjectId: string 
     try {
       let result: Result;
       let name: string;
+      if (mode === "media") {
+        await addRecording();
+        return;
+      }
+      if (mode === "link") {
+        const linked = await post<Result & { title: string; kind: "youtube" | "page" }>(`/api/contribute/projects/${projectId}/link`, { url: link, ownership, attested: true });
+        setAdded((list) => [...list, { name: linked.title || link, result: linked }]);
+        setLink("");
+        return;
+      }
       if (mode === "file") {
         const chosen = [...(fileInput.current?.files ?? []), ...(folderInput.current?.files ?? [])];
         const supported = chosen.filter((file) => SUPPORTED.some((ext) => file.name.toLowerCase().endsWith(ext)));
         const skipped = chosen.length - supported.length;
-        if (!supported.length) throw new Error(chosen.length ? "None of those files are a type I can read (PDF, Word, PowerPoint, text, CSV or Excel)." : "Choose one or more files, or a folder, first.");
+        if (!supported.length) throw new Error(chosen.length ? "None of those files are a type I can read (PDF, Word, PowerPoint, picture, text, CSV or Excel)." : "Choose one or more files, or a folder, first.");
         const batch = supported.slice(0, MAX_FILES);
         const notes: string[] = [];
         if (skipped) notes.push(`${skipped} file${skipped === 1 ? "" : "s"} of another type ${skipped === 1 ? "was" : "were"} left out.`);
@@ -167,15 +244,35 @@ export function SourceStudio({ existingProjectId }: { existingProjectId: string 
         <section aria-label="Add material" className="mt-6 border border-border bg-surface p-4">
           <h2 className="flex items-center gap-2 font-display text-xl"><FileText aria-hidden="true" size={18} /> Add your material</h2>
           <div className="mt-3 flex gap-2 text-sm" role="tablist">
-            {(["file", "paste"] as const).map((item) => (
-              <button aria-selected={mode === item} className={`min-h-10 border px-3 ${mode === item ? "border-teal bg-teal/10" : "border-border"}`} key={item} onClick={() => setMode(item)} role="tab" type="button">{item === "file" ? "A document" : "Paste text"}</button>
+            {(["file", "link", "media", "paste"] as const).map((item) => (
+              <button aria-selected={mode === item} className={`min-h-10 border px-3 ${mode === item ? "border-teal bg-teal/10" : "border-border"}`} key={item} onClick={() => setMode(item)} role="tab" type="button">{item === "file" ? "A document or picture" : item === "link" ? "A web page or YouTube video" : item === "media" ? "A recording" : "Paste text"}</button>
             ))}
           </div>
-          {mode === "file" ? (
+          {mode === "link" ? (
             <div className="mt-3 grid gap-3 text-xs">
               <label className="block">
-                <span className="font-mono text-[10px] uppercase text-ink-light">Files: PDF, Word, PowerPoint, text, CSV or Excel. Pick as many as you like. Files over 25 MB need the secure file store.</span>
-                <input accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.xls" className="mt-1 block w-full text-sm" multiple ref={fileInput} type="file" />
+                <span className="font-mono text-[10px] uppercase text-ink-light">Address of a public web page, or a YouTube video</span>
+                <input className="field-input mt-1" inputMode="url" onChange={(event) => setLink(event.target.value)} placeholder="https://" value={link} />
+              </label>
+              <p className="leading-5 text-ink-mid">A web page is read once and cited. For a YouTube video I read its captions, only if the video is yours or you have the owner&apos;s permission: choose that below. The video is cited and never republished; lessons are written in new words.</p>
+            </div>
+          ) : mode === "media" ? (
+            <div className="mt-3 grid gap-3 text-xs">
+              <label className="block">
+                <span className="font-mono text-[10px] uppercase text-ink-light">Audio or video file (a meeting, a talk, a call). Over 25 MB is cut into parts in your browser.</span>
+                <input accept={MEDIA_EXTENSIONS.join(",")} className="mt-1 block w-full text-sm" multiple ref={mediaInput} type="file" />
+              </label>
+              <label className="flex items-start gap-2 text-sm">
+                <input checked={recordingConsent} className="mt-1" onChange={(event) => setRecordingConsent(event.target.checked)} type="checkbox" />
+                <span>Everyone who speaks in this recording agreed to it being recorded and used to make lessons.</span>
+              </label>
+              <p className="leading-5 text-ink-mid">The sound is turned into text by AI in the background, with times. Speakers are not separated, so check who said what. The recording itself is not kept.</p>
+            </div>
+          ) : mode === "file" ? (
+            <div className="mt-3 grid gap-3 text-xs">
+              <label className="block">
+                <span className="font-mono text-[10px] uppercase text-ink-light">Files: PDF, Word, PowerPoint, pictures or scans (PNG, JPG, WebP), text, CSV or Excel. Pictures are read by AI, so check the wording. Pick as many as you like. Files over 25 MB need the secure file store.</span>
+                <input accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.gif" className="mt-1 block w-full text-sm" multiple ref={fileInput} type="file" />
               </label>
               <label className="block">
                 <span className="font-mono text-[10px] uppercase text-ink-light">Or a whole folder (every readable file inside it, including sub-folders, up to 100 at a time)</span>
@@ -209,7 +306,7 @@ export function SourceStudio({ existingProjectId }: { existingProjectId: string 
             <input checked={attested} className="mt-1" onChange={(event) => setAttested(event.target.checked)} type="checkbox" />
             <span><ShieldCheck aria-hidden="true" className="mr-1 inline" size={14} />{ATTESTATION_TEXT}</span>
           </label>
-          <button className="primary-button mt-4" disabled={busy} onClick={() => void add()} type="button">{busy ? "Reading…" : mode === "file" ? "Read these files" : "Read this"}</button>
+          <button className="primary-button mt-4" disabled={busy} onClick={() => void add()} type="button">{busy ? "Reading…" : mode === "file" ? "Read these files" : mode === "media" ? "Transcribe this" : "Read this"}</button>
         </section>
       )}
 

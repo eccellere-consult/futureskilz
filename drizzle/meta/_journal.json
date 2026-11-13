@@ -120,6 +120,13 @@
       "when": 1794414826600,
       "tag": "0016_skill_shot_ratings",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "5",
+      "when": 1794557180920,
+      "tag": "0017_media_jobs",
+      "breakpoints": true
     }
   ]
 }

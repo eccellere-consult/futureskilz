@@ -451,3 +451,28 @@ export const campaigns = mysqlTable(
   },
   (table) => [uniqueIndex("campaigns_code_idx").on(table.code), index("campaigns_status_idx").on(table.status, table.endsAt)],
 );
+
+/**
+ * A recording being turned into text. The host cuts off long requests, so the file is accepted at once and transcribed by the
+ * running server in the background while the page polls this row. Only the outcome is kept (the recording itself is not stored here),
+ * together with the person's confirmation that everyone recorded agreed, and when they gave it.
+ */
+export const mediaJobs = mysqlTable(
+  "media_jobs",
+  {
+    id: idColumn().primaryKey(),
+    projectId: referenceColumn("project_id").notNull().references(() => kcProjects.id, { onDelete: "cascade" }),
+    userId: referenceColumn("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+    filename: varchar("filename", { length: 255 }).notNull(),
+    size: int("size").notNull(),
+    checksum: varchar("checksum", { length: 64 }).notNull(),
+    offsetSeconds: int("offset_seconds").notNull().default(0),
+    status: mysqlEnum("status", ["queued", "working", "done", "failed"]).notNull().default("queued"),
+    note: varchar("note", { length: 500 }),
+    uploadId: referenceColumn("upload_id"),
+    consentAt: datetime("consent_at").notNull(),
+    createdAt: createdAtColumn(),
+    updatedAt: updatedAtColumn(),
+  },
+  (table) => [index("media_jobs_project_idx").on(table.projectId, table.createdAt)],
+);

@@ -344,6 +344,15 @@ export const additiveTables = [
       "CREATE TABLE `skill_shot_ratings` (\n\t`id` varchar(36) NOT NULL,\n\t`slug` varchar(80) NOT NULL,\n\t`learner_ref` varchar(64) NOT NULL,\n\t`rating` int NOT NULL,\n\t`comment` text,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `skill_shot_ratings_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `skill_shot_ratings_learner_idx` UNIQUE(`slug`,`learner_ref`)\n);",
     ],
   },
+  {
+    table: "media_jobs",
+    statements: [
+      "CREATE TABLE `media_jobs` (\n\t`id` varchar(36) NOT NULL,\n\t`project_id` varchar(36) NOT NULL,\n\t`user_id` varchar(36) NOT NULL,\n\t`filename` varchar(255) NOT NULL,\n\t`size` int NOT NULL,\n\t`checksum` varchar(64) NOT NULL,\n\t`offset_seconds` int NOT NULL DEFAULT 0,\n\t`status` enum('queued','working','done','failed') NOT NULL DEFAULT 'queued',\n\t`note` varchar(500),\n\t`upload_id` varchar(36),\n\t`consent_at` datetime NOT NULL,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `media_jobs_id` PRIMARY KEY(`id`)\n);",
+      "ALTER TABLE `media_jobs` ADD CONSTRAINT `media_jobs_project_id_kc_projects_id_fk` FOREIGN KEY (`project_id`) REFERENCES `kc_projects`(`id`) ON DELETE cascade ON UPDATE no action;",
+      "ALTER TABLE `media_jobs` ADD CONSTRAINT `media_jobs_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE restrict ON UPDATE no action;",
+      "CREATE INDEX `media_jobs_project_idx` ON `media_jobs` (`project_id`,`created_at`);",
+    ],
+  },
 ] as const;
 
 export type SchemaPlan = "migrate" | "add-columns";
