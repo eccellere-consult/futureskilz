@@ -15,6 +15,9 @@ const serverEnvironmentSchema = z.object({
   /** The model each AI service is asked for. Changeable in the host's settings, so a retired model needs no code change. */
   OPENAI_MODEL: z.string().min(1).default("gpt-6-luna"),
   XAI_MODEL: z.string().min(1).default("grok-3-mini"),
+  /** Reading pictures and recordings. Both use the OpenAI key; with none, an image or recording is refused with a plain message. */
+  OPENAI_VISION_MODEL: z.string().min(1).optional(),
+  OPENAI_TRANSCRIBE_MODEL: z.string().min(1).default("whisper-1"),
   STORAGE_PROVIDER: z.enum(["local"]).default("local"),
   NOTIFICATION_PROVIDER: z.enum(["console", "smtp"]).default("console"),
   SMTP_HOST: z.string().min(1).default("smtp.hostinger.com"),

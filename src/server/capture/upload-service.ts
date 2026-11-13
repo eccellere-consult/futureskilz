@@ -68,6 +68,25 @@ function refuseIfPublishedWork(meta: UploadMeta, reading: UploadReading): void {
   if (refusal) throw new CaptureError(422, refusal);
 }
 
+/**
+ * Text that was read somewhere else (a web page, a video's captions, a transcript of a recording) joins the project exactly like a
+ * document: the same ownership and attestation checks, the same published-work screen, the same sources, points and review.
+ * `checksum` identifies the content so adding it twice is noticed.
+ */
+export async function addReadingUpload(userId: string, projectId: string, file: { name: string; type: string; size: number; checksum: string }, reading: UploadReading, meta: UploadMeta): Promise<UploadResult> {
+  const db = await database();
+  const project = await requireProject(db, userId, projectId);
+  if (project.kind === "source") {
+    if (meta.ownership === "unknown") throw new CaptureError(400, "Please say whether this material is yours, shared with your permission, or someone else's.");
+    if (!meta.attested) throw new CaptureError(400, "Please tick the box confirming you may use this material before it is read.");
+  }
+  const filename = file.name.replace(/[\\/\u0000-\u001f]/g, "_").slice(0, 255) || "upload";
+  const [existing] = await db.select().from(kcUploads).where(and(eq(kcUploads.projectId, projectId), eq(kcUploads.checksum, file.checksum)));
+  if (existing) return { id: existing.id, status: existing.extractionStatus, note: "You already added this.", summary: existing.summary, factsAdded: 0, rolesFound: 0, duplicate: true };
+  if (project.kind === "source") refuseIfPublishedWork(meta, reading);
+  return ingest(userId, projectId, { filename, mediaType: file.type, size: Math.min(file.size, 2_147_483_647), checksum: file.checksum }, reading, meta);
+}
+
 type Stored = { filename: string; mediaType: string; size: number; checksum: string };
 
 /**

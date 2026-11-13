@@ -638,3 +638,106 @@ describe.skipIf(!enabled)("a project built from a document, with no interview", 
     expect(locators).toEqual(expect.arrayContaining(["slide 1", "slide 2", "slide 2 notes"]));
   });
 });
+
+describe.skipIf(!enabled)("web pages, YouTube captions and recordings join a source project", () => {
+  const ARTICLE = [
+    "Weekly production planning review at the plant.",
+    "Never promise a customer a date before the supplier confirms the slot, because a missed promise costs more than a late answer.",
+    "Avoid changing the schedule after Wednesday noon because the night shift cannot recover the lost setup time.",
+    "Teams should always record the reason for every change so the next shift can see it.",
+  ].join("\n\n");
+
+  it("reads a public web page with its address as the citation, and a video's captions only when the video is yours or you have permission", async () => {
+    const shared = await import("./shared");
+    const schema = await import("@/server/db/schema");
+    const source = await import("./source-service");
+    const links = await import("./link-service");
+    const review = await import("./review-service");
+    const db = await shared.database();
+    const id = randomUUID();
+    await db.insert(schema.users).values({ id, email: `link-${id.slice(0, 6)}@example.test`, displayName: "Lina Link" });
+    const { projectId } = await source.createSourceProject(id, { title: "Planning pages", language: "en", consents: { ai_processing: true, content_generation: true, publication: true } });
+
+    const original = { ...links.fetchers };
+    links.fetchers.page = async () => ({ url: "https://example.com/planning", title: "Planning review", text: ARTICLE });
+    links.fetchers.youtube = async () => ({ url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", videoId: "dQw4w9WgXcQ", title: "Planning talk", author: "Lina Link", lengthSeconds: 300, language: "en", automatic: false, pieces: [{ locator: "video 0:00:00-0:01:10", text: ARTICLE.replace("Weekly production planning review at the plant.", "In this talk I explain the weekly review.") }] });
+    try {
+      await expect(links.addLinkedSource(id, projectId, { url: "https://example.com/planning" }, { ownership: "mine" })).rejects.toThrow(/tick the box/);
+      const page = await links.addLinkedSource(id, projectId, { url: "https://example.com/planning" }, { ownership: "permission", attested: true });
+      expect(page.kind).toBe("page");
+      expect(page.status).toBe("extracted");
+      expect((await links.addLinkedSource(id, projectId, { url: "https://example.com/planning" }, { ownership: "permission", attested: true })).duplicate).toBe(true);
+
+      // Captions of someone else's video are not read.
+      await expect(links.addLinkedSource(id, projectId, { url: "https://youtu.be/dQw4w9WgXcQ" }, { ownership: "third_party", attested: true })).rejects.toThrow(/yours or you have the owner/);
+      const video = await links.addLinkedSource(id, projectId, { url: "https://youtu.be/dQw4w9WgXcQ" }, { ownership: "mine", attested: true });
+      expect(video.kind).toBe("youtube");
+      expect(video.status).toBe("extracted");
+
+      const uploads = await db.select().from(schema.kcUploads).where(eq(schema.kcUploads.projectId, projectId));
+      expect(uploads.map((upload) => upload.sourceUrl).sort()).toEqual(["https://example.com/planning", "https://www.youtube.com/watch?v=dQw4w9WgXcQ"]);
+      expect(uploads.every((upload) => upload.sourceKind === "link_text" && upload.attestedAt !== null)).toBe(true);
+      const view = await review.getReview(id, projectId);
+      expect(view.facts.length).toBeGreaterThan(0);
+    } finally {
+      Object.assign(links.fetchers, original);
+    }
+  });
+
+  it("transcribes a recording in the background, needs the consent of everyone recorded, and cannot be added twice", async () => {
+    const shared = await import("./shared");
+    const schema = await import("@/server/db/schema");
+    const source = await import("./source-service");
+    const media = await import("./media-service");
+    const db = await shared.database();
+    const id = randomUUID();
+    await db.insert(schema.users).values({ id, email: `media-${id.slice(0, 6)}@example.test`, displayName: "Mia Media" });
+    const { projectId } = await source.createSourceProject(id, { title: "Team meeting", language: "en", consents: { ai_processing: true, content_generation: true, publication: true } });
+
+    const original = { ready: media.transcriber.ready, run: media.transcriber.run };
+    media.transcriber.ready = () => true;
+    media.transcriber.run = async (_bytes, _name, options) => ({ pieces: [{ locator: `recording ${options.offsetSeconds === 480 ? "0:08:00-0:09:10" : "0:00:00-0:01:10"}`, text: ARTICLE }], seconds: 70, timed: true, model: "whisper-1" });
+    try {
+      const file = { name: "standup.mp3", type: "audio/mpeg", bytes: Buffer.from("fake audio bytes for the test") };
+      await expect(media.startMediaJob(id, projectId, { ...file, name: "notes.pdf" }, { ownership: "mine", attested: true, recordingConsent: true })).rejects.toThrow(/not an audio or video/);
+      await expect(media.startMediaJob(id, projectId, file, { ownership: "mine", attested: true, recordingConsent: false })).rejects.toThrow(/everyone who speaks/);
+      await expect(media.startMediaJob(id, projectId, file, { ownership: "mine", attested: false, recordingConsent: true })).rejects.toThrow(/tick the box/);
+      await expect(media.startMediaJob(id, projectId, { ...file, bytes: Buffer.alloc(26 * 1024 * 1024) }, { ownership: "mine", attested: true, recordingConsent: true })).rejects.toThrow(/larger than 25 MB/);
+
+      const started = await media.startMediaJob(id, projectId, file, { ownership: "mine", attested: true, recordingConsent: true, offsetSeconds: 480 });
+      expect(["queued", "working", "done"]).toContain(started.status);
+      let jobs = await media.listMediaJobs(id, projectId);
+      for (let i = 0; i < 40 && jobs.some((job) => job.status === "queued" || job.status === "working"); i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        jobs = await media.listMediaJobs(id, projectId);
+      }
+      expect(jobs).toHaveLength(1);
+      expect(jobs[0].status).toBe("done");
+      expect(jobs[0].uploadId).toBeTruthy();
+      const segments = await db.select().from(schema.kcSegments).where(eq(schema.kcSegments.projectId, projectId));
+      expect(segments.some((segment) => segment.locator === "recording 0:08:00-0:09:10")).toBe(true);
+      const [row] = await db.select().from(schema.mediaJobs).where(eq(schema.mediaJobs.projectId, projectId));
+      expect(row.consentAt).toBeInstanceOf(Date);
+      const audits = await db.select().from(schema.kcAudit).where(eq(schema.kcAudit.entity, "project"));
+      expect(audits.some((entry) => entry.action === "media.consent" && entry.entityId === projectId)).toBe(true);
+
+      // The same recording again is recognised, not transcribed twice.
+      const again = await media.startMediaJob(id, projectId, file, { ownership: "mine", attested: true, recordingConsent: true, offsetSeconds: 480 });
+      expect(again.id).toBe(started.id);
+
+      // A recording with no speech fails in plain words.
+      media.transcriber.run = async () => ({ pieces: [], seconds: 3, timed: true, model: "whisper-1" });
+      await media.startMediaJob(id, projectId, { ...file, bytes: Buffer.from("different silent bytes") }, { ownership: "mine", attested: true, recordingConsent: true });
+      for (let i = 0; i < 40; i += 1) {
+        jobs = await media.listMediaJobs(id, projectId);
+        if (jobs.every((job) => job.status === "done" || job.status === "failed")) break;
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      }
+      expect(jobs.find((job) => job.status === "failed")?.note).toMatch(/No speech/);
+    } finally {
+      media.transcriber.ready = original.ready;
+      media.transcriber.run = original.run;
+    }
+  });
+});
+

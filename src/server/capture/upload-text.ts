@@ -1,6 +1,9 @@
 import "server-only";
 
 import JSZip from "jszip";
+
+import { IMAGE_EXTENSIONS } from "@/features/intake/media";
+import { MediaServiceError, transcribeImage } from "@/server/providers/openai-media";
 import * as XLSX from "xlsx";
 
 /**
@@ -18,7 +21,10 @@ export const MAX_READ_MB = 40;
 export const MAX_READ_BYTES = MAX_READ_MB * 1024 * 1024;
 const MAX_PIECE_CHARS = 4000;
 
-export const SUPPORTED_EXTENSIONS = [".pdf", ".docx", ".pptx", ".txt", ".md", ".csv", ".xlsx", ".xls"];
+export const SUPPORTED_EXTENSIONS = [".pdf", ".docx", ".pptx", ".txt", ".md", ".csv", ".xlsx", ".xls", ...IMAGE_EXTENSIONS];
+
+/** The largest picture sent to the AI to be read. */
+export const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 
 const MAX_SLIDES = 200;
 
@@ -110,6 +116,12 @@ export async function readUpload(filename: string, bytes: Buffer): Promise<Uploa
       return pieces.length ? { status: "extracted", pieces } : { status: "failed", pieces: [], note: "The document has no readable text." };
     }
     if (name.endsWith(".pptx")) return await readPresentation(bytes);
+    if (IMAGE_EXTENSIONS.some((ext) => name.endsWith(ext))) {
+      if (bytes.byteLength > MAX_IMAGE_BYTES) return { status: "failed", pieces: [], note: "That picture is larger than 20 MB. Save a smaller copy and add that." };
+      const text = await transcribeImage(bytes, filename);
+      const pieces = chunk(text, "image");
+      return pieces.length ? { status: "extracted", pieces, note: "Text read from a picture by AI: check it against the original." } : { status: "failed", pieces: [], note: "No readable text was found in this picture. If it is a photo of a page, retake it flat and in good light." };
+    }
     if (name.endsWith(".txt") || name.endsWith(".md")) {
       const pieces = chunk(bytes.toString("utf8"), "document");
       return pieces.length ? { status: "extracted", pieces } : { status: "failed", pieces: [], note: "The file is empty." };
@@ -129,8 +141,9 @@ export async function readUpload(filename: string, bytes: Buffer): Promise<Uploa
       }
       return pieces.length ? { status: "extracted", pieces, note: skipped.length ? `Not read: ${skipped.join("; ")}.` : undefined } : { status: "failed", pieces: [], note: "The spreadsheet has no readable cells." };
     }
-    return { status: "unsupported", pieces: [], note: "This file type is stored for the record but not read yet. Supported: PDF, Word (.docx), PowerPoint (.pptx), text, CSV and Excel." };
+    return { status: "unsupported", pieces: [], note: "This file type is stored for the record but not read yet. Supported: PDF, Word (.docx), PowerPoint (.pptx), pictures, text, CSV and Excel." };
   } catch (error) {
+    if (error instanceof MediaServiceError) return { status: "failed", pieces: [], note: error.message };
     console.warn("[capture] upload could not be read:", error instanceof Error ? error.message : error);
     return { status: "failed", pieces: [], note: "The file could not be read. Try another copy of it." };
   }
