@@ -615,5 +615,26 @@ describe.skipIf(!enabled)("a project built from a document, with no interview", 
     expect(view.gates.find((gate) => gate.id === "consent")?.passed).toBe(true);
     expect(view.gates.find((gate) => gate.id === "rights")?.passed).toBe(true);
     expect(uploads.uploadHelp.maxBytes).toBeGreaterThan(0);
+
+    // A copied book page claimed as your own is refused before it is saved; with a stated permission it is accepted.
+    const bookPage = `Chapter 3. The Planning Habit\n\n${PAGE}\n\n© 2019 Harbor Lane Press. All rights reserved. ISBN 978-1-4028-9462-6.`;
+    await expect(source.addPastedSource(id, projectId, { title: "Book page", text: bookPage }, { ownership: "mine", attested: true })).rejects.toThrow(/published work/);
+    expect((await db.select().from(schema.kcUploads).where(eq(schema.kcUploads.projectId, projectId))).length).toBe(1);
+    const permitted = await source.addPastedSource(id, projectId, { title: "Book page", text: bookPage }, { ownership: "permission", attested: true, intendedUse: "I am the author and hold the rights" });
+    expect(permitted.status).toBe("extracted");
+
+    // A PowerPoint is read slide by slide, with the slide number as the location and the speaker notes included.
+    const JSZip = (await import("jszip")).default;
+    const zip = new JSZip();
+    const slide = (lines: string[]) => `<p:sld xmlns:a="a" xmlns:p="p">${lines.map((line) => `<a:p><a:r><a:t>${line}</a:t></a:r></a:p>`).join("")}</p:sld>`;
+    zip.file("ppt/slides/slide1.xml", slide(["Weekly planning review", "Never promise a date before the supplier confirms the slot with the buyer."]));
+    zip.file("ppt/slides/slide2.xml", slide(["Avoid changing the schedule after Wednesday noon because the night shift cannot recover the setup time."]));
+    zip.file("ppt/notesSlides/notesSlide2.xml", slide(["Speaker note: stress that owners and dates are written down and read by everyone."]));
+    const deck = await zip.generateAsync({ type: "nodebuffer" });
+    const added2 = await uploads.addUpload(id, projectId, { name: "deck.pptx", type: "application/vnd.openxmlformats-officedocument.presentationml.presentation", bytes: deck }, { ownership: "mine", attested: true });
+    expect(added2.status).toBe("extracted");
+    const segments = await db.select().from(schema.kcSegments).where(eq(schema.kcSegments.projectId, projectId));
+    const locators = segments.map((segment) => segment.locator);
+    expect(locators).toEqual(expect.arrayContaining(["slide 1", "slide 2", "slide 2 notes"]));
   });
 });

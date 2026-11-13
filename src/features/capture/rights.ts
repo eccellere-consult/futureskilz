@@ -72,3 +72,29 @@ export function screenHarmfulAdvice(text: string): SafetyHit[] {
   }
   return hits;
 }
+
+/** Marks of a published work. A person rarely holds the rights to text that carries these unless they are the author or publisher. */
+const PUBLISHED_MARKERS: Array<[RegExp, string]> = [
+  [/©|\(c\)\s*(?:19|20)\d{2}|copyright\s+(?:19|20)\d{2}/i, "a copyright notice"],
+  [/all rights reserved/i, "\"all rights reserved\""],
+  [/\bISBN(?:-1[03])?[:\s]*[\dX-]{10,17}/i, "an ISBN"],
+  [/no part of this (?:publication|book|document)[^.]{0,80}(?:reproduced|transmitted|stored)/i, "a reproduction notice"],
+  [/\b(?:published|printed) by\b[^.\n]{0,60}\b(?:press|publishers?|publishing|books|inc\.|ltd\.?)\b/i, "a publisher's imprint"],
+];
+
+/** What marks the text as a published work, read from its first and last pages where such notices sit. Empty when nothing does. */
+export function publishedWorkMarkers(text: string): string[] {
+  const ends = `${text.slice(0, 6000)}\n${text.slice(-3000)}`;
+  return PUBLISHED_MARKERS.filter(([pattern]) => pattern.test(ends)).map(([, label]) => label);
+}
+
+/**
+ * Text that carries a publisher's marks cannot be declared "mine" in a plain tick: the person must say it is used with permission,
+ * so the claim is explicit and an editor can see it. Returns the refusal in plain words, or null when the declaration is consistent.
+ */
+export function publishedWorkRefusal(ownership: string, text: string): string | null {
+  if (ownership !== "mine") return null;
+  const markers = publishedWorkMarkers(text);
+  if (!markers.length) return null;
+  return `This text carries ${markers.join(", ")}, so it looks like a published work, not your own writing. If you are the author or hold the rights, choose "shared with my permission" and say so in the intended use. If you do not, add your own short summary of the ideas instead of the original text.`;
+}
